@@ -9,7 +9,12 @@
       "Bash(venv/Scripts/pip.exe install:*)",
       "Bash(git init:*)",
       "Bash(git config:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(copy:*)"
     ],
     "deny": [],
     "ask": []
