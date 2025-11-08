@@ -270,33 +270,20 @@ def limpiar_datos(df, archivo_origen):
 
  
 
-    # Convertir numéricos
-
+    # Convertir numéricos a INT (no float) - FIX para el error "2005.0"
     if 'registro_seccional_codigo' in df.columns:
-
-        df['registro_seccional_codigo'] = pd.to_numeric(df['registro_seccional_codigo'], errors='coerce')
-
- 
+        df['registro_seccional_codigo'] = pd.to_numeric(df['registro_seccional_codigo'], errors='coerce').fillna(0).astype(int)
 
     if 'automotor_anio_modelo' in df.columns:
-
-        df['automotor_anio_modelo'] = pd.to_numeric(df['automotor_anio_modelo'], errors='coerce')
-
- 
+        df['automotor_anio_modelo'] = pd.to_numeric(df['automotor_anio_modelo'], errors='coerce').fillna(0).astype(int)
 
     if 'titular_anio_nacimiento' in df.columns:
-
-        df['titular_anio_nacimiento'] = pd.to_numeric(df['titular_anio_nacimiento'], errors='coerce')
-
- 
+        df['titular_anio_nacimiento'] = pd.to_numeric(df['titular_anio_nacimiento'], errors='coerce').fillna(0).astype(int)
 
     if 'titular_porcentaje_titularidad' in df.columns:
+        df['titular_porcentaje_titularidad'] = pd.to_numeric(df['titular_porcentaje_titularidad'], errors='coerce').fillna(0)
 
-        df['titular_porcentaje_titularidad'] = pd.to_numeric(df['titular_porcentaje_titularidad'], errors='coerce')
-
- 
-
-    # Reemplazar valores vacíos
+    # Reemplazar valores vacíos en strings
 
     df = df.fillna('')
 
