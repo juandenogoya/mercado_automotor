@@ -12,7 +12,7 @@ webdriver-manager==4.0.1
 
 # Database
 psycopg2-binary==2.9.9
-sqlalchemy==2.0.23
+sqlalchemy>=1.4.28,<2.0  # Compatible con Airflow 2.7.3
 alembic==1.13.0
 redis==5.0.1
 
