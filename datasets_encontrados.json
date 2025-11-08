@@ -1,0 +1,320 @@
+[
+  {
+    "id": "justicia_1ab0cc03-ab9b-4520-975c-5757d87d1061",
+    "title": "Estadística de trámites de automotores",
+    "organization": " Ministerio de Justicia",
+    "keyword": "automotor"
+  },
+  {
+    "id": "transporte_06207146-7570-4a9e-a959-e645e071f40d",
+    "title": "Sistema Integrado de Transporte Automotor (SISTAU)",
+    "organization": " Secretaría de Transporte",
+    "keyword": "automotor"
+  },
+  {
+    "id": "justicia_bbdac295-c88e-4e2d-8f74-a845a2e93a61",
+    "title": "Registros Seccionales de la Propiedad Automotor",
+    "organization": " Ministerio de Justicia",
+    "keyword": "automotor"
+  },
+  {
+    "id": "produccion_d1793d85-7196-40f1-8f12-edd6a9f16705",
+    "title": "Archivo 2003-2019: Indicadores Sectoriales de Automotores",
+    "organization": "Secretaría de Planeamiento y Gestión para el Desarrollo Productivo y de la Bioeconomía",
+    "keyword": "automotor"
+  },
+  {
+    "id": "justicia_13d8a178-1123-4eb3-8bee-694382475de2",
+    "title": "Bajas de autos",
+    "organization": " Ministerio de Justicia",
+    "keyword": "automotor"
+  },
+  {
+    "id": "transporte_533366f4-cfb6-4492-8d3b-26d9436321e4",
+    "title": "Sistema Ferroviario Integrado (SIFER)",
+    "organization": " Secretaría de Transporte",
+    "keyword": "automotor"
+  },
+  {
+    "id": "justicia_f6932e82-a039-4462-968d-7dcda77d1a3e",
+    "title": "Transferencias de autos",
+    "organization": " Ministerio de Justicia",
+    "keyword": "automotor"
+  },
+  {
+    "id": "justicia_37c9ad39-f092-44be-9b7f-1201b3c4b7a8",
+    "title": "Inscripciones iniciales de autos",
+    "organization": " Ministerio de Justicia",
+    "keyword": "automotor"
+  },
+  {
+    "id": "justicia_679f9056-87e0-48a3-ab8c-4bcb41611466",
+    "title": "Prendas de autos",
+    "organization": " Ministerio de Justicia",
+    "keyword": "automotor"
+  },
+  {
+    "id": "ssn_569cdfbe-8d7b-4041-bb1c-bbf21e99640c",
+    "title": "Vehículos expuestos a riesgos",
+    "organization": "Superintendencia de Seguros de la Nación",
+    "keyword": "automotor"
+  },
+  {
+    "id": "transporte_bc0e36f6-9775-4f20-86b5-56bf34baa224",
+    "title": "TMDA",
+    "organization": " Secretaría de Transporte",
+    "keyword": "automotor"
+  },
+  {
+    "id": "justicia_a9bdfec2-0af4-433a-b810-38c91275a251",
+    "title": "Robos y recuperos de autos",
+    "organization": " Ministerio de Justicia",
+    "keyword": "automotor"
+  },
+  {
+    "id": "produccion_fd3a8150-9dac-4fe9-8c8a-beaae2e42252",
+    "title": "Archivo 2009-2019: Indicadores Sectoriales de Transporte y Logística",
+    "organization": "Secretaría de Planeamiento y Gestión para el Desarrollo Productivo y de la Bioeconomía",
+    "keyword": "automotor"
+  },
+  {
+    "id": "justicia_b40d586b-fda3-4746-a79a-c437fbdded76",
+    "title": "Embargos y levantamiento de embargos de autos",
+    "organization": " Ministerio de Justicia",
+    "keyword": "automotor"
+  },
+  {
+    "id": "transporte_abe45f2c-cf9f-458e-8b51-03ecda6f708a",
+    "title": "Rutas Nacionales",
+    "organization": " Secretaría de Transporte",
+    "keyword": "automotor"
+  },
+  {
+    "id": "sspm_309",
+    "title": "Brasil Actividad económica, industrial y producción automotriz",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "automotor"
+  },
+  {
+    "id": "sspm_330",
+    "title": "Datos históricos de la industria automotriz",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "automotor"
+  },
+  {
+    "id": "transporte_a9f98236-fe91-4dac-923f-f0ddd5810b3b",
+    "title": "Postes Kilométricos",
+    "organization": " Secretaría de Transporte",
+    "keyword": "automotor"
+  },
+  {
+    "id": "transporte_0d3fce15-480c-4588-bb8b-2a8f85edcab3",
+    "title": "Rutas Provinciales",
+    "organization": " Secretaría de Transporte",
+    "keyword": "automotor"
+  },
+  {
+    "id": "transporte_f694aab5-7995-466b-bb8f-315e2c85d176",
+    "title": "Caminos Terciarios",
+    "organization": " Secretaría de Transporte",
+    "keyword": "automotor"
+  },
+  {
+    "id": "produccion_25fd183a-d6c8-463e-bfb6-a1c26c325ac8",
+    "title": "Archivo 2013-2019: Indicadores Sectoriales de Motos",
+    "organization": "Secretaría de Planeamiento y Gestión para el Desarrollo Productivo y de la Bioeconomía",
+    "keyword": "patentamiento"
+  },
+  {
+    "id": "energia_3f3cdc6d-575d-4f62-9b47-158a09213930",
+    "title": "Vehículos habilitados para GNC",
+    "organization": "Secretaría de Energía",
+    "keyword": "vehiculo"
+  },
+  {
+    "id": "ambiente_37.0",
+    "title": "Fiscalización ambiental",
+    "organization": "Subsecretaría de Ambiente",
+    "keyword": "vehiculo"
+  },
+  {
+    "id": "mineria_10",
+    "title": "Demanda mundial de litio (Tablero global del litio - SIACAM)",
+    "organization": "Secretaría de Minería",
+    "keyword": "vehiculo"
+  },
+  {
+    "id": "justicia_72d85f23-b751-4d12-935b-25e32ed9445e",
+    "title": "Estadística de trámites de motovehículos",
+    "organization": " Ministerio de Justicia",
+    "keyword": "vehiculo"
+  },
+  {
+    "id": "otros_siep_10",
+    "title": "Indicador de Importaciones de Bienes de Capital Productivo - Discontinuado",
+    "organization": "Otros organismos",
+    "keyword": "vehiculo"
+  },
+  {
+    "id": "energia_708f9ab4-829b-4f02-b507-f303c5bc4800",
+    "title": "Precios y volúmenes EESS - Resolución 1104/04",
+    "organization": "Secretaría de Energía",
+    "keyword": "vehiculo"
+  },
+  {
+    "id": "obras_7",
+    "title": "Sistema sociodemográfico - Población",
+    "organization": "Secretaría de Obras Públicas",
+    "keyword": "indec"
+  },
+  {
+    "id": "obras_2",
+    "title": "PMyE - Indicadores sociodemograficos",
+    "organization": "Secretaría de Obras Públicas",
+    "keyword": "indec"
+  },
+  {
+    "id": "obras_11",
+    "title": "Sistema sociodemográfico - Condiciones habitacionales",
+    "organization": "Secretaría de Obras Públicas",
+    "keyword": "indec"
+  },
+  {
+    "id": "obras_13",
+    "title": "Actividad económica, empleo y pobreza - Mercado de trabajo",
+    "organization": "Secretaría de Obras Públicas",
+    "keyword": "indec"
+  },
+  {
+    "id": "agroindustria_f5b90f55-551c-4b2e-8ac7-c56abe469724",
+    "title": "Censo - Datos CNA 88 y 02",
+    "organization": "Secretaría de Agricultura, Ganadería y Pesca",
+    "keyword": "indec"
+  },
+  {
+    "id": "agroindustria_1cbbedc5-8839-4ded-9b02-6a19d3aae238",
+    "title": "Censo - Mano de obra CNA 02",
+    "organization": "Secretaría de Agricultura, Ganadería y Pesca",
+    "keyword": "indec"
+  },
+  {
+    "id": "obras_21",
+    "title": "Agua, saneamiento e infraestructura hídrica - Agua y saneamiento",
+    "organization": "Secretaría de Obras Públicas",
+    "keyword": "indec"
+  },
+  {
+    "id": "obras_4",
+    "title": "PMyE - Indicadores de contexto - Agua Potable y Saneamiento 2",
+    "organization": "Secretaría de Obras Públicas",
+    "keyword": "indec"
+  },
+  {
+    "id": "obras_3",
+    "title": "PMyE - Indicadores de contexto - Agua Potable y Saneamiento 1",
+    "organization": "Secretaría de Obras Públicas",
+    "keyword": "indec"
+  },
+  {
+    "id": "sspm_75",
+    "title": "Exportaciones FOB por rubro",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "indec"
+  },
+  {
+    "id": "sspm_341",
+    "title": "Tasa de Actividad por aglomerado 1974-2003",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "indec"
+  },
+  {
+    "id": "sspm_350",
+    "title": "Exportaciones por provincia y rubro",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "indec"
+  },
+  {
+    "id": "sspm_343",
+    "title": "Tasa de Desocupación por aglomerado 1974-2003",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "indec"
+  },
+  {
+    "id": "sspm_447",
+    "title": "Coeficiente de Variación Salarial (CVS)",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "indec"
+  },
+  {
+    "id": "sspm_342",
+    "title": "Tasa de Empleo por aglomerado 1974-2003",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "indec"
+  },
+  {
+    "id": "sspm_14",
+    "title": "Estimador Mensual Industrial (EMI). Variaciones Interanuales. Base 2004",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "indec"
+  },
+  {
+    "id": "sspm_344",
+    "title": "Tasa de Subocupación por aglomerado 1974-2003",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "indec"
+  },
+  {
+    "id": "sspm_457",
+    "title": "Encuesta de ocupación hotelera",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "indec"
+  },
+  {
+    "id": "sspm_95",
+    "title": "Tasas trimestrales de variación de precios",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "indec"
+  },
+  {
+    "id": "sspm_86",
+    "title": "Posición de inversión Nacional (Base 1991)",
+    "organization": "Subsecretaría de Programación Macroeconómica",
+    "keyword": "indec"
+  },
+  {
+    "id": "produccion_074dcfba-200b-4dde-b654-386f4adcc57f",
+    "title": "Régimen de Aduana en Factoría (RAF)",
+    "organization": "Secretaría de Planeamiento y Gestión para el Desarrollo Productivo y de la Bioeconomía",
+    "keyword": "automotriz"
+  },
+  {
+    "id": "ssprys_01",
+    "title": "Indicadores Sectoriales y Provinciales",
+    "organization": "Subsecretaría de Programación Microeconómica",
+    "keyword": "automotriz"
+  },
+  {
+    "id": "produccion_f6fe487e-567d-491a-9f18-53399fe84176",
+    "title": "Registro de CHAS Emitidos - Resolución 166/2019",
+    "organization": "Secretaría de Planeamiento y Gestión para el Desarrollo Productivo y de la Bioeconomía",
+    "keyword": "automotriz"
+  },
+  {
+    "id": "produccion_ab770a3b-dfc8-4851-9ae4-d849382da317",
+    "title": "Régimen de Integración de Motocicletas",
+    "organization": "Secretaría de Planeamiento y Gestión para el Desarrollo Productivo y de la Bioeconomía",
+    "keyword": "automotriz"
+  },
+  {
+    "id": "produccion_d58f8d56-f72a-4d6d-816e-d3b74ae6994e",
+    "title": "Registro de CAPE Emitidos - Resolución 166/2019",
+    "organization": "Secretaría de Planeamiento y Gestión para el Desarrollo Productivo y de la Bioeconomía",
+    "keyword": "automotriz"
+  },
+  {
+    "id": "produccion_369e2ef5-f8bc-4b37-a3e7-f7ad8d5fceb7",
+    "title": "Innovación productiva: empresas que más invierten en I+D a nivel mundial",
+    "organization": "Secretaría de Planeamiento y Gestión para el Desarrollo Productivo y de la Bioeconomía",
+    "keyword": "automotriz"
+  }
+]
