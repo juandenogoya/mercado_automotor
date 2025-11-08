@@ -6,9 +6,9 @@ services:
     image: timescale/timescaledb:latest-pg15
     container_name: mercado_automotor_db
     environment:
-      POSTGRES_DB: mercado_automotor
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-mercado_automotor}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
@@ -99,11 +99,11 @@ services:
       - .env
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql://postgres:postgres@postgres:5432/airflow
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/airflow
       AIRFLOW__CORE__FERNET_KEY: ''
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      AIRFLOW__WEBSERVER__SECRET_KEY: 'your_secret_key_here'
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-change-me-in-production}
     ports:
       - "8080:8080"
     volumes:
@@ -118,7 +118,7 @@ services:
       - mercado_automotor_network
     command: >
       bash -c "airflow db init &&
-               airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true &&
+               airflow users create --username ${AIRFLOW_USER:-admin} --password ${AIRFLOW_PASSWORD:-admin} --firstname Admin --lastname User --role Admin --email admin@example.com || true &&
                airflow webserver & airflow scheduler"
 
 volumes:
