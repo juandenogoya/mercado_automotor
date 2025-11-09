@@ -36,12 +36,34 @@ class MercadoLibreClient:
     CATEGORIA_AUTOS_0KM = "MLA1744"
     CATEGORIA_AUTOS_USADOS = "MLA80109"
 
-    def __init__(self):
+    def __init__(self, auth=None):
+        """
+        Inicializa el cliente de MercadoLibre.
+
+        Args:
+            auth: Instancia de MercadoLibreAuth para autenticación OAuth2 (opcional)
+        """
         self.base_url = "https://api.mercadolibre.com"
+        self.auth = auth
+
         self.session = requests.Session()
         self.session.headers.update({
             'Accept': 'application/json',
         })
+
+        # Si hay autenticación, agregar token
+        if self.auth:
+            access_token = self.auth.get_access_token()
+            if access_token:
+                self.session.headers.update({
+                    'Authorization': f'Bearer {access_token}'
+                })
+                logger.info("[MercadoLibre] Cliente inicializado con autenticación OAuth2")
+            else:
+                logger.warning("[MercadoLibre] Auth proporcionado pero no hay token válido")
+        else:
+            logger.info("[MercadoLibre] Cliente inicializado sin autenticación")
+
         # Deshabilitar verificación SSL para desarrollo en Windows
         self.session.verify = False
         # Suprimir warnings de SSL
@@ -52,6 +74,19 @@ class MercadoLibreClient:
         self.requests_count = 0
         self.last_request_time = time.time()
         self.max_requests_per_minute = settings.mercadolibre_rate_limit
+
+    def _refresh_token_if_needed(self):
+        """
+        Refresca el access token si está por expirar.
+        Actualiza el header de Authorization.
+        """
+        if self.auth:
+            access_token = self.auth.get_access_token()
+            if access_token:
+                # Actualizar header con nuevo token
+                self.session.headers.update({
+                    'Authorization': f'Bearer {access_token}'
+                })
 
     def _wait_rate_limit(self):
         """
@@ -98,6 +133,7 @@ class MercadoLibreClient:
         Returns:
             Dict con resultados de búsqueda
         """
+        self._refresh_token_if_needed()
         self._wait_rate_limit()
 
         url = f"{self.base_url}/sites/{self.SITE_ID}/search"
@@ -167,6 +203,7 @@ class MercadoLibreClient:
         Returns:
             Dict con detalle del item o None si falla
         """
+        self._refresh_token_if_needed()
         self._wait_rate_limit()
 
         url = f"{self.base_url}/items/{item_id}"
