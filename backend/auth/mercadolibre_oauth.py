@@ -11,6 +11,7 @@ import hashlib
 import base64
 import secrets
 import webbrowser
+import ssl
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -42,7 +43,7 @@ class MercadoLibreAuth:
     TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
 
     # Configuración
-    REDIRECT_URI = "http://localhost:8080/callback"
+    REDIRECT_URI = "https://localhost:8080/callback"
     SCOPES = ["offline_access", "read"]
 
     def __init__(self, token_file: Optional[str] = None):
@@ -125,9 +126,35 @@ class MercadoLibreAuth:
 
         return auth_url, code_verifier
 
+    def _create_ssl_context(self) -> ssl.SSLContext:
+        """
+        Crea contexto SSL con certificado auto-firmado para localhost.
+
+        Returns:
+            Contexto SSL configurado
+        """
+        # Importar función de creación de certificados
+        try:
+            from backend.auth.create_ssl_cert import create_cert_with_cryptography
+        except ImportError:
+            logger.error("No se pudo importar create_ssl_cert")
+            raise
+
+        # Crear certificado auto-firmado
+        cert_dir = Path(__file__).parent
+        cert_file, key_file = create_cert_with_cryptography(cert_dir)
+
+        # Crear contexto SSL
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        context.load_cert_chain(certfile=str(cert_file), keyfile=str(key_file))
+
+        return context
+
     def _start_callback_server(self) -> Dict[str, str]:
         """
-        Inicia servidor HTTP temporal para recibir el callback de OAuth2.
+        Inicia servidor HTTPS temporal para recibir el callback de OAuth2.
 
         Returns:
             Diccionario con parámetros del callback (code, state)
@@ -177,11 +204,18 @@ class MercadoLibreAuth:
                 # Silenciar logs del servidor HTTP
                 pass
 
-        # Iniciar servidor en thread separado
+        # Iniciar servidor HTTPS
         port = int(self.REDIRECT_URI.split(':')[-1].split('/')[0])
 
         with socketserver.TCPServer(("", port), CallbackHandler) as httpd:
-            logger.info(f"Servidor de callback iniciado en puerto {port}")
+            # Envolver con SSL
+            try:
+                ssl_context = self._create_ssl_context()
+                httpd.socket = ssl_context.wrap_socket(httpd.socket, server_side=True)
+                logger.info(f"Servidor de callback HTTPS iniciado en puerto {port}")
+            except Exception as e:
+                logger.error(f"Error configurando SSL: {e}")
+                logger.info(f"Usando servidor HTTP en puerto {port}")
 
             # Esperar callback (timeout 5 minutos)
             timeout = 300
