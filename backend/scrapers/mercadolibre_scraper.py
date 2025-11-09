@@ -241,15 +241,30 @@ class MercadoLibreScraper:
         if modelo:
             search_terms.append(modelo)
 
-        search_query = ' '.join(search_terms) if search_terms else 'autos'
+        search_query = ' '.join(search_terms) if search_terms else 'auto'
 
-        # Construir URL de búsqueda
-        params = {
-            'category': 'MLA1743',  # Autos, Motos y Otros
-        }
+        # Construir URL de búsqueda usando el formato correcto de MercadoLibre
+        # MercadoLibre usa: /vehiculos/autos-camionetas-y-4x4/{busqueda}
 
+        # URL base para vehículos
+        base_search_url = f"https://listado.mercadolibre.com.ar/vehiculos/autos-camionetas-y-4x4"
+
+        # Parámetros de búsqueda
+        params = {}
+
+        # Agregar búsqueda al path o como parámetro
+        if search_query and search_query != 'auto':
+            # Usar el query en la URL directamente
+            search_url_base = f"{base_search_url}/{quote_plus(search_query.lower())}"
+        else:
+            search_url_base = base_search_url
+
+        # Condición (0km o usado)
         if condition:
-            params['VEHICLE_CONDITION'] = '2230581' if condition == 'new' else '2230582'
+            if condition == 'new':
+                params['ITEM_CONDITION'] = '2230284'  # Nuevo
+            else:
+                params['ITEM_CONDITION'] = '2230581'  # Usado
 
         items = []
         page = 1
@@ -257,8 +272,13 @@ class MercadoLibreScraper:
         while page <= max_pages:
             try:
                 # URL con paginación
-                offset = (page - 1) * 50
-                search_url = f"{self.BASE_URL}/{quote_plus(search_query)}_Offset_{offset}"
+                # MercadoLibre usa _Desde_{offset} o _NoIndex_True para paginación
+                offset = (page - 1) * 48 + 1  # ML usa páginas de 48 items
+
+                if page == 1:
+                    search_url = search_url_base
+                else:
+                    search_url = f"{search_url_base}_Desde_{offset}"
 
                 if params:
                     search_url += "?" + urlencode(params)
@@ -274,6 +294,12 @@ class MercadoLibreScraper:
                     headers=self._get_headers(),
                     timeout=30
                 )
+
+                # Verificar status HTTP
+                if response.status_code == 404:
+                    logger.error(f"[Página {page}] Status 404 - URL no encontrada")
+                    logger.error(f"[URL Incorrecta] Verificar construcción de URL: {search_url}")
+                    break
 
                 # Verificar bloqueo
                 if self._detect_blocking(response, response.text):
