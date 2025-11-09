@@ -104,34 +104,39 @@ params = {
 }
 
 search_data = {}
-response = requests.get(search_url, params=params, timeout=30)
-if response.status_code == 200:
-    search_data = response.json()
+try:
+    response = requests.get(search_url, params=params, timeout=30)
+    if response.status_code == 200:
+        search_data = response.json()
 
-    print(f"   ✅ Total resultados: {search_data['paging']['total']:,}")
-    print(f"   📊 Mostrando {len(search_data['results'])} de {search_data['paging']['total']:,}")
+        print(f"   ✅ Total resultados: {search_data['paging']['total']:,}")
+        print(f"   📊 Mostrando {len(search_data['results'])} de {search_data['paging']['total']:,}")
 
-    print(f"\n   📄 Primeros resultados:")
-    for i, item in enumerate(search_data['results'][:5], 1):
-        print(f"\n   {i}. {item['title']}")
-        print(f"      💰 Precio: ${item['price']:,.0f} {item['currency_id']}")
-        print(f"      📍 Ubicación: {item.get('location', {}).get('city', {}).get('name', 'N/A')}")
-        print(f"      🏷️ Condición: {item['condition']}")
-        print(f"      🆔 ID: {item['id']}")
+        print(f"\n   📄 Primeros resultados:")
+        for i, item in enumerate(search_data['results'][:5], 1):
+            print(f"\n   {i}. {item['title']}")
+            print(f"      💰 Precio: ${item['price']:,.0f} {item['currency_id']}")
+            print(f"      📍 Ubicación: {item.get('location', {}).get('city', {}).get('name', 'N/A')}")
+            print(f"      🏷️ Condición: {item['condition']}")
+            print(f"      🆔 ID: {item['id']}")
 
-    # Analizar estructura de un resultado
-    if search_data['results']:
-        print(f"\n   🔍 Estructura completa del primer resultado:")
-        primer_item = search_data['results'][0]
-        print(f"      Campos disponibles: {list(primer_item.keys())}")
+        # Analizar estructura de un resultado
+        if search_data.get('results'):
+            print(f"\n   🔍 Estructura completa del primer resultado:")
+            primer_item = search_data['results'][0]
+            print(f"      Campos disponibles: {list(primer_item.keys())}")
 
-        # Atributos del vehículo
-        if 'attributes' in primer_item:
-            print(f"\n      📋 Atributos del vehículo ({len(primer_item['attributes'])}):")
-            for attr in primer_item['attributes'][:10]:
-                print(f"         • {attr['id']}: {attr.get('value_name', 'N/A')}")
+            # Atributos del vehículo
+            if 'attributes' in primer_item:
+                print(f"\n      📋 Atributos del vehículo ({len(primer_item['attributes'])}):")
+                for attr in primer_item['attributes'][:10]:
+                    print(f"         • {attr['id']}: {attr.get('value_name', 'N/A')}")
 
-        guardar_json(search_data, "busqueda_toyota_ejemplo")
+            guardar_json(search_data, "busqueda_toyota_ejemplo")
+    else:
+        print(f"   ❌ Error HTTP {response.status_code}")
+except Exception as e:
+    print(f"   ❌ Error en búsqueda: {e}")
 
 
 print("\n" + "=" * 80)
@@ -139,7 +144,7 @@ print("4️⃣ DETALLE DE UN ITEM")
 print("=" * 80)
 
 # 4. Detalle completo de un item
-if search_data['results']:
+if search_data.get('results'):
     item_id = search_data['results'][0]['id']
     print(f"\n🔍 Obteniendo detalle completo del item: {item_id}")
 
@@ -172,6 +177,8 @@ if search_data['results']:
             print(f"\n   📝 Descripción ({len(descripcion.get('plain_text', ''))} caracteres)")
             print(f"      {descripcion.get('plain_text', '')[:200]}...")
             guardar_json(descripcion, "descripcion_item")
+else:
+    print("\n   ⚠️ No se pudo obtener detalle (la búsqueda falló)")
 
 
 print("\n" + "=" * 80)
@@ -181,7 +188,7 @@ print("=" * 80)
 # 5. Filtros disponibles en búsqueda
 print("\n🎛️ Filtros disponibles para búsquedas:")
 
-if 'available_filters' in search_data:
+if search_data.get('available_filters'):
     print(f"\n   📊 Total filtros: {len(search_data['available_filters'])}")
 
     for filtro in search_data['available_filters'][:10]:
@@ -192,6 +199,8 @@ if 'available_filters' in search_data:
                 print(f"       - {val['name']} ({val.get('results', 0):,} resultados)")
 
     guardar_json(search_data['available_filters'], "filtros_disponibles")
+else:
+    print("   ⚠️ No se pudieron obtener filtros (la búsqueda falló)")
 
 
 print("\n" + "=" * 80)
