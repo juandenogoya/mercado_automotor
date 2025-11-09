@@ -43,7 +43,6 @@ class MercadoLibreAuth:
     TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
 
     # Configuración
-    REDIRECT_URI = "https://localhost:8080/callback"
     SCOPES = ["offline_access", "read"]
 
     def __init__(self, token_file: Optional[str] = None):
@@ -55,6 +54,7 @@ class MercadoLibreAuth:
         """
         self.client_id = settings.mercadolibre_client_id
         self.client_secret = settings.mercadolibre_client_secret
+        self.redirect_uri = settings.mercadolibre_redirect_uri
 
         if not self.client_id or not self.client_secret:
             raise ValueError(
@@ -115,7 +115,7 @@ class MercadoLibreAuth:
         params = {
             'response_type': 'code',
             'client_id': self.client_id,
-            'redirect_uri': self.REDIRECT_URI,
+            'redirect_uri': self.redirect_uri,
             'code_challenge': code_challenge,
             'code_challenge_method': 'S256',
             'state': state,
@@ -205,7 +205,7 @@ class MercadoLibreAuth:
                 pass
 
         # Iniciar servidor HTTPS
-        port = int(self.REDIRECT_URI.split(':')[-1].split('/')[0])
+        port = int(self.redirect_uri.split(':')[-1].split('/')[0])
 
         with socketserver.TCPServer(("", port), CallbackHandler) as httpd:
             # Envolver con SSL
@@ -293,7 +293,7 @@ class MercadoLibreAuth:
             'client_id': self.client_id,
             'client_secret': self.client_secret,
             'code': code,
-            'redirect_uri': self.REDIRECT_URI,
+            'redirect_uri': self.redirect_uri,
             'code_verifier': code_verifier
         }
 

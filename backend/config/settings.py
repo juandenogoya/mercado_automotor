@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # MercadoLibre API
     mercadolibre_client_id: Optional[str] = Field(default=None, alias="MERCADOLIBRE_CLIENT_ID")
     mercadolibre_client_secret: Optional[str] = Field(default=None, alias="MERCADOLIBRE_CLIENT_SECRET")
+    mercadolibre_redirect_uri: str = Field(default="https://localhost:8080/callback", alias="MERCADOLIBRE_REDIRECT_URI")
     mercadolibre_rate_limit: int = Field(default=100, alias="MERCADOLIBRE_RATE_LIMIT")
 
     # BCRA API
