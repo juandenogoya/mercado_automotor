@@ -204,18 +204,40 @@ class MercadoLibreAuth:
                 # Silenciar logs del servidor HTTP
                 pass
 
-        # Iniciar servidor HTTPS
-        port = int(self.redirect_uri.split(':')[-1].split('/')[0])
+        # Determinar puerto del servidor local
+        # ngrok redirige a localhost:8080, así que siempre usamos ese puerto localmente
+        # independientemente del puerto en la URL pública
+        from urllib.parse import urlparse as url_parse
+        parsed_url = url_parse(self.redirect_uri)
+
+        # Si la URL tiene un puerto explícito (ej: localhost:8080), usarlo
+        # Si no (ej: ngrok sin puerto), usar 8080 por defecto
+        if parsed_url.port:
+            port = parsed_url.port
+        else:
+            # URL sin puerto explícito (como ngrok) - usar 8080 localmente
+            port = 8080
+
+        logger.info(f"Iniciando servidor de callback local en puerto {port}")
+        logger.info(f"Esperando redirección desde: {self.redirect_uri}")
 
         with socketserver.TCPServer(("", port), CallbackHandler) as httpd:
-            # Envolver con SSL
-            try:
-                ssl_context = self._create_ssl_context()
-                httpd.socket = ssl_context.wrap_socket(httpd.socket, server_side=True)
-                logger.info(f"Servidor de callback HTTPS iniciado en puerto {port}")
-            except Exception as e:
-                logger.error(f"Error configurando SSL: {e}")
-                logger.info(f"Usando servidor HTTP en puerto {port}")
+            # Solo usar SSL si la URL es localhost (no ngrok)
+            # ngrok maneja HTTPS y redirige a HTTP local
+            use_ssl = 'localhost' in self.redirect_uri or '127.0.0.1' in self.redirect_uri
+
+            if use_ssl:
+                # Envolver con SSL para localhost
+                try:
+                    ssl_context = self._create_ssl_context()
+                    httpd.socket = ssl_context.wrap_socket(httpd.socket, server_side=True)
+                    logger.info(f"Servidor de callback HTTPS iniciado en puerto {port}")
+                except Exception as e:
+                    logger.error(f"Error configurando SSL: {e}")
+                    logger.info(f"Usando servidor HTTP en puerto {port}")
+            else:
+                # ngrok maneja HTTPS, servidor local usa HTTP
+                logger.info(f"Servidor de callback HTTP iniciado en puerto {port} (ngrok maneja HTTPS)")
 
             # Esperar callback (timeout 5 minutos)
             timeout = 300
