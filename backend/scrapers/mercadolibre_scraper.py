@@ -311,14 +311,36 @@ class MercadoLibreScraper:
                 logger.success(f"[Página {page}] Status {response.status_code} - OK")
 
                 # Parsear HTML
-                soup = BeautifulSoup(response.text, 'lxml')
+                soup = BeautifulSoup(response.text, 'html.parser')
 
                 # Encontrar items de vehículos
-                # ML usa diferentes clases, buscar varias opciones
+                # ML usa diferentes selectores, probar varios
+                item_containers = []
+
+                # Opción 1: clase ui-search-layout__item (estructura nueva)
                 item_containers = soup.find_all('li', class_=re.compile('.*ui-search-layout__item.*'))
 
+                # Opción 2: clase ui-search-result (estructura antigua)
                 if not item_containers:
-                    logger.warning(f"[Página {page}] No se encontraron items (estructura HTML cambió?)")
+                    item_containers = soup.find_all('li', class_=re.compile('.*ui-search-result.*'))
+
+                # Opción 3: div con clase específica de items
+                if not item_containers:
+                    item_containers = soup.find_all('div', class_=re.compile('.*andes-card.*ui-search-result.*'))
+
+                # Opción 4: buscar por estructura - ol > li con link a /MLA
+                if not item_containers:
+                    all_items = soup.find_all('li')
+                    item_containers = [item for item in all_items if item.find('a', href=re.compile(r'/MLA'))]
+
+                if not item_containers:
+                    logger.warning(f"[Página {page}] No se encontraron items")
+                    logger.debug(f"[HTML Debug] Primeros 500 caracteres: {response.text[:500]}")
+
+                    # Intentar detectar si es una página válida
+                    if 'mercado' not in response.text.lower():
+                        logger.error("[Página Inválida] No parece ser una página de MercadoLibre")
+
                     break
 
                 logger.info(f"[Página {page}] Encontrados {len(item_containers)} items")
