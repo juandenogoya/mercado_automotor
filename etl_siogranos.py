@@ -206,13 +206,13 @@ def transformar_operacion(operacion: Dict) -> Dict:
         'nombre_moneda': operacion.get('nombreMoneda'),
 
         # Procedencia
-        'id_provincia_procedencia': operacion.get('idProvinciaProcedencia') or operacion.get('procedenciaProvincia'),
-        'nombre_provincia_procedencia': operacion.get('nombreProvinciaProcedencia') or operacion.get('provinciaProcedencia'),
+        'id_provincia_procedencia': operacion.get('idProvinciaProcedencia'),  # Solo ID numérico
+        'nombre_provincia_procedencia': operacion.get('nombreProvinciaProcedencia') or operacion.get('provinciaProcedencia') or operacion.get('procedenciaProvincia'),
         'id_localidad_procedencia': operacion.get('idLocalidadProcedencia'),
         'nombre_localidad_procedencia': operacion.get('nombreLocalidadProcedencia') or operacion.get('localidadProcedencia'),
 
         # Destino
-        'id_provincia_destino': operacion.get('idProvinciaDestino'),
+        'id_provincia_destino': operacion.get('idProvinciaDestino'),  # Solo ID numérico
         'nombre_provincia_destino': operacion.get('nombreProvinciaDestino') or operacion.get('provinciaDestino'),
         'id_localidad_destino': operacion.get('idLocalidadDestino'),
         'nombre_localidad_destino': operacion.get('nombreLocalidadDestino') or operacion.get('localidadDestino'),
@@ -345,30 +345,36 @@ def verificar_y_actualizar_schema(conn):
         columnas = {row[0]: row[1] for row in cursor.fetchall()}
 
         # Verificar si necesitamos actualizar
+        # Cambiar a TEXT (sin límite) para mayor flexibilidad con datos de API
         necesita_actualizacion = False
-        if columnas.get('id_provincia_procedencia', 0) < 20:
-            necesita_actualizacion = True
-        if columnas.get('id_provincia_destino', 0) < 20:
-            necesita_actualizacion = True
-        if columnas.get('id_localidad_procedencia', 0) < 50:
-            necesita_actualizacion = True
-        if columnas.get('id_localidad_destino', 0) < 50:
-            necesita_actualizacion = True
-        if columnas.get('id_puerto', 0) < 50:
-            necesita_actualizacion = True
 
-        if necesita_actualizacion:
-            logger.warning("[AVISO] Schema desactualizado. Actualizando tamaños de columnas...")
+        # Verificar si alguna columna todavía es VARCHAR en lugar de TEXT
+        cursor.execute("""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name = 'siogranos_operaciones'
+              AND column_name IN (
+                  'id_provincia_procedencia',
+                  'id_provincia_destino',
+                  'id_localidad_procedencia',
+                  'id_localidad_destino',
+                  'id_puerto'
+              )
+              AND data_type = 'character varying'
+        """)
 
-            # Actualizar columnas
-            cursor.execute("ALTER TABLE siogranos_operaciones ALTER COLUMN id_provincia_procedencia TYPE VARCHAR(20)")
-            cursor.execute("ALTER TABLE siogranos_operaciones ALTER COLUMN id_provincia_destino TYPE VARCHAR(20)")
-            cursor.execute("ALTER TABLE siogranos_operaciones ALTER COLUMN id_localidad_procedencia TYPE VARCHAR(50)")
-            cursor.execute("ALTER TABLE siogranos_operaciones ALTER COLUMN id_localidad_destino TYPE VARCHAR(50)")
-            cursor.execute("ALTER TABLE siogranos_operaciones ALTER COLUMN id_puerto TYPE VARCHAR(50)")
+        columnas_varchar = [row[0] for row in cursor.fetchall()]
+
+        if columnas_varchar:
+            necesita_actualizacion = True
+            logger.warning(f"[AVISO] Schema desactualizado. Convirtiendo a TEXT: {', '.join(columnas_varchar)}")
+
+            # Actualizar columnas a TEXT para evitar límites
+            for columna in columnas_varchar:
+                cursor.execute(f"ALTER TABLE siogranos_operaciones ALTER COLUMN {columna} TYPE TEXT")
 
             conn.commit()
-            logger.info("[OK] Schema actualizado correctamente")
+            logger.info("[OK] Schema actualizado a TEXT correctamente")
         else:
             logger.info("[OK] Schema actualizado")
 
@@ -470,13 +476,13 @@ def inicializar_tablas(conn):
                         id_moneda INTEGER,
                         simbolo_moneda VARCHAR(10),
                         nombre_moneda VARCHAR(50),
-                        id_provincia_procedencia VARCHAR(20),
+                        id_provincia_procedencia TEXT,
                         nombre_provincia_procedencia VARCHAR(100),
-                        id_localidad_procedencia VARCHAR(50),
+                        id_localidad_procedencia TEXT,
                         nombre_localidad_procedencia VARCHAR(200),
-                        id_provincia_destino VARCHAR(20),
+                        id_provincia_destino TEXT,
                         nombre_provincia_destino VARCHAR(100),
-                        id_localidad_destino VARCHAR(50),
+                        id_localidad_destino TEXT,
                         nombre_localidad_destino VARCHAR(200),
                         id_tipo_operacion INTEGER,
                         nombre_tipo_operacion VARCHAR(100),
@@ -492,7 +498,7 @@ def inicializar_tablas(conn):
                         nombre_condicion_calidad VARCHAR(100),
                         id_zona INTEGER,
                         nombre_zona VARCHAR(100),
-                        id_puerto VARCHAR(50),
+                        id_puerto TEXT,
                         nombre_puerto VARCHAR(200),
                         datos_adicionales JSONB,
                         fuente_api VARCHAR(200) DEFAULT 'SIOGRANOS',
@@ -603,6 +609,17 @@ def insertar_operaciones_bulk(
 
     except Exception as e:
         logger.error(f"[ERROR] Error en inserción bulk: {e}")
+
+        # Logging detallado para debugging
+        if "demasiado largo para el tipo character varying" in str(e):
+            logger.error("[DEBUG] Analizando longitudes de campos...")
+            for i, op in enumerate(operaciones[:5]):  # Solo las primeras 5
+                logger.error(f"[DEBUG] Registro {i}:")
+                for col in columnas:
+                    val = op.get(col)
+                    if val and isinstance(val, str) and len(val) > 20:
+                        logger.error(f"  - {col}: {len(val)} chars -> '{val[:50]}...'")
+
         conn.rollback()
         return 0, 0, len(operaciones)
     finally:

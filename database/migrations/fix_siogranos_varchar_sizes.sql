@@ -1,26 +1,27 @@
 -- ============================================================================
--- Migración: Aumentar tamaño de campos VARCHAR en siogranos_operaciones
+-- Migración: Cambiar campos ID a TEXT en siogranos_operaciones
 -- ============================================================================
--- Soluciona: "el valor es demasiado largo para el tipo character varying(5)"
+-- Soluciona: "el valor es demasiado largo para el tipo character varying"
+-- Cambio: VARCHAR con límites -> TEXT (sin límites) para flexibilidad con API
 -- ============================================================================
 
--- Aumentar tamaño de campos de provincia
+-- Cambiar campos de provincia a TEXT
 ALTER TABLE siogranos_operaciones
-    ALTER COLUMN id_provincia_procedencia TYPE VARCHAR(20);
+    ALTER COLUMN id_provincia_procedencia TYPE TEXT;
 
 ALTER TABLE siogranos_operaciones
-    ALTER COLUMN id_provincia_destino TYPE VARCHAR(20);
+    ALTER COLUMN id_provincia_destino TYPE TEXT;
 
--- Aumentar tamaño de campos de localidad
+-- Cambiar campos de localidad a TEXT
 ALTER TABLE siogranos_operaciones
-    ALTER COLUMN id_localidad_procedencia TYPE VARCHAR(50);
+    ALTER COLUMN id_localidad_procedencia TYPE TEXT;
 
 ALTER TABLE siogranos_operaciones
-    ALTER COLUMN id_localidad_destino TYPE VARCHAR(50);
+    ALTER COLUMN id_localidad_destino TYPE TEXT;
 
--- Aumentar tamaño de campo puerto
+-- Cambiar campo puerto a TEXT
 ALTER TABLE siogranos_operaciones
-    ALTER COLUMN id_puerto TYPE VARCHAR(50);
+    ALTER COLUMN id_puerto TYPE TEXT;
 
 -- Verificar cambios
 SELECT
