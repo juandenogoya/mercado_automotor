@@ -46,8 +46,9 @@ FECHA_INICIO = datetime(2020, 1, 1)
 FECHA_FIN = datetime.now()
 
 # Configuración de logging
+# Usar DEBUG temporalmente para diagnosticar problemas con la API
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('etl_siogranos.log'),
@@ -112,6 +113,11 @@ def fetch_operaciones_con_reintentos(
             if response.status_code == 200:
                 json_response = response.json()
 
+                # DEBUG: Loguear estructura de respuesta cuando hay problemas
+                logger.debug(f"[DEBUG] Tipo de respuesta: {type(json_response)}")
+                if isinstance(json_response, dict):
+                    logger.debug(f"[DEBUG] Claves de respuesta: {list(json_response.keys())}")
+
                 # Extraer operaciones según estructura de respuesta
                 if isinstance(json_response, dict):
                     if 'result' in json_response and 'operaciones' in json_response['result']:
@@ -119,6 +125,9 @@ def fetch_operaciones_con_reintentos(
                     elif 'operaciones' in json_response:
                         operaciones = json_response['operaciones']
                     else:
+                        # No se encontraron operaciones en la estructura esperada
+                        logger.warning(f"[AVISO] Respuesta sin campo 'operaciones'. Claves disponibles: {list(json_response.keys())}")
+                        logger.warning(f"[DEBUG] Respuesta completa: {json.dumps(json_response, indent=2, default=str)[:500]}")
                         operaciones = []
                 elif isinstance(json_response, list):
                     operaciones = json_response
@@ -128,7 +137,8 @@ def fetch_operaciones_con_reintentos(
 
                 # Verificar que operaciones no sea None y convertir a lista vacía si lo es
                 if operaciones is None:
-                    logger.warning(f"[AVISO] API devolvió None en operaciones, usando lista vacía")
+                    logger.warning(f"[AVISO] API devolvió None en operaciones")
+                    logger.warning(f"[DEBUG] Respuesta JSON completa: {json.dumps(json_response, indent=2, default=str)[:500]}")
                     operaciones = []
 
                 logger.info(f"[OK] Respuesta exitosa: {len(operaciones)} operaciones")
