@@ -101,7 +101,7 @@ def fetch_operaciones_con_reintentos(
 
     for intento in range(max_retries):
         try:
-            logger.info(f"📡 Consultando API: {fecha_desde} a {fecha_hasta} (intento {intento + 1}/{max_retries})")
+            logger.info(f"[API] Consultando API: {fecha_desde} a {fecha_hasta} (intento {intento + 1}/{max_retries})")
 
             response = requests.get(
                 SIOGRANOS_API_URL,
@@ -123,39 +123,39 @@ def fetch_operaciones_con_reintentos(
                 elif isinstance(json_response, list):
                     operaciones = json_response
                 else:
-                    logger.warning(f"⚠️ Estructura de respuesta inesperada: {type(json_response)}")
+                    logger.warning(f"[AVISO] Estructura de respuesta inesperada: {type(json_response)}")
                     operaciones = []
 
-                logger.info(f"✅ Respuesta exitosa: {len(operaciones)} operaciones")
+                logger.info(f"[OK] Respuesta exitosa: {len(operaciones)} operaciones")
                 return operaciones
 
             elif response.status_code == 404:
-                logger.error(f"❌ Error 404: Endpoint no encontrado")
+                logger.error(f"[ERROR] Error 404: Endpoint no encontrado")
                 return None
 
             elif response.status_code == 400:
-                logger.error(f"❌ Error 400: Parámetros incorrectos - {response.text}")
+                logger.error(f"[ERROR] Error 400: Parámetros incorrectos - {response.text}")
                 return None
 
             else:
-                logger.warning(f"⚠️ Status {response.status_code}: {response.text}")
+                logger.warning(f"[AVISO] Status {response.status_code}: {response.text}")
 
         except requests.exceptions.Timeout:
-            logger.warning(f"⏱️ Timeout en intento {intento + 1}/{max_retries}")
+            logger.warning(f"[TIMEOUT] Timeout en intento {intento + 1}/{max_retries}")
 
         except requests.exceptions.ConnectionError as e:
-            logger.warning(f"🔌 Error de conexión en intento {intento + 1}/{max_retries}: {e}")
+            logger.warning(f"[CONEXION] Error de conexión en intento {intento + 1}/{max_retries}: {e}")
 
         except Exception as e:
-            logger.error(f"❌ Error inesperado: {e}")
+            logger.error(f"[ERROR] Error inesperado: {e}")
 
         # Backoff exponencial antes de reintentar
         if intento < max_retries - 1:
             delay = RETRY_DELAY_BASE ** (intento + 1)
-            logger.info(f"⏳ Esperando {delay}s antes de reintentar...")
+            logger.info(f"[ESPERA] Esperando {delay}s antes de reintentar...")
             time.sleep(delay)
 
-    logger.error(f"❌ Falló después de {max_retries} intentos")
+    logger.error(f"[ERROR] Falló después de {max_retries} intentos")
     return None
 
 
@@ -292,7 +292,7 @@ def parse_fecha(fecha_str) -> Optional[str]:
         except:
             continue
 
-    logger.warning(f"⚠️ No se pudo parsear fecha: {fecha_str}")
+    logger.warning(f"[AVISO] No se pudo parsear fecha: {fecha_str}")
     return None
 
 
@@ -319,6 +319,153 @@ def get_db_connection():
         user=os.getenv('DB_USER', 'postgres'),
         password=os.getenv('DB_PASSWORD', '')
     )
+
+
+def inicializar_tablas(conn):
+    """
+    Verifica e inicializa las tablas necesarias si no existen
+    """
+    cursor = conn.cursor()
+
+    try:
+        # Verificar si la tabla siogranos_operaciones existe
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_name = 'siogranos_operaciones'
+            )
+        """)
+
+        tabla_operaciones_existe = cursor.fetchone()[0]
+
+        # Verificar si la tabla siogranos_etl_control existe
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_name = 'siogranos_etl_control'
+            )
+        """)
+
+        tabla_control_existe = cursor.fetchone()[0]
+
+        if not tabla_operaciones_existe or not tabla_control_existe:
+            logger.warning("[AVISO] Tablas SIOGRANOS no encontradas")
+            logger.info("[DB] Creando tablas SIOGRANOS...")
+
+            # Leer y ejecutar el schema SQL
+            schema_path = os.path.join(
+                os.path.dirname(__file__),
+                'database',
+                'schemas',
+                'siogranos_schema.sql'
+            )
+
+            if os.path.exists(schema_path):
+                with open(schema_path, 'r', encoding='utf-8') as f:
+                    schema_sql = f.read()
+
+                # Ejecutar el schema
+                cursor.execute(schema_sql)
+                conn.commit()
+                logger.info("[OK] Tablas SIOGRANOS creadas exitosamente")
+            else:
+                # Si no existe el archivo, crear las tablas manualmente
+                logger.warning(f"[AVISO] Schema no encontrado en {schema_path}")
+                logger.info("[DB] Creando tablas manualmente...")
+
+                # Crear tabla de control ETL (mínimo necesario)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS siogranos_etl_control (
+                        id SERIAL PRIMARY KEY,
+                        fecha_desde DATE NOT NULL,
+                        fecha_hasta DATE NOT NULL,
+                        registros_procesados INTEGER DEFAULT 0,
+                        registros_insertados INTEGER DEFAULT 0,
+                        registros_duplicados INTEGER DEFAULT 0,
+                        registros_error INTEGER DEFAULT 0,
+                        estado VARCHAR(50),
+                        inicio_ejecucion TIMESTAMP,
+                        fin_ejecucion TIMESTAMP,
+                        duracion_segundos INTEGER,
+                        mensaje_error TEXT,
+                        parametros_consulta JSONB,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT unique_periodo UNIQUE (fecha_desde, fecha_hasta)
+                    )
+                """)
+
+                # Crear tabla de operaciones (mínimo necesario)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS siogranos_operaciones (
+                        id BIGSERIAL PRIMARY KEY,
+                        id_operacion VARCHAR(100),
+                        numero_operacion VARCHAR(100),
+                        fecha_operacion DATE NOT NULL,
+                        fecha_carga TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        fecha_actualizacion TIMESTAMP,
+                        id_grano INTEGER,
+                        nombre_grano VARCHAR(100),
+                        codigo_grano VARCHAR(50),
+                        volumen_tn DECIMAL(15,3),
+                        precio_tn DECIMAL(15,2),
+                        monto_total DECIMAL(18,2),
+                        id_moneda INTEGER,
+                        simbolo_moneda VARCHAR(10),
+                        nombre_moneda VARCHAR(50),
+                        id_provincia_procedencia VARCHAR(5),
+                        nombre_provincia_procedencia VARCHAR(100),
+                        id_localidad_procedencia VARCHAR(10),
+                        nombre_localidad_procedencia VARCHAR(200),
+                        id_provincia_destino VARCHAR(5),
+                        nombre_provincia_destino VARCHAR(100),
+                        id_localidad_destino VARCHAR(10),
+                        nombre_localidad_destino VARCHAR(200),
+                        id_tipo_operacion INTEGER,
+                        nombre_tipo_operacion VARCHAR(100),
+                        id_tipo_contrato INTEGER,
+                        nombre_tipo_contrato VARCHAR(100),
+                        id_modalidad INTEGER,
+                        nombre_modalidad VARCHAR(100),
+                        id_estado INTEGER,
+                        nombre_estado VARCHAR(100),
+                        id_condicion_pago INTEGER,
+                        nombre_condicion_pago VARCHAR(100),
+                        id_condicion_calidad INTEGER,
+                        nombre_condicion_calidad VARCHAR(100),
+                        id_zona INTEGER,
+                        nombre_zona VARCHAR(100),
+                        id_puerto VARCHAR(10),
+                        nombre_puerto VARCHAR(200),
+                        datos_adicionales JSONB,
+                        fuente_api VARCHAR(200) DEFAULT 'SIOGRANOS',
+                        version_api VARCHAR(20),
+                        hash_registro VARCHAR(64),
+                        CONSTRAINT unique_operacion_fecha UNIQUE (id_operacion, fecha_operacion)
+                    )
+                """)
+
+                # Crear índices básicos
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_siogranos_fecha_operacion
+                    ON siogranos_operaciones(fecha_operacion DESC)
+                """)
+
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_etl_estado
+                    ON siogranos_etl_control(estado)
+                """)
+
+                conn.commit()
+                logger.info("[OK] Tablas creadas manualmente")
+        else:
+            logger.info("[OK] Tablas SIOGRANOS ya existen")
+
+    except Exception as e:
+        logger.error(f"[ERROR] Error al inicializar tablas: {e}")
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
 
 
 def insertar_operaciones_bulk(
@@ -394,7 +541,7 @@ def insertar_operaciones_bulk(
         return insertados, duplicados, 0
 
     except Exception as e:
-        logger.error(f"❌ Error en inserción bulk: {e}")
+        logger.error(f"[ERROR] Error en inserción bulk: {e}")
         conn.rollback()
         return 0, 0, len(operaciones)
     finally:
@@ -446,7 +593,7 @@ def registrar_chunk_control(
         ))
         conn.commit()
     except Exception as e:
-        logger.error(f"❌ Error al registrar control: {e}")
+        logger.error(f"[ERROR] Error al registrar control: {e}")
         conn.rollback()
     finally:
         cursor.close()
@@ -502,7 +649,7 @@ def procesar_chunk(
     inicio = time.time()
 
     logger.info(f"\n{'='*80}")
-    logger.info(f"📦 PROCESANDO CHUNK: {fecha_desde.date()} → {fecha_hasta.date()}")
+    logger.info(f"[CHUNK] PROCESANDO CHUNK: {fecha_desde.date()} -> {fecha_hasta.date()}")
     logger.info(f"{'='*80}")
 
     # Consultar API
@@ -526,7 +673,7 @@ def procesar_chunk(
         )
 
     # Transformar operaciones
-    logger.info(f"🔄 Transformando {len(operaciones_raw)} operaciones...")
+    logger.info(f"[TRANSFORM] Transformando {len(operaciones_raw)} operaciones...")
     operaciones_transformadas = []
 
     for op in operaciones_raw:
@@ -534,16 +681,16 @@ def procesar_chunk(
             transformada = transformar_operacion(op)
             operaciones_transformadas.append(transformada)
         except Exception as e:
-            logger.warning(f"⚠️ Error al transformar operación: {e}")
+            logger.warning(f"[AVISO] Error al transformar operación: {e}")
             continue
 
-    logger.info(f"✅ Transformadas: {len(operaciones_transformadas)} operaciones")
+    logger.info(f"[OK] Transformadas: {len(operaciones_transformadas)} operaciones")
 
     # Insertar en base de datos
     if operaciones_transformadas:
-        logger.info(f"💾 Insertando en PostgreSQL...")
+        logger.info(f"[DB] Insertando en PostgreSQL...")
         insertados, duplicados, errores = insertar_operaciones_bulk(conn, operaciones_transformadas)
-        logger.info(f"✅ Insertados: {insertados} | Duplicados: {duplicados} | Errores: {errores}")
+        logger.info(f"[OK] Insertados: {insertados} | Duplicados: {duplicados} | Errores: {errores}")
     else:
         insertados, duplicados, errores = 0, 0, 0
 
@@ -563,7 +710,7 @@ def procesar_chunk(
     # Registrar en control
     registrar_chunk_control(conn, resultado)
 
-    logger.info(f"⏱️ Duración: {duracion:.2f}s")
+    logger.info(f"[TIEMPO] Duración: {duracion:.2f}s")
 
     return resultado
 
@@ -571,21 +718,24 @@ def procesar_chunk(
 def main():
     """Función principal del ETL"""
     logger.info("\n" + "="*80)
-    logger.info("🌾 ETL SIOGRANOS - Carga Histórica")
+    logger.info("[SIOGRANOS] ETL SIOGRANOS - Carga Historica")
     logger.info("="*80)
-    logger.info(f"📅 Período: {FECHA_INICIO.date()} → {FECHA_FIN.date()}")
-    logger.info(f"📦 Tamaño chunk: {CHUNK_DAYS} días")
-    logger.info(f"🔄 Reintentos máximos: {MAX_RETRIES}")
-    logger.info(f"🔗 API: {SIOGRANOS_API_URL}")
+    logger.info(f"[PERIODO] Periodo: {FECHA_INICIO.date()} -> {FECHA_FIN.date()}")
+    logger.info(f"[CONFIG] Tamano chunk: {CHUNK_DAYS} dias")
+    logger.info(f"[CONFIG] Reintentos maximos: {MAX_RETRIES}")
+    logger.info(f"[API] API: {SIOGRANOS_API_URL}")
     logger.info("="*80 + "\n")
 
     # Conectar a base de datos
     try:
         conn = get_db_connection()
-        logger.info("✅ Conexión a PostgreSQL establecida")
+        logger.info("[OK] Conexion a PostgreSQL establecida")
+
+        # Inicializar tablas si no existen
+        inicializar_tablas(conn)
     except Exception as e:
-        logger.error(f"❌ Error al conectar a PostgreSQL: {e}")
-        logger.error("💡 Verifica las variables de entorno: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD")
+        logger.error(f"[ERROR] Error al conectar a PostgreSQL: {e}")
+        logger.error("[INFO] Verifica las variables de entorno: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD")
         return
 
     try:
@@ -593,17 +743,17 @@ def main():
         chunks = obtener_chunks_pendientes(conn, FECHA_INICIO, FECHA_FIN)
         total_chunks = len(chunks)
 
-        logger.info(f"📋 Total de chunks a procesar: {total_chunks}")
+        logger.info(f"[CHUNKS] Total de chunks a procesar: {total_chunks}")
 
         if total_chunks == 0:
-            logger.info("✅ ¡No hay chunks pendientes! Todo está actualizado.")
+            logger.info("[OK] No hay chunks pendientes! Todo esta actualizado.")
             return
 
         # Procesar cada chunk
         resultados = []
 
         for i, (fecha_desde, fecha_hasta) in enumerate(chunks, 1):
-            logger.info(f"\n🔄 Progreso: {i}/{total_chunks} ({i*100//total_chunks}%)")
+            logger.info(f"\n[PROGRESO] Progreso: {i}/{total_chunks} ({i*100//total_chunks}%)")
 
             resultado = procesar_chunk(conn, fecha_desde, fecha_hasta)
             resultados.append(resultado)
@@ -614,7 +764,7 @@ def main():
 
         # Resumen final
         logger.info("\n" + "="*80)
-        logger.info("📊 RESUMEN FINAL")
+        logger.info("[RESUMEN] RESUMEN FINAL")
         logger.info("="*80)
 
         total_procesados = sum(r.registros_procesados for r in resultados)
@@ -623,27 +773,27 @@ def main():
         total_errores = sum(r.registros_error for r in resultados)
         chunks_exitosos = sum(1 for r in resultados if r.success)
 
-        logger.info(f"✅ Chunks procesados: {chunks_exitosos}/{total_chunks}")
-        logger.info(f"📊 Registros procesados: {total_procesados:,}")
-        logger.info(f"💾 Registros insertados: {total_insertados:,}")
-        logger.info(f"🔄 Registros duplicados: {total_duplicados:,}")
-        logger.info(f"❌ Registros con error: {total_errores:,}")
+        logger.info(f"[OK] Chunks procesados: {chunks_exitosos}/{total_chunks}")
+        logger.info(f"[STATS] Registros procesados: {total_procesados:,}")
+        logger.info(f"[STATS] Registros insertados: {total_insertados:,}")
+        logger.info(f"[STATS] Registros duplicados: {total_duplicados:,}")
+        logger.info(f"[STATS] Registros con error: {total_errores:,}")
         logger.info("="*80)
 
-        logger.info("\n✅ ETL completado exitosamente")
+        logger.info("\n[OK] ETL completado exitosamente")
 
     except KeyboardInterrupt:
-        logger.info("\n⚠️ ETL interrumpido por usuario")
-        logger.info("💡 Puedes reanudar ejecutando el script nuevamente")
+        logger.info("\n[AVISO] ETL interrumpido por usuario")
+        logger.info("[INFO] Puedes reanudar ejecutando el script nuevamente")
 
     except Exception as e:
-        logger.error(f"\n❌ Error fatal en ETL: {e}")
+        logger.error(f"\n[ERROR] Error fatal en ETL: {e}")
         import traceback
         traceback.print_exc()
 
     finally:
         conn.close()
-        logger.info("🔌 Conexión a PostgreSQL cerrada")
+        logger.info("[DB] Conexion a PostgreSQL cerrada")
 
 
 if __name__ == "__main__":
