@@ -979,25 +979,25 @@ with tab5:
                         df_prov_edad = df_prov_edad.sort_values(['provincia', 'edad'])
 
                         if not df_prov_edad.empty:
-                                # Gráfico 1: Distribución de edades por provincia
-                                st.markdown("#### 📊 Distribución de Edades por Provincia")
+                            # Gráfico 1: Distribución de edades por provincia
+                            st.markdown("#### 📊 Distribución de Edades por Provincia")
 
-                                fig_prov_edad = px.line(
-                                    df_prov_edad,
-                                    x='edad',
-                                    y='cantidad',
-                                    color='provincia',
-                                    title=f'Comparación de Edades entre Provincias - Año {anio_seleccionado}',
-                                    labels={'edad': 'Edad (años)', 'cantidad': 'Cantidad de Compradores', 'provincia': 'Provincia'},
-                                    markers=True
-                                )
-                                fig_prov_edad.update_layout(
-                                    xaxis_title='Edad (años)',
-                                    yaxis_title='Cantidad de Compradores',
-                                    legend_title='Provincia',
-                                    hovermode='x unified'
-                                )
-                                st.plotly_chart(fig_prov_edad, use_container_width=True)
+                            fig_prov_edad = px.line(
+                                df_prov_edad,
+                                x='edad',
+                                y='cantidad',
+                                color='provincia',
+                                title=f'Comparación de Edades entre Provincias - Año {anio_seleccionado}',
+                                labels={'edad': 'Edad (años)', 'cantidad': 'Cantidad de Compradores', 'provincia': 'Provincia'},
+                                markers=True
+                            )
+                            fig_prov_edad.update_layout(
+                                xaxis_title='Edad (años)',
+                                yaxis_title='Cantidad de Compradores',
+                                legend_title='Provincia',
+                                hovermode='x unified'
+                            )
+                            st.plotly_chart(fig_prov_edad, use_container_width=True)
 
                             # Agrupar prendas por provincia y edad desde los datos ya cargados
                             if not df_prendas.empty:
@@ -1005,68 +1005,68 @@ with tab5:
                                 df_prendas_prov_edad = df_prendas_prov_edad.sort_values(['provincia', 'edad'])
 
                                 if not df_prendas_prov_edad.empty:
-                                        # Gráfico 2: Prendas por edad y provincia
-                                        st.markdown("#### 💰 Prendas por Edad y Provincia")
+                                    # Gráfico 2: Prendas por edad y provincia
+                                    st.markdown("#### 💰 Prendas por Edad y Provincia")
 
-                                        fig_prendas_prov = px.line(
-                                            df_prendas_prov_edad,
-                                            x='edad',
-                                            y='cantidad_prendas',
-                                            color='provincia',
-                                            title=f'Comparación de Prendas por Edad entre Provincias - Año {anio_seleccionado}',
-                                            labels={'edad': 'Edad (años)', 'cantidad_prendas': 'Cantidad de Prendas', 'provincia': 'Provincia'},
-                                            markers=True
-                                        )
-                                        fig_prendas_prov.update_layout(
-                                            xaxis_title='Edad (años)',
-                                            yaxis_title='Cantidad de Prendas',
-                                            legend_title='Provincia',
-                                            hovermode='x unified'
-                                        )
-                                        st.plotly_chart(fig_prendas_prov, use_container_width=True)
+                                    fig_prendas_prov = px.line(
+                                        df_prendas_prov_edad,
+                                        x='edad',
+                                        y='cantidad_prendas',
+                                        color='provincia',
+                                        title=f'Comparación de Prendas por Edad entre Provincias - Año {anio_seleccionado}',
+                                        labels={'edad': 'Edad (años)', 'cantidad_prendas': 'Cantidad de Prendas', 'provincia': 'Provincia'},
+                                        markers=True
+                                    )
+                                    fig_prendas_prov.update_layout(
+                                        xaxis_title='Edad (años)',
+                                        yaxis_title='Cantidad de Prendas',
+                                        legend_title='Provincia',
+                                        hovermode='x unified'
+                                    )
+                                    st.plotly_chart(fig_prendas_prov, use_container_width=True)
 
-                                        # Calcular % de financiación por provincia
-                                        st.markdown("#### 📈 Porcentaje de Financiación por Provincia")
+                                    # Calcular % de financiación por provincia
+                                    st.markdown("#### 📈 Porcentaje de Financiación por Provincia")
 
-                                        # Agrupar totales por provincia
-                                        total_inscripciones_prov = df_prov_edad.groupby('provincia')['cantidad'].sum().reset_index()
-                                        total_prendas_prov = df_prendas_prov_edad.groupby('provincia')['cantidad_prendas'].sum().reset_index()
+                                    # Agrupar totales por provincia
+                                    total_inscripciones_prov = df_prov_edad.groupby('provincia')['cantidad'].sum().reset_index()
+                                    total_prendas_prov = df_prendas_prov_edad.groupby('provincia')['cantidad_prendas'].sum().reset_index()
 
-                                        df_financiacion_prov = total_inscripciones_prov.merge(
-                                            total_prendas_prov,
-                                            on='provincia',
-                                            how='left'
-                                        )
-                                        df_financiacion_prov['cantidad_prendas'] = df_financiacion_prov['cantidad_prendas'].fillna(0)
-                                        df_financiacion_prov['porcentaje_financiacion'] = (
-                                            df_financiacion_prov['cantidad_prendas'] / df_financiacion_prov['cantidad'] * 100
-                                        )
-                                        df_financiacion_prov = df_financiacion_prov.sort_values('porcentaje_financiacion', ascending=False)
+                                    df_financiacion_prov = total_inscripciones_prov.merge(
+                                        total_prendas_prov,
+                                        on='provincia',
+                                        how='left'
+                                    )
+                                    df_financiacion_prov['cantidad_prendas'] = df_financiacion_prov['cantidad_prendas'].fillna(0)
+                                    df_financiacion_prov['porcentaje_financiacion'] = (
+                                        df_financiacion_prov['cantidad_prendas'] / df_financiacion_prov['cantidad'] * 100
+                                    )
+                                    df_financiacion_prov = df_financiacion_prov.sort_values('porcentaje_financiacion', ascending=False)
 
-                                        # Gráfico de barras
-                                        fig_financ_prov = px.bar(
-                                            df_financiacion_prov,
-                                            x='provincia',
-                                            y='porcentaje_financiacion',
-                                            title='Porcentaje de Financiación por Provincia',
-                                            labels={'provincia': 'Provincia', 'porcentaje_financiacion': '% Financiación'},
-                                            text='porcentaje_financiacion',
-                                            color='porcentaje_financiacion',
-                                            color_continuous_scale='RdYlGn_r'
-                                        )
-                                        fig_financ_prov.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
-                                        fig_financ_prov.update_layout(showlegend=False)
-                                        st.plotly_chart(fig_financ_prov, use_container_width=True)
+                                    # Gráfico de barras
+                                    fig_financ_prov = px.bar(
+                                        df_financiacion_prov,
+                                        x='provincia',
+                                        y='porcentaje_financiacion',
+                                        title='Porcentaje de Financiación por Provincia',
+                                        labels={'provincia': 'Provincia', 'porcentaje_financiacion': '% Financiación'},
+                                        text='porcentaje_financiacion',
+                                        color='porcentaje_financiacion',
+                                        color_continuous_scale='RdYlGn_r'
+                                    )
+                                    fig_financ_prov.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                                    fig_financ_prov.update_layout(showlegend=False)
+                                    st.plotly_chart(fig_financ_prov, use_container_width=True)
 
-                                        # Tabla comparativa
-                                        st.markdown("#### 📋 Tabla Comparativa de Provincias")
-                                        df_tabla_comp = df_financiacion_prov.copy()
-                                        df_tabla_comp.columns = ['Provincia', 'Total Inscripciones', 'Total Prendas', '% Financiación']
-                                        df_tabla_comp['Total Inscripciones'] = df_tabla_comp['Total Inscripciones'].apply(lambda x: format_number(x))
-                                        df_tabla_comp['Total Prendas'] = df_tabla_comp['Total Prendas'].apply(lambda x: format_number(x))
-                                        df_tabla_comp['% Financiación'] = df_tabla_comp['% Financiación'].apply(lambda x: f"{x:.1f}%")
+                                    # Tabla comparativa
+                                    st.markdown("#### 📋 Tabla Comparativa de Provincias")
+                                    df_tabla_comp = df_financiacion_prov.copy()
+                                    df_tabla_comp.columns = ['Provincia', 'Total Inscripciones', 'Total Prendas', '% Financiación']
+                                    df_tabla_comp['Total Inscripciones'] = df_tabla_comp['Total Inscripciones'].apply(lambda x: format_number(x))
+                                    df_tabla_comp['Total Prendas'] = df_tabla_comp['Total Prendas'].apply(lambda x: format_number(x))
+                                    df_tabla_comp['% Financiación'] = df_tabla_comp['% Financiación'].apply(lambda x: f"{x:.1f}%")
 
-                                        st.dataframe(df_tabla_comp, use_container_width=True, hide_index=True)
+                                    st.dataframe(df_tabla_comp, use_container_width=True, hide_index=True)
                         else:
                             st.info("No hay datos suficientes para comparar las provincias seleccionadas")
                     else:
