@@ -95,11 +95,12 @@ st.sidebar.markdown("## 🔍 Filtros de Análisis")
 st.sidebar.markdown("---")
 
 # Create tabs
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🚗 Inscripciones",
     "🔄 Transferencias",
     "💰 Prendas",
-    "📍 Registros Seccionales"
+    "📍 Registros Seccionales",
+    "🔬 Análisis Detallado"
 ])
 
 # ==================== FUNCIÓN GENÉRICA PARA ANÁLISIS ====================
@@ -559,6 +560,421 @@ with tab4:
     except Exception as e:
         st.error(f"❌ Error al cargar registros seccionales: {str(e)}")
         st.exception(e)
+
+# ==================== TAB 5: ANÁLISIS DETALLADO ====================
+with tab5:
+    st.header("🔬 Análisis Detallado - Perfil de Compradores y Prendas")
+    st.markdown("Análisis personalizado cruzando datos de inscripciones, edad de compradores y prendas")
+
+    # 1. Obtener años disponibles desde inscripciones
+    query_anios_detalle = text("""
+        SELECT DISTINCT EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio
+        FROM datos_gob_inscripciones
+        WHERE tramite_fecha IS NOT NULL
+        ORDER BY anio DESC
+    """)
+
+    try:
+        df_anios_detalle = pd.read_sql(query_anios_detalle, engine)
+        anios_disponibles_detalle = df_anios_detalle['anio'].tolist() if not df_anios_detalle.empty else []
+    except:
+        anios_disponibles_detalle = []
+
+    if not anios_disponibles_detalle:
+        st.warning("⚠️ No hay datos disponibles para el análisis detallado")
+        st.info("💡 **Para cargar datos:**\n\n"
+                "1. Descarga datos CSV desde datos.gob.ar\n"
+                "2. Coloca los archivos en `INPUT/INSCRIPCIONES/` y `INPUT/PRENDAS/`\n"
+                "3. Ejecuta: `python cargar_datos_gob_ar_postgresql.py`")
+    else:
+        # 2. FILTROS PERSONALIZABLES
+        st.markdown("### 🎯 Filtros de Análisis")
+
+        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+
+        with col_f1:
+            anio_seleccionado = st.selectbox(
+                "📅 Año",
+                options=anios_disponibles_detalle,
+                index=0,
+                key="detalle_anio"
+            )
+
+        with col_f2:
+            meses_seleccionados_detalle = st.multiselect(
+                "📆 Meses",
+                options=MESES_ORDEN,
+                default=MESES_ORDEN,
+                key="detalle_meses"
+            )
+
+        with col_f3:
+            origen_seleccionado = st.selectbox(
+                "🌍 Origen del Vehículo",
+                options=["Ambos", "Nacional", "Importado"],
+                index=0,
+                key="detalle_origen"
+            )
+
+        with col_f4:
+            tipo_persona_seleccionado = st.selectbox(
+                "👤 Tipo de Persona",
+                options=["Ambos", "Persona Física", "Persona Jurídica"],
+                index=0,
+                key="detalle_tipo_persona"
+            )
+
+        if not meses_seleccionados_detalle:
+            st.warning("⚠️ Selecciona al menos un mes")
+        else:
+            # Convertir meses a números
+            meses_numeros_detalle = [list(MESES_ES.keys())[list(MESES_ES.values()).index(mes)] for mes in meses_seleccionados_detalle]
+
+            st.markdown("---")
+
+            # 3. CONSULTA PRINCIPAL - INSCRIPCIONES CON EDAD
+            # Construir filtros WHERE dinámicos
+            filtro_origen = ""
+            if origen_seleccionado != "Ambos":
+                filtro_origen = f"AND UPPER(automotor_origen) = '{origen_seleccionado.upper()}'"
+
+            filtro_tipo_persona = ""
+            if tipo_persona_seleccionado == "Persona Física":
+                filtro_tipo_persona = "AND UPPER(titular_tipo_persona) = 'FISICA'"
+            elif tipo_persona_seleccionado == "Persona Jurídica":
+                filtro_tipo_persona = "AND UPPER(titular_tipo_persona) = 'JURIDICA'"
+
+            query_inscripciones_edad = text(f"""
+                SELECT
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento as edad,
+                    automotor_marca_descripcion as marca,
+                    automotor_tipo_descripcion as tipo_vehiculo,
+                    automotor_origen as origen,
+                    titular_tipo_persona as tipo_persona,
+                    COUNT(*) as cantidad
+                FROM datos_gob_inscripciones
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND tramite_fecha IS NOT NULL
+                AND titular_anio_nacimiento IS NOT NULL
+                AND titular_anio_nacimiento > 0
+                {filtro_origen}
+                {filtro_tipo_persona}
+                GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona
+                HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento BETWEEN 18 AND 100
+                ORDER BY edad
+            """)
+
+            try:
+                df_inscripciones = pd.read_sql(query_inscripciones_edad, engine, params={
+                    'anio': anio_seleccionado,
+                    'meses': meses_numeros_detalle
+                })
+
+                if df_inscripciones.empty:
+                    st.warning("⚠️ No se encontraron inscripciones con los filtros seleccionados")
+                else:
+                    # 4. CONSULTA DE PRENDAS CON EDAD
+                    query_prendas_edad = text(f"""
+                        SELECT
+                            EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento as edad,
+                            automotor_marca_descripcion as marca,
+                            automotor_tipo_descripcion as tipo_vehiculo,
+                            automotor_origen as origen,
+                            titular_tipo_persona as tipo_persona,
+                            COUNT(*) as cantidad_prendas
+                        FROM datos_gob_prendas
+                        WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
+                        AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                        AND tramite_fecha IS NOT NULL
+                        AND titular_anio_nacimiento IS NOT NULL
+                        AND titular_anio_nacimiento > 0
+                        {filtro_origen}
+                        {filtro_tipo_persona}
+                        GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona
+                        HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento BETWEEN 18 AND 100
+                        ORDER BY edad
+                    """)
+
+                    df_prendas = pd.read_sql(query_prendas_edad, engine, params={
+                        'anio': anio_seleccionado,
+                        'meses': meses_numeros_detalle
+                    })
+
+                    # 5. KPIs PRINCIPALES
+                    st.markdown("### 📊 Métricas Principales")
+
+                    col1, col2, col3, col4 = st.columns(4)
+
+                    total_inscripciones = df_inscripciones['cantidad'].sum()
+                    total_prendas = df_prendas['cantidad_prendas'].sum() if not df_prendas.empty else 0
+                    porcentaje_prendas = (total_prendas / total_inscripciones * 100) if total_inscripciones > 0 else 0
+                    edad_promedio = (df_inscripciones['edad'] * df_inscripciones['cantidad']).sum() / total_inscripciones if total_inscripciones > 0 else 0
+
+                    with col1:
+                        st.metric("Total Inscripciones", format_number(total_inscripciones))
+
+                    with col2:
+                        st.metric("Total Prendas", format_number(total_prendas))
+
+                    with col3:
+                        st.metric("% Prendas", f"{porcentaje_prendas:.1f}%")
+
+                    with col4:
+                        st.metric("Edad Promedio", f"{edad_promedio:.0f} años")
+
+                    st.markdown("---")
+
+                    # 6. GRÁFICO 1: DISTRIBUCIÓN DE EDADES DE COMPRADORES
+                    st.markdown("### 👥 Gráfico 1: Distribución de Edades de Compradores")
+
+                    df_edades_compradores = df_inscripciones.groupby('edad')['cantidad'].sum().reset_index()
+                    df_edades_compradores = df_edades_compradores.sort_values('edad')
+
+                    fig_edades = px.bar(
+                        df_edades_compradores,
+                        x='edad',
+                        y='cantidad',
+                        title=f'Distribución de Edades de Compradores - Año {anio_seleccionado}',
+                        labels={'edad': 'Edad (años)', 'cantidad': 'Cantidad de Compradores'},
+                        color='cantidad',
+                        color_continuous_scale='Blues'
+                    )
+                    fig_edades.update_layout(
+                        xaxis_title='Edad (años)',
+                        yaxis_title='Cantidad de Compradores',
+                        showlegend=False,
+                        hovermode='x'
+                    )
+                    st.plotly_chart(fig_edades, use_container_width=True)
+
+                    # Estadísticas de edad
+                    col_edad1, col_edad2, col_edad3 = st.columns(3)
+                    with col_edad1:
+                        edad_mas_comun = df_edades_compradores.loc[df_edades_compradores['cantidad'].idxmax(), 'edad']
+                        st.info(f"🎯 **Edad más frecuente:** {int(edad_mas_comun)} años")
+                    with col_edad2:
+                        st.info(f"📊 **Edad mínima:** {int(df_edades_compradores['edad'].min())} años")
+                    with col_edad3:
+                        st.info(f"📊 **Edad máxima:** {int(df_edades_compradores['edad'].max())} años")
+
+                    st.markdown("---")
+
+                    # 7. GRÁFICO 2: PRENDAS POR EDAD
+                    st.markdown("### 💰 Gráfico 2: Prendas por Edad del Comprador")
+
+                    if not df_prendas.empty:
+                        df_prendas_edad = df_prendas.groupby('edad')['cantidad_prendas'].sum().reset_index()
+                        df_prendas_edad = df_prendas_edad.sort_values('edad')
+
+                        # Calcular porcentaje de financiación por edad
+                        df_edad_completo = df_edades_compradores.merge(
+                            df_prendas_edad,
+                            on='edad',
+                            how='left'
+                        )
+                        df_edad_completo['cantidad_prendas'] = df_edad_completo['cantidad_prendas'].fillna(0)
+                        df_edad_completo['porcentaje_prenda'] = (df_edad_completo['cantidad_prendas'] / df_edad_completo['cantidad'] * 100)
+
+                        # Gráfico de barras de prendas por edad
+                        fig_prendas_edad = px.bar(
+                            df_prendas_edad,
+                            x='edad',
+                            y='cantidad_prendas',
+                            title=f'Cantidad de Prendas por Edad - Año {anio_seleccionado}',
+                            labels={'edad': 'Edad (años)', 'cantidad_prendas': 'Cantidad de Prendas'},
+                            color='cantidad_prendas',
+                            color_continuous_scale='Oranges'
+                        )
+                        fig_prendas_edad.update_layout(
+                            xaxis_title='Edad (años)',
+                            yaxis_title='Cantidad de Prendas',
+                            showlegend=False,
+                            hovermode='x'
+                        )
+                        st.plotly_chart(fig_prendas_edad, use_container_width=True)
+
+                        # Gráfico de línea: porcentaje de financiación por edad
+                        fig_porc_prenda = px.line(
+                            df_edad_completo,
+                            x='edad',
+                            y='porcentaje_prenda',
+                            title=f'Porcentaje de Financiación por Edad - Año {anio_seleccionado}',
+                            labels={'edad': 'Edad (años)', 'porcentaje_prenda': '% Financiación'},
+                            markers=True
+                        )
+                        fig_porc_prenda.update_traces(line_color='#FF6B35')
+                        fig_porc_prenda.update_layout(
+                            xaxis_title='Edad (años)',
+                            yaxis_title='% Financiación',
+                            hovermode='x'
+                        )
+                        st.plotly_chart(fig_porc_prenda, use_container_width=True)
+
+                        # Estadísticas de prendas por edad
+                        edad_max_prendas = df_prendas_edad.loc[df_prendas_edad['cantidad_prendas'].idxmax(), 'edad']
+                        edad_max_porc = df_edad_completo.loc[df_edad_completo['porcentaje_prenda'].idxmax(), 'edad']
+
+                        col_prenda1, col_prenda2 = st.columns(2)
+                        with col_prenda1:
+                            st.info(f"🎯 **Edad con más prendas:** {int(edad_max_prendas)} años ({int(df_prendas_edad.loc[df_prendas_edad['edad']==edad_max_prendas, 'cantidad_prendas'].values[0])} prendas)")
+                        with col_prenda2:
+                            st.info(f"💰 **Edad con mayor % financiación:** {int(edad_max_porc)} años ({df_edad_completo.loc[df_edad_completo['edad']==edad_max_porc, 'porcentaje_prenda'].values[0]:.1f}%)")
+
+                    else:
+                        st.warning("⚠️ No se encontraron prendas con los filtros seleccionados")
+
+                    st.markdown("---")
+
+                    # 8. GRÁFICO 3: PRENDAS POR MARCA
+                    st.markdown("### 🏆 Gráfico 3: Prendas por Marca")
+
+                    if not df_prendas.empty:
+                        df_prendas_marca = df_prendas.groupby('marca')['cantidad_prendas'].sum().reset_index()
+                        df_prendas_marca = df_prendas_marca.sort_values('cantidad_prendas', ascending=False).head(15)
+
+                        # Calcular porcentaje de financiación por marca
+                        df_inscripciones_marca = df_inscripciones.groupby('marca')['cantidad'].sum().reset_index()
+                        df_marca_completo = df_prendas_marca.merge(
+                            df_inscripciones_marca,
+                            on='marca',
+                            how='left'
+                        )
+                        df_marca_completo['porcentaje_prenda'] = (df_marca_completo['cantidad_prendas'] / df_marca_completo['cantidad'] * 100)
+                        df_marca_completo = df_marca_completo.sort_values('cantidad_prendas', ascending=False)
+
+                        col_marca1, col_marca2 = st.columns(2)
+
+                        with col_marca1:
+                            fig_prendas_marca = px.bar(
+                                df_marca_completo,
+                                x='cantidad_prendas',
+                                y='marca',
+                                orientation='h',
+                                title='Top 15 Marcas - Cantidad de Prendas',
+                                labels={'marca': 'Marca', 'cantidad_prendas': 'Cantidad de Prendas'},
+                                text='cantidad_prendas',
+                                color='cantidad_prendas',
+                                color_continuous_scale='Reds'
+                            )
+                            fig_prendas_marca.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+                            fig_prendas_marca.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
+                            st.plotly_chart(fig_prendas_marca, use_container_width=True)
+
+                        with col_marca2:
+                            fig_porc_marca = px.bar(
+                                df_marca_completo,
+                                x='porcentaje_prenda',
+                                y='marca',
+                                orientation='h',
+                                title='Top 15 Marcas - % Financiación',
+                                labels={'marca': 'Marca', 'porcentaje_prenda': '% Financiación'},
+                                text='porcentaje_prenda',
+                                color='porcentaje_prenda',
+                                color_continuous_scale='Greens'
+                            )
+                            fig_porc_marca.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                            fig_porc_marca.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
+                            st.plotly_chart(fig_porc_marca, use_container_width=True)
+
+                        # Marcas más financiadas
+                        marca_max_prendas = df_marca_completo.iloc[0]['marca']
+                        marca_max_porc = df_marca_completo.loc[df_marca_completo['porcentaje_prenda'].idxmax(), 'marca']
+
+                        col_m1, col_m2 = st.columns(2)
+                        with col_m1:
+                            st.success(f"🥇 **Marca con más prendas:** {marca_max_prendas} ({int(df_marca_completo.iloc[0]['cantidad_prendas'])} prendas)")
+                        with col_m2:
+                            st.success(f"💰 **Marca con mayor % financiación:** {marca_max_porc} ({df_marca_completo.loc[df_marca_completo['marca']==marca_max_porc, 'porcentaje_prenda'].values[0]:.1f}%)")
+
+                    st.markdown("---")
+
+                    # 9. GRÁFICO 4: PRENDAS POR MARCA Y TIPO DE VEHÍCULO
+                    st.markdown("### 🚗 Gráfico 4: Prendas por Marca y Tipo de Vehículo")
+
+                    if not df_prendas.empty:
+                        # Obtener top marcas
+                        top_marcas = df_prendas.groupby('marca')['cantidad_prendas'].sum().nlargest(10).index.tolist()
+
+                        df_prendas_tipo = df_prendas[df_prendas['marca'].isin(top_marcas)]
+                        df_prendas_tipo = df_prendas_tipo.groupby(['marca', 'tipo_vehiculo'])['cantidad_prendas'].sum().reset_index()
+                        df_prendas_tipo = df_prendas_tipo.sort_values('cantidad_prendas', ascending=False)
+
+                        # Gráfico de barras agrupadas
+                        fig_marca_tipo = px.bar(
+                            df_prendas_tipo,
+                            x='marca',
+                            y='cantidad_prendas',
+                            color='tipo_vehiculo',
+                            title='Top 10 Marcas - Prendas por Tipo de Vehículo',
+                            labels={'marca': 'Marca', 'cantidad_prendas': 'Cantidad de Prendas', 'tipo_vehiculo': 'Tipo de Vehículo'},
+                            barmode='group'
+                        )
+                        fig_marca_tipo.update_layout(
+                            xaxis_title='Marca',
+                            yaxis_title='Cantidad de Prendas',
+                            xaxis_tickangle=-45,
+                            legend_title='Tipo de Vehículo'
+                        )
+                        st.plotly_chart(fig_marca_tipo, use_container_width=True)
+
+                        # Tabla detallada
+                        st.markdown("#### 📋 Detalle por Marca y Tipo")
+
+                        df_marca_tipo_pivot = df_prendas_tipo.pivot_table(
+                            index='marca',
+                            columns='tipo_vehiculo',
+                            values='cantidad_prendas',
+                            aggfunc='sum',
+                            fill_value=0
+                        ).reset_index()
+
+                        df_marca_tipo_pivot['Total'] = df_marca_tipo_pivot.select_dtypes(include='number').sum(axis=1)
+                        df_marca_tipo_pivot = df_marca_tipo_pivot.sort_values('Total', ascending=False)
+
+                        st.dataframe(df_marca_tipo_pivot, use_container_width=True, hide_index=True)
+
+                    st.markdown("---")
+
+                    # 10. INSIGHTS Y CONCLUSIONES
+                    with st.expander("💡 Ver Insights y Análisis Adicionales"):
+                        col_ins1, col_ins2 = st.columns(2)
+
+                        with col_ins1:
+                            st.markdown("**📊 Análisis Demográfico**")
+
+                            # Rango de edad más activo
+                            df_edad_rangos = df_inscripciones.copy()
+                            df_edad_rangos['rango_edad'] = pd.cut(
+                                df_edad_rangos['edad'],
+                                bins=[18, 25, 35, 45, 55, 65, 100],
+                                labels=['18-25', '26-35', '36-45', '46-55', '56-65', '65+']
+                            )
+                            df_rangos = df_edad_rangos.groupby('rango_edad')['cantidad'].sum().reset_index()
+                            df_rangos = df_rangos.sort_values('cantidad', ascending=False)
+
+                            st.write(f"• **Rango etario más activo:** {df_rangos.iloc[0]['rango_edad']} años")
+                            st.write(f"• **Total inscripciones en ese rango:** {format_number(df_rangos.iloc[0]['cantidad'])}")
+
+                            if origen_seleccionado == "Ambos":
+                                origen_preferido = df_inscripciones.groupby('origen')['cantidad'].sum().idxmax()
+                                st.write(f"• **Origen preferido:** {origen_preferido}")
+
+                        with col_ins2:
+                            st.markdown("**💰 Análisis de Financiación**")
+
+                            if not df_prendas.empty:
+                                # Tipo de vehículo más financiado
+                                tipo_mas_financiado = df_prendas.groupby('tipo_vehiculo')['cantidad_prendas'].sum().idxmax()
+                                cantidad_tipo = df_prendas.groupby('tipo_vehiculo')['cantidad_prendas'].sum().max()
+
+                                st.write(f"• **Tipo más financiado:** {tipo_mas_financiado}")
+                                st.write(f"• **Cantidad de prendas:** {format_number(cantidad_tipo)}")
+                                st.write(f"• **Tasa de financiación global:** {porcentaje_prendas:.1f}%")
+
+            except Exception as e:
+                st.error(f"❌ Error al cargar datos: {str(e)}")
+                st.exception(e)
 
 # Footer
 st.markdown("---")
