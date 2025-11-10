@@ -624,8 +624,35 @@ with tab5:
                 key="detalle_tipo_persona"
             )
 
+        # Obtener provincias disponibles para el filtro global
+        query_provincias_global = text(f"""
+            SELECT DISTINCT registro_seccional_provincia as provincia
+            FROM datos_gob_inscripciones
+            WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
+            AND registro_seccional_provincia IS NOT NULL
+            AND registro_seccional_provincia != ''
+            ORDER BY provincia
+        """)
+
+        try:
+            df_provincias_global = pd.read_sql(query_provincias_global, engine, params={'anio': anio_seleccionado})
+            provincias_disponibles_global = df_provincias_global['provincia'].tolist()
+        except:
+            provincias_disponibles_global = []
+
+        # Filtro de provincias (transversal a todos los gráficos)
+        st.markdown("#### 🏙️ Provincias")
+        provincias_seleccionadas = st.multiselect(
+            "Selecciona una o más provincias para filtrar todos los gráficos:",
+            options=provincias_disponibles_global,
+            default=provincias_disponibles_global[:3] if len(provincias_disponibles_global) >= 3 else provincias_disponibles_global,
+            key="provincias_global"
+        )
+
         if not meses_seleccionados_detalle:
             st.warning("⚠️ Selecciona al menos un mes")
+        elif not provincias_seleccionadas:
+            st.warning("⚠️ Selecciona al menos una provincia")
         else:
             # Convertir meses a números
             meses_numeros_detalle = [list(MESES_ES.keys())[list(MESES_ES.values()).index(mes)] for mes in meses_seleccionados_detalle]
@@ -651,16 +678,18 @@ with tab5:
                     automotor_tipo_descripcion as tipo_vehiculo,
                     automotor_origen as origen,
                     titular_tipo_persona as tipo_persona,
+                    registro_seccional_provincia as provincia,
                     COUNT(*) as cantidad
                 FROM datos_gob_inscripciones
                 WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
                 AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND registro_seccional_provincia = ANY(:provincias)
                 AND tramite_fecha IS NOT NULL
                 AND titular_anio_nacimiento IS NOT NULL
                 AND titular_anio_nacimiento > 0
                 {filtro_origen}
                 {filtro_tipo_persona}
-                GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona
+                GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona, provincia
                 HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento BETWEEN 18 AND 100
                 ORDER BY edad
             """)
@@ -668,7 +697,8 @@ with tab5:
             try:
                 df_inscripciones = pd.read_sql(query_inscripciones_edad, engine, params={
                     'anio': anio_seleccionado,
-                    'meses': meses_numeros_detalle
+                    'meses': meses_numeros_detalle,
+                    'provincias': provincias_seleccionadas
                 })
 
                 if df_inscripciones.empty:
@@ -682,23 +712,26 @@ with tab5:
                             automotor_tipo_descripcion as tipo_vehiculo,
                             automotor_origen as origen,
                             titular_tipo_persona as tipo_persona,
+                            registro_seccional_provincia as provincia,
                             COUNT(*) as cantidad_prendas
                         FROM datos_gob_prendas
                         WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
                         AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                        AND registro_seccional_provincia = ANY(:provincias)
                         AND tramite_fecha IS NOT NULL
                         AND titular_anio_nacimiento IS NOT NULL
                         AND titular_anio_nacimiento > 0
                         {filtro_origen}
                         {filtro_tipo_persona}
-                        GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona
+                        GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona, provincia
                         HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento BETWEEN 18 AND 100
                         ORDER BY edad
                     """)
 
                     df_prendas = pd.read_sql(query_prendas_edad, engine, params={
                         'anio': anio_seleccionado,
-                        'meses': meses_numeros_detalle
+                        'meses': meses_numeros_detalle,
+                        'provincias': provincias_seleccionadas
                     })
 
                     # 5. KPIs PRINCIPALES
@@ -939,63 +972,13 @@ with tab5:
                     # 10. COMPARACIÓN ENTRE PROVINCIAS
                     st.markdown("### 🗺️ Gráfico 5: Comparación entre Provincias")
 
-                    # Obtener provincias disponibles
-                    query_provincias_detalle = text(f"""
-                        SELECT DISTINCT registro_seccional_provincia as provincia
-                        FROM datos_gob_inscripciones
-                        WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
-                        AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
-                        AND registro_seccional_provincia IS NOT NULL
-                        AND registro_seccional_provincia != ''
-                        ORDER BY provincia
-                    """)
+                    # Usar las provincias ya seleccionadas en el filtro global
+                    if len(provincias_seleccionadas) > 1:
+                        # Agrupar por provincia y edad desde los datos ya cargados
+                        df_prov_edad = df_inscripciones.groupby(['provincia', 'edad'])['cantidad'].sum().reset_index()
+                        df_prov_edad = df_prov_edad.sort_values(['provincia', 'edad'])
 
-                    try:
-                        df_provincias_disponibles = pd.read_sql(query_provincias_detalle, engine, params={
-                            'anio': anio_seleccionado,
-                            'meses': meses_numeros_detalle
-                        })
-                        provincias_disponibles_comp = df_provincias_disponibles['provincia'].tolist()
-                    except:
-                        provincias_disponibles_comp = []
-
-                    if provincias_disponibles_comp:
-                        # Multi-select de provincias
-                        provincias_comparar = st.multiselect(
-                            "🏙️ Selecciona provincias para comparar:",
-                            options=provincias_disponibles_comp,
-                            default=provincias_disponibles_comp[:3] if len(provincias_disponibles_comp) >= 3 else provincias_disponibles_comp,
-                            key="provincias_comparar"
-                        )
-
-                        if provincias_comparar:
-                            # Consulta para inscripciones por provincia y edad
-                            query_provincias_edad = text(f"""
-                                SELECT
-                                    registro_seccional_provincia as provincia,
-                                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento as edad,
-                                    COUNT(*) as cantidad
-                                FROM datos_gob_inscripciones
-                                WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
-                                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
-                                AND registro_seccional_provincia = ANY(:provincias)
-                                AND tramite_fecha IS NOT NULL
-                                AND titular_anio_nacimiento IS NOT NULL
-                                AND titular_anio_nacimiento > 0
-                                {filtro_origen}
-                                {filtro_tipo_persona}
-                                GROUP BY provincia, edad
-                                HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento BETWEEN 18 AND 100
-                                ORDER BY provincia, edad
-                            """)
-
-                            df_prov_edad = pd.read_sql(query_provincias_edad, engine, params={
-                                'anio': anio_seleccionado,
-                                'meses': meses_numeros_detalle,
-                                'provincias': provincias_comparar
-                            })
-
-                            if not df_prov_edad.empty:
+                        if not df_prov_edad.empty:
                                 # Gráfico 1: Distribución de edades por provincia
                                 st.markdown("#### 📊 Distribución de Edades por Provincia")
 
@@ -1016,34 +999,12 @@ with tab5:
                                 )
                                 st.plotly_chart(fig_prov_edad, use_container_width=True)
 
-                                # Consulta para prendas por provincia y edad
-                                if not df_prendas.empty:
-                                    query_prendas_prov_edad = text(f"""
-                                        SELECT
-                                            registro_seccional_provincia as provincia,
-                                            EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento as edad,
-                                            COUNT(*) as cantidad_prendas
-                                        FROM datos_gob_prendas
-                                        WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
-                                        AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
-                                        AND registro_seccional_provincia = ANY(:provincias)
-                                        AND tramite_fecha IS NOT NULL
-                                        AND titular_anio_nacimiento IS NOT NULL
-                                        AND titular_anio_nacimiento > 0
-                                        {filtro_origen}
-                                        {filtro_tipo_persona}
-                                        GROUP BY provincia, edad
-                                        HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento BETWEEN 18 AND 100
-                                        ORDER BY provincia, edad
-                                    """)
+                            # Agrupar prendas por provincia y edad desde los datos ya cargados
+                            if not df_prendas.empty:
+                                df_prendas_prov_edad = df_prendas.groupby(['provincia', 'edad'])['cantidad_prendas'].sum().reset_index()
+                                df_prendas_prov_edad = df_prendas_prov_edad.sort_values(['provincia', 'edad'])
 
-                                    df_prendas_prov_edad = pd.read_sql(query_prendas_prov_edad, engine, params={
-                                        'anio': anio_seleccionado,
-                                        'meses': meses_numeros_detalle,
-                                        'provincias': provincias_comparar
-                                    })
-
-                                    if not df_prendas_prov_edad.empty:
+                                if not df_prendas_prov_edad.empty:
                                         # Gráfico 2: Prendas por edad y provincia
                                         st.markdown("#### 💰 Prendas por Edad y Provincia")
 
@@ -1106,10 +1067,10 @@ with tab5:
                                         df_tabla_comp['% Financiación'] = df_tabla_comp['% Financiación'].apply(lambda x: f"{x:.1f}%")
 
                                         st.dataframe(df_tabla_comp, use_container_width=True, hide_index=True)
-                            else:
-                                st.info("No hay datos suficientes para comparar las provincias seleccionadas")
                         else:
-                            st.info("👆 Selecciona al menos una provincia para ver la comparación")
+                            st.info("No hay datos suficientes para comparar las provincias seleccionadas")
+                    else:
+                        st.info("💡 Selecciona **2 o más provincias** en el filtro de arriba para ver la comparación entre provincias")
 
                     st.markdown("---")
 
