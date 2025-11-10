@@ -321,6 +321,64 @@ def get_db_connection():
     )
 
 
+def verificar_y_actualizar_schema(conn):
+    """
+    Verifica que las columnas tengan el tamaño correcto y las actualiza si es necesario
+    """
+    cursor = conn.cursor()
+
+    try:
+        # Verificar tamaño de columnas VARCHAR críticas
+        cursor.execute("""
+            SELECT column_name, character_maximum_length
+            FROM information_schema.columns
+            WHERE table_name = 'siogranos_operaciones'
+              AND column_name IN (
+                  'id_provincia_procedencia',
+                  'id_provincia_destino',
+                  'id_localidad_procedencia',
+                  'id_localidad_destino',
+                  'id_puerto'
+              )
+        """)
+
+        columnas = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # Verificar si necesitamos actualizar
+        necesita_actualizacion = False
+        if columnas.get('id_provincia_procedencia', 0) < 20:
+            necesita_actualizacion = True
+        if columnas.get('id_provincia_destino', 0) < 20:
+            necesita_actualizacion = True
+        if columnas.get('id_localidad_procedencia', 0) < 50:
+            necesita_actualizacion = True
+        if columnas.get('id_localidad_destino', 0) < 50:
+            necesita_actualizacion = True
+        if columnas.get('id_puerto', 0) < 50:
+            necesita_actualizacion = True
+
+        if necesita_actualizacion:
+            logger.warning("[AVISO] Schema desactualizado. Actualizando tamaños de columnas...")
+
+            # Actualizar columnas
+            cursor.execute("ALTER TABLE siogranos_operaciones ALTER COLUMN id_provincia_procedencia TYPE VARCHAR(20)")
+            cursor.execute("ALTER TABLE siogranos_operaciones ALTER COLUMN id_provincia_destino TYPE VARCHAR(20)")
+            cursor.execute("ALTER TABLE siogranos_operaciones ALTER COLUMN id_localidad_procedencia TYPE VARCHAR(50)")
+            cursor.execute("ALTER TABLE siogranos_operaciones ALTER COLUMN id_localidad_destino TYPE VARCHAR(50)")
+            cursor.execute("ALTER TABLE siogranos_operaciones ALTER COLUMN id_puerto TYPE VARCHAR(50)")
+
+            conn.commit()
+            logger.info("[OK] Schema actualizado correctamente")
+        else:
+            logger.info("[OK] Schema actualizado")
+
+    except Exception as e:
+        logger.warning(f"[AVISO] No se pudo verificar schema: {e}")
+        # No es un error fatal, continuar
+    finally:
+        cursor.close()
+
+
 def inicializar_tablas(conn):
     """
     Verifica e inicializa las tablas necesarias si no existen
@@ -412,13 +470,13 @@ def inicializar_tablas(conn):
                         id_moneda INTEGER,
                         simbolo_moneda VARCHAR(10),
                         nombre_moneda VARCHAR(50),
-                        id_provincia_procedencia VARCHAR(5),
+                        id_provincia_procedencia VARCHAR(20),
                         nombre_provincia_procedencia VARCHAR(100),
-                        id_localidad_procedencia VARCHAR(10),
+                        id_localidad_procedencia VARCHAR(50),
                         nombre_localidad_procedencia VARCHAR(200),
-                        id_provincia_destino VARCHAR(5),
+                        id_provincia_destino VARCHAR(20),
                         nombre_provincia_destino VARCHAR(100),
-                        id_localidad_destino VARCHAR(10),
+                        id_localidad_destino VARCHAR(50),
                         nombre_localidad_destino VARCHAR(200),
                         id_tipo_operacion INTEGER,
                         nombre_tipo_operacion VARCHAR(100),
@@ -434,7 +492,7 @@ def inicializar_tablas(conn):
                         nombre_condicion_calidad VARCHAR(100),
                         id_zona INTEGER,
                         nombre_zona VARCHAR(100),
-                        id_puerto VARCHAR(10),
+                        id_puerto VARCHAR(50),
                         nombre_puerto VARCHAR(200),
                         datos_adicionales JSONB,
                         fuente_api VARCHAR(200) DEFAULT 'SIOGRANOS',
@@ -459,6 +517,9 @@ def inicializar_tablas(conn):
                 logger.info("[OK] Tablas creadas manualmente")
         else:
             logger.info("[OK] Tablas SIOGRANOS ya existen")
+
+            # Verificar y actualizar schema si es necesario
+            verificar_y_actualizar_schema(conn)
 
     except Exception as e:
         logger.error(f"[ERROR] Error al inicializar tablas: {e}")
