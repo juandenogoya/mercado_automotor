@@ -126,6 +126,11 @@ def fetch_operaciones_con_reintentos(
                     logger.warning(f"[AVISO] Estructura de respuesta inesperada: {type(json_response)}")
                     operaciones = []
 
+                # Verificar que operaciones no sea None y convertir a lista vacía si lo es
+                if operaciones is None:
+                    logger.warning(f"[AVISO] API devolvió None en operaciones, usando lista vacía")
+                    operaciones = []
+
                 logger.info(f"[OK] Respuesta exitosa: {len(operaciones)} operaciones")
                 return operaciones
 
