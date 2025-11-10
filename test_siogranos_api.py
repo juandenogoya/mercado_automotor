@@ -5,6 +5,10 @@ para análisis del mercado automotor
 import requests
 import json
 from datetime import datetime, timedelta
+from siogranos_codigos import (
+    PRODUCTOS, PROVINCIAS, PROVINCIAS_AGRICOLAS_PRINCIPALES,
+    PRODUCTOS_CLAVE, MONEDAS
+)
 
 def test_siogranos_api():
     """Prueba la API de SIOGRANOS y analiza los datos"""
@@ -192,27 +196,91 @@ def test_siogranos_api():
         import traceback
         traceback.print_exc()
 
-    # Test 2: Información sobre URL de producción
+    # Test 2: Consultas específicas con códigos correctos
     print("\n" + "="*80)
-    print("2️⃣ NOTA: Servidor de Testing vs Producción")
+    print("2️⃣ TEST 2: Consultas específicas por producto")
+    print("="*80)
+
+    # Probar con SOJA (código 21) - el más importante para análisis automotor
+    print(f"\n🌾 Probando con SOJA (código 21) - Producto clave para pick-ups...\n")
+
+    for id_grano, nombre_grano in [(21, "SOJA"), (2, "MAIZ"), (1, "TRIGO PAN")]:
+        params_grano = {
+            'FechaOperacionDesde': '2024-01-01',
+            'FechaOperacionHasta': '2024-12-31',
+            'idGrano': id_grano
+        }
+
+        print(f"🔍 {nombre_grano} (idGrano={id_grano})...")
+
+        try:
+            response = requests.get(base_url, params=params_grano, timeout=30)
+
+            if response.status_code == 200:
+                json_resp = response.json()
+                if 'result' in json_resp and 'operaciones' in json_resp['result']:
+                    ops = json_resp['result']['operaciones']
+                    if len(ops) > 0:
+                        print(f"   ✅ {len(ops)} operaciones encontradas")
+
+                        # Análisis rápido
+                        volumenes = [op.get('volumenTN', 0) for op in ops if op.get('volumenTN')]
+                        precios = [op.get('precioTN', 0) for op in ops if op.get('precioTN')]
+
+                        if volumenes:
+                            print(f"   📦 Volumen total: {sum(volumenes):,.0f} TN")
+                        if precios:
+                            print(f"   💰 Precio promedio: ${sum(precios)/len(precios):,.2f}/TN")
+                        break
+                    else:
+                        print(f"   ❌ 0 operaciones")
+                else:
+                    print(f"   ❌ Respuesta sin datos")
+        except Exception as e:
+            print(f"   ❌ Error: {e}")
+
+    # Test 3: Consulta por provincia agrícola
+    print("\n" + "="*80)
+    print("3️⃣ TEST 3: Consultas por provincia (zona pampeana)")
+    print("="*80)
+
+    for codigo_prov in ['B', 'S', 'X']:  # Buenos Aires, Santa Fe, Córdoba
+        nombre_prov = PROVINCIAS.get(codigo_prov, codigo_prov)
+        print(f"\n📍 {nombre_prov} (código '{codigo_prov}')...")
+
+        params_prov = {
+            'FechaOperacionDesde': '2024-01-01',
+            'FechaOperacionHasta': '2024-12-31',
+            'idProvinciaProcedencia': codigo_prov
+        }
+
+        try:
+            response = requests.get(base_url, params=params_prov, timeout=30)
+
+            if response.status_code == 200:
+                json_resp = response.json()
+                if 'result' in json_resp and 'operaciones' in json_resp['result']:
+                    ops = json_resp['result']['operaciones']
+                    if len(ops) > 0:
+                        print(f"   ✅ {len(ops)} operaciones")
+                        break
+                    else:
+                        print(f"   ❌ 0 operaciones")
+        except:
+            print(f"   ❌ Error en consulta")
+
+    # Nota sobre servidor de testing
+    print("\n" + "="*80)
+    print("⚠️  NOTA: Servidor de Testing vs Producción")
     print("="*80)
     print("""
-🏗️  SERVIDOR DE TESTING:
-   URL actual: https://test.bc.org.ar/SiogranosAPI/...
-   Estado: Funcionando (200 OK) pero sin datos
+🏗️  SERVIDOR DE TESTING (actual):
+   • URL: https://test.bc.org.ar/SiogranosAPI/...
+   • Estado: Funcionando (200 OK)
+   • Datos: Puede estar vacío o con datos de prueba
 
-🏭 SERVIDOR DE PRODUCCIÓN:
-   La documentación no especifica la URL de producción
-   Posibles URLs a consultar:
-   • https://api.bc.org.ar/SiogranosAPI/api/ConsultaPublica/consultarOperaciones
-   • https://www.siogranos.com.ar/api/ConsultaPublica/consultarOperaciones
-   • https://siogranos.bc.org.ar/api/ConsultaPublica/consultarOperaciones
-
-💡 RECOMENDACIÓN:
-   Contactar a SIOGRANOS para obtener:
-   1. URL del servidor de producción
-   2. Límites de rate limiting
-   3. Documentación de las tablas de códigos (TABLAS_SioGranos.xlsx)
+🏭 PRÓXIMO PASO:
+   Obtener URL de producción para acceder a datos reales
 """)
 
     # Evaluación final
