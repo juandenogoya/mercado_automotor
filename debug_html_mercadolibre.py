@@ -28,20 +28,54 @@ def inspect_mercadolibre_html():
         response = requests.get(url, headers=headers, timeout=30)
 
         print(f"📊 Status: {response.status_code}")
-        print(f"📏 Tamaño: {len(response.content)} bytes")
-        print(f"🗂️  Content-Type: {response.headers.get('Content-Type', 'N/A')}\n")
+        print(f"📏 Tamaño respuesta: {len(response.content)} bytes")
+        print(f"🗂️  Content-Type: {response.headers.get('Content-Type', 'N/A')}")
+        print(f"🗜️  Content-Encoding: {response.headers.get('Content-Encoding', 'N/A')}")
+        print(f"📝 Encoding detectado: {response.encoding}\n")
 
         if response.status_code != 200:
             print(f"❌ Error: Status {response.status_code}")
             return
 
+        # Verificar si el contenido está comprimido correctamente
+        html_text = response.text
+
+        # Verificar primeros caracteres para detectar si es binario/corrupto
+        first_chars = html_text[:100]
+        is_binary = any(ord(c) < 32 and c not in '\n\r\t' for c in first_chars[:20])
+
+        if is_binary:
+            print("🚨 ADVERTENCIA: Contenido parece estar corrupto o mal descomprimido")
+            print(f"   Primeros bytes: {response.content[:50]}\n")
+
+            # Intentar forzar encoding
+            print("🔄 Intentando con diferentes encodings...\n")
+
+            for encoding in ['utf-8', 'latin1', 'iso-8859-1']:
+                try:
+                    response.encoding = encoding
+                    html_text = response.text
+                    if '<html' in html_text.lower() or '<!doctype' in html_text.lower():
+                        print(f"✅ Éxito con encoding: {encoding}\n")
+                        break
+                except:
+                    continue
+            else:
+                print("❌ No se pudo decodificar correctamente\n")
+                return
+
         # Guardar HTML para inspección
         with open('mercadolibre_debug.html', 'w', encoding='utf-8') as f:
-            f.write(response.text)
+            f.write(html_text)
         print("💾 HTML guardado en: mercadolibre_debug.html\n")
 
+        # Verificar que sea HTML válido
+        if '<html' not in html_text.lower() and '<!doctype' not in html_text.lower():
+            print("⚠️ ADVERTENCIA: El contenido no parece ser HTML válido")
+            print(f"   Primeros 500 caracteres:\n{html_text[:500]}\n")
+
         # Parsear con BeautifulSoup
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(html_text, 'html.parser')
 
         print("="*80)
         print("🔎 ANÁLISIS DE ESTRUCTURA HTML")
@@ -126,7 +160,7 @@ def inspect_mercadolibre_html():
         # 5. Verificar si hay CAPTCHA o bloqueo
         print("\n5️⃣ Verificando señales de bloqueo:\n")
 
-        html_lower = response.text.lower()
+        html_lower = html_text.lower()
 
         blocking_signals = {
             'captcha': 'captcha' in html_lower,
@@ -142,7 +176,7 @@ def inspect_mercadolibre_html():
         # 6. Mostrar primeros 2000 caracteres del HTML
         print("\n6️⃣ Primeros 2000 caracteres del HTML:\n")
         print("-"*80)
-        print(response.text[:2000])
+        print(html_text[:2000])
         print("-"*80)
 
         # 7. Buscar scripts de React/JavaScript
