@@ -659,6 +659,10 @@ with tab5:
 
             st.markdown("---")
 
+            # Advertencia sobre Personas Jurídicas
+            if tipo_persona_seleccionado == "Persona Jurídica":
+                st.info("ℹ️ **Nota:** Las Personas Jurídicas (empresas) no tienen edad registrada, por lo que el análisis demográfico estará vacío o muy limitado. Se recomienda seleccionar 'Persona Física' o 'Ambos' para ver análisis de edades.")
+
             # 3. CONSULTA PRINCIPAL - INSCRIPCIONES CON EDAD
             # Construir filtros WHERE dinámicos
             filtro_origen = ""
@@ -782,14 +786,15 @@ with tab5:
                     st.plotly_chart(fig_edades, use_container_width=True)
 
                     # Estadísticas de edad
-                    col_edad1, col_edad2, col_edad3 = st.columns(3)
-                    with col_edad1:
-                        edad_mas_comun = df_edades_compradores.loc[df_edades_compradores['cantidad'].idxmax(), 'edad']
-                        st.info(f"🎯 **Edad más frecuente:** {int(edad_mas_comun)} años")
-                    with col_edad2:
-                        st.info(f"📊 **Edad mínima:** {int(df_edades_compradores['edad'].min())} años")
-                    with col_edad3:
-                        st.info(f"📊 **Edad máxima:** {int(df_edades_compradores['edad'].max())} años")
+                    if not df_edades_compradores.empty and len(df_edades_compradores) > 0:
+                        col_edad1, col_edad2, col_edad3 = st.columns(3)
+                        with col_edad1:
+                            edad_mas_comun = df_edades_compradores.loc[df_edades_compradores['cantidad'].idxmax(), 'edad']
+                            st.info(f"🎯 **Edad más frecuente:** {int(edad_mas_comun)} años")
+                        with col_edad2:
+                            st.info(f"📊 **Edad mínima:** {int(df_edades_compradores['edad'].min())} años")
+                        with col_edad3:
+                            st.info(f"📊 **Edad máxima:** {int(df_edades_compradores['edad'].max())} años")
 
                     st.markdown("---")
 
@@ -845,14 +850,15 @@ with tab5:
                         st.plotly_chart(fig_porc_prenda, use_container_width=True)
 
                         # Estadísticas de prendas por edad
-                        edad_max_prendas = df_prendas_edad.loc[df_prendas_edad['cantidad_prendas'].idxmax(), 'edad']
-                        edad_max_porc = df_edad_completo.loc[df_edad_completo['porcentaje_prenda'].idxmax(), 'edad']
+                        if not df_prendas_edad.empty and len(df_prendas_edad) > 0:
+                            edad_max_prendas = df_prendas_edad.loc[df_prendas_edad['cantidad_prendas'].idxmax(), 'edad']
+                            edad_max_porc = df_edad_completo.loc[df_edad_completo['porcentaje_prenda'].idxmax(), 'edad']
 
-                        col_prenda1, col_prenda2 = st.columns(2)
-                        with col_prenda1:
-                            st.info(f"🎯 **Edad con más prendas:** {int(edad_max_prendas)} años ({int(df_prendas_edad.loc[df_prendas_edad['edad']==edad_max_prendas, 'cantidad_prendas'].values[0])} prendas)")
-                        with col_prenda2:
-                            st.info(f"💰 **Edad con mayor % financiación:** {int(edad_max_porc)} años ({df_edad_completo.loc[df_edad_completo['edad']==edad_max_porc, 'porcentaje_prenda'].values[0]:.1f}%)")
+                            col_prenda1, col_prenda2 = st.columns(2)
+                            with col_prenda1:
+                                st.info(f"🎯 **Edad con más prendas:** {int(edad_max_prendas)} años ({int(df_prendas_edad.loc[df_prendas_edad['edad']==edad_max_prendas, 'cantidad_prendas'].values[0])} prendas)")
+                            with col_prenda2:
+                                st.info(f"💰 **Edad con mayor % financiación:** {int(edad_max_porc)} años ({df_edad_completo.loc[df_edad_completo['edad']==edad_max_porc, 'porcentaje_prenda'].values[0]:.1f}%)")
 
                     else:
                         st.warning("⚠️ No se encontraron prendas con los filtros seleccionados")
@@ -911,14 +917,15 @@ with tab5:
                             st.plotly_chart(fig_porc_marca, use_container_width=True)
 
                         # Marcas más financiadas
-                        marca_max_prendas = df_marca_completo.iloc[0]['marca']
-                        marca_max_porc = df_marca_completo.loc[df_marca_completo['porcentaje_prenda'].idxmax(), 'marca']
+                        if not df_marca_completo.empty and len(df_marca_completo) > 0:
+                            marca_max_prendas = df_marca_completo.iloc[0]['marca']
+                            marca_max_porc = df_marca_completo.loc[df_marca_completo['porcentaje_prenda'].idxmax(), 'marca']
 
-                        col_m1, col_m2 = st.columns(2)
-                        with col_m1:
-                            st.success(f"🥇 **Marca con más prendas:** {marca_max_prendas} ({int(df_marca_completo.iloc[0]['cantidad_prendas'])} prendas)")
-                        with col_m2:
-                            st.success(f"💰 **Marca con mayor % financiación:** {marca_max_porc} ({df_marca_completo.loc[df_marca_completo['marca']==marca_max_porc, 'porcentaje_prenda'].values[0]:.1f}%)")
+                            col_m1, col_m2 = st.columns(2)
+                            with col_m1:
+                                st.success(f"🥇 **Marca con más prendas:** {marca_max_prendas} ({int(df_marca_completo.iloc[0]['cantidad_prendas'])} prendas)")
+                            with col_m2:
+                                st.success(f"💰 **Marca con mayor % financiación:** {marca_max_porc} ({df_marca_completo.loc[df_marca_completo['marca']==marca_max_porc, 'porcentaje_prenda'].values[0]:.1f}%)")
 
                     st.markdown("---")
 
@@ -1091,12 +1098,15 @@ with tab5:
                             df_rangos = df_edad_rangos.groupby('rango_edad', observed=True)['cantidad'].sum().reset_index()
                             df_rangos = df_rangos.sort_values('cantidad', ascending=False)
 
-                            st.write(f"• **Rango etario más activo:** {df_rangos.iloc[0]['rango_edad']} años")
-                            st.write(f"• **Total inscripciones en ese rango:** {format_number(df_rangos.iloc[0]['cantidad'])}")
+                            if not df_rangos.empty and len(df_rangos) > 0:
+                                st.write(f"• **Rango etario más activo:** {df_rangos.iloc[0]['rango_edad']} años")
+                                st.write(f"• **Total inscripciones en ese rango:** {format_number(df_rangos.iloc[0]['cantidad'])}")
 
-                            if origen_seleccionado == "Ambos":
-                                origen_preferido = df_inscripciones.groupby('origen')['cantidad'].sum().idxmax()
-                                st.write(f"• **Origen preferido:** {origen_preferido}")
+                            if origen_seleccionado == "Ambos" and not df_inscripciones.empty:
+                                df_origen_agg = df_inscripciones.groupby('origen')['cantidad'].sum()
+                                if not df_origen_agg.empty:
+                                    origen_preferido = df_origen_agg.idxmax()
+                                    st.write(f"• **Origen preferido:** {origen_preferido}")
 
                         with col_ins2:
                             st.markdown("**💰 Análisis de Financiación**")
