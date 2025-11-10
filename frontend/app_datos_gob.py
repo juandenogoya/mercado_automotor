@@ -365,30 +365,7 @@ def analizar_tramites(tabla_nombre, titulo, icono):
 
         st.markdown("---")
 
-        # 9. Evolución mensual por provincia (si hay más de una provincia seleccionada)
-        if len(provincias_seleccionadas) > 1:
-            st.markdown("### 📍 Comparación Mensual entre Provincias")
-
-            df_prov_mes = df.groupby(['provincia', 'mes', 'mes_nombre'])['cantidad'].sum().reset_index()
-            df_prov_mes = df_prov_mes.sort_values(['provincia', 'mes'])
-
-            fig_prov_mes = px.line(
-                df_prov_mes,
-                x='mes_nombre',
-                y='cantidad',
-                color='provincia',
-                title='Evolución Mensual por Provincia',
-                labels={'mes_nombre': 'Mes', 'cantidad': 'Cantidad', 'provincia': 'Provincia'},
-                markers=True,
-                category_orders={'mes_nombre': MESES_ORDEN}
-            )
-
-            fig_prov_mes.update_layout(hovermode='x unified')
-            st.plotly_chart(fig_prov_mes, use_container_width=True)
-
-            st.markdown("---")
-
-        # 10. Tabla de datos detallada
+        # 9. Tabla de datos detallada
         st.markdown("### 📋 Datos Detallados")
 
         # Preparar datos para tabla
@@ -410,7 +387,7 @@ def analizar_tramites(tabla_nombre, titulo, icono):
             mime="text/csv"
         )
 
-        # 11. Estadísticas adicionales
+        # 10. Estadísticas adicionales
         with st.expander("📊 Ver Estadísticas Adicionales"):
             col_stat1, col_stat2, col_stat3 = st.columns(3)
 
