@@ -15,15 +15,16 @@ def test_siogranos_api():
 
     base_url = "https://test.bc.org.ar/SiogranosAPI/api/ConsultaPublica/consultarOperaciones"
 
-    # Probar con diferentes rangos de fechas
-    # Primero intentar con año 2024 (más probable que tenga datos)
-    fecha_desde_str = '2024-01-01'
-    fecha_hasta_str = '2024-12-31'
+    # Probar con últimos 30 días para evitar timeout
+    fecha_hasta = datetime.now()
+    fecha_desde = fecha_hasta - timedelta(days=30)
+    fecha_desde_str = fecha_desde.strftime('%Y-%m-%d')
+    fecha_hasta_str = fecha_hasta.strftime('%Y-%m-%d')
 
     print("="*80)
     print("🌾 TEST - API SIOGRANOS (Operaciones de Granos)")
     print("="*80)
-    print(f"\n📅 Probando con año 2024 completo: {fecha_desde_str} hasta {fecha_hasta_str}\n")
+    print(f"\n📅 Probando con últimos 30 días: {fecha_desde_str} hasta {fecha_hasta_str}\n")
 
     # Test 1: Consulta simple sin filtros
     print("\n" + "="*80)
@@ -126,14 +127,15 @@ def test_siogranos_api():
                     print(f"\n💾 Primeras 10 operaciones guardadas en: {sample_file}")
 
             else:
-                print("⚠️ No se encontraron operaciones en el período 2024")
+                print(f"⚠️ No se encontraron operaciones en los últimos 30 días")
                 print("   Probando con otros rangos de fechas...\n")
 
-                # Intentar con 2023
-                print("🔄 Intentando con año 2023...")
+                # Intentar con últimos 60 días
+                print("🔄 Intentando con últimos 60 días...")
+                fecha_desde_60 = fecha_hasta - timedelta(days=60)
                 params_2023 = {
-                    'FechaOperacionDesde': '2023-01-01',
-                    'FechaOperacionHasta': '2023-12-31'
+                    'FechaOperacionDesde': fecha_desde_60.strftime('%Y-%m-%d'),
+                    'FechaOperacionHasta': fecha_hasta_str
                 }
                 try:
                     response = requests.get(base_url, params=params_2023, timeout=30)
@@ -142,10 +144,10 @@ def test_siogranos_api():
                         if 'result' in json_resp and 'operaciones' in json_resp['result']:
                             ops_2023 = json_resp['result']['operaciones']
                             if len(ops_2023) > 0:
-                                print(f"   ✅ Encontradas {len(ops_2023)} operaciones en 2023")
+                                print(f"   ✅ Encontradas {len(ops_2023)} operaciones en últimos 60 días")
                                 data = ops_2023  # Usar estos datos para el análisis
                             else:
-                                print("   ❌ 0 operaciones en 2023")
+                                print("   ❌ 0 operaciones en últimos 60 días")
                 except:
                     pass
 
@@ -206,8 +208,8 @@ def test_siogranos_api():
 
     for id_grano, nombre_grano in [(21, "SOJA"), (2, "MAIZ"), (1, "TRIGO PAN")]:
         params_grano = {
-            'FechaOperacionDesde': '2024-01-01',
-            'FechaOperacionHasta': '2024-12-31',
+            'FechaOperacionDesde': fecha_desde_str,
+            'FechaOperacionHasta': fecha_hasta_str,
             'idGrano': id_grano
         }
 
@@ -249,8 +251,8 @@ def test_siogranos_api():
         print(f"\n📍 {nombre_prov} (código '{codigo_prov}')...")
 
         params_prov = {
-            'FechaOperacionDesde': '2024-01-01',
-            'FechaOperacionHasta': '2024-12-31',
+            'FechaOperacionDesde': fecha_desde_str,
+            'FechaOperacionHasta': fecha_hasta_str,
             'idProvinciaProcedencia': codigo_prov
         }
 
