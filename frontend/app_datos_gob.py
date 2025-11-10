@@ -667,9 +667,9 @@ with tab5:
 
             filtro_tipo_persona = ""
             if tipo_persona_seleccionado == "Persona Física":
-                filtro_tipo_persona = "AND UPPER(titular_tipo_persona) = 'FISICA'"
+                filtro_tipo_persona = "AND titular_tipo_persona ILIKE '%fisic%'"
             elif tipo_persona_seleccionado == "Persona Jurídica":
-                filtro_tipo_persona = "AND UPPER(titular_tipo_persona) = 'JURIDICA'"
+                filtro_tipo_persona = "AND titular_tipo_persona ILIKE '%juridic%'"
 
             query_inscripciones_edad = text(f"""
                 SELECT
