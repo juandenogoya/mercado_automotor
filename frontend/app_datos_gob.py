@@ -1176,13 +1176,18 @@ with tab6:
             with col_f2:
                 tipo_tramite_hist = st.selectbox(
                     "📋 Tipo de Trámite",
-                    options=["Inscripciones", "Transferencias"],
+                    options=["Inscripciones", "Transferencias", "Inscripciones + Transferencias"],
                     index=0,
                     key="hist_tipo_tramite"
                 )
 
             # Obtener años disponibles
-            tabla_hist = "estadisticas_inscripciones" if tipo_tramite_hist == "Inscripciones" else "estadisticas_transferencias"
+            if tipo_tramite_hist == "Inscripciones":
+                tabla_hist = "estadisticas_inscripciones"
+            elif tipo_tramite_hist == "Transferencias":
+                tabla_hist = "estadisticas_transferencias"
+            else:  # Inscripciones + Transferencias
+                tabla_hist = "estadisticas_inscripciones"  # Usamos una para obtener años
 
             query_anios_hist = text(f"""
                 SELECT DISTINCT anio
@@ -1240,19 +1245,48 @@ with tab6:
                 provincias_str = "', '".join(provincias_seleccionadas_hist)
                 filtro_provincias_hist = f"AND provincia IN ('{provincias_str}')"
 
-            query_datos_hist = text(f"""
-                SELECT
-                    anio,
-                    mes,
-                    provincia,
-                    SUM(cantidad) as total
-                FROM {tabla_hist}
-                WHERE tipo_vehiculo = :tipo_vehiculo
-                AND anio BETWEEN :anio_desde AND :anio_hasta
-                {filtro_provincias_hist}
-                GROUP BY anio, mes, provincia
-                ORDER BY anio, mes
-            """)
+            # Construir consulta según tipo de trámite
+            if tipo_tramite_hist == "Inscripciones + Transferencias":
+                # UNION de ambas tablas
+                query_datos_hist = text(f"""
+                    SELECT
+                        anio,
+                        mes,
+                        provincia,
+                        SUM(cantidad) as total
+                    FROM (
+                        SELECT anio, mes, provincia, cantidad
+                        FROM estadisticas_inscripciones
+                        WHERE tipo_vehiculo = :tipo_vehiculo
+                        AND anio BETWEEN :anio_desde AND :anio_hasta
+                        {filtro_provincias_hist}
+
+                        UNION ALL
+
+                        SELECT anio, mes, provincia, cantidad
+                        FROM estadisticas_transferencias
+                        WHERE tipo_vehiculo = :tipo_vehiculo
+                        AND anio BETWEEN :anio_desde AND :anio_hasta
+                        {filtro_provincias_hist}
+                    ) AS combined
+                    GROUP BY anio, mes, provincia
+                    ORDER BY anio, mes
+                """)
+            else:
+                # Consulta simple para una sola tabla
+                query_datos_hist = text(f"""
+                    SELECT
+                        anio,
+                        mes,
+                        provincia,
+                        SUM(cantidad) as total
+                    FROM {tabla_hist}
+                    WHERE tipo_vehiculo = :tipo_vehiculo
+                    AND anio BETWEEN :anio_desde AND :anio_hasta
+                    {filtro_provincias_hist}
+                    GROUP BY anio, mes, provincia
+                    ORDER BY anio, mes
+                """)
 
             with engine.connect() as conn:
                 df_hist = pd.read_sql(query_datos_hist, conn, params={
