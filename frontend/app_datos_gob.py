@@ -95,12 +95,13 @@ st.sidebar.markdown("## 🔍 Filtros de Análisis")
 st.sidebar.markdown("---")
 
 # Create tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🚗 Inscripciones",
     "🔄 Transferencias",
     "💰 Prendas",
     "📍 Registros Seccionales",
-    "🔬 Análisis Detallado"
+    "🔬 Análisis Detallado",
+    "📊 Tendencias Históricas"
 ])
 
 # ==================== FUNCIÓN GENÉRICA PARA ANÁLISIS ====================
@@ -590,7 +591,7 @@ with tab5:
         # 2. FILTROS PERSONALIZABLES
         st.markdown("### 🎯 Filtros de Análisis")
 
-        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+        col_f1, col_f2, col_f3, col_f4, col_f5 = st.columns(5)
 
         with col_f1:
             anio_seleccionado = st.selectbox(
@@ -610,7 +611,7 @@ with tab5:
 
         with col_f3:
             origen_seleccionado = st.selectbox(
-                "🌍 Origen del Vehículo",
+                "🌍 Origen",
                 options=["Ambos", "Nacional", "Importado"],
                 index=0,
                 key="detalle_origen"
@@ -618,19 +619,58 @@ with tab5:
 
         with col_f4:
             tipo_persona_seleccionado = st.selectbox(
-                "👤 Tipo de Persona",
-                options=["Ambos", "Persona Física", "Persona Jurídica"],
+                "👤 Tipo Persona",
+                options=["Ambos", "Física", "Jurídica"],
                 index=0,
                 key="detalle_tipo_persona"
             )
 
+        with col_f5:
+            genero_seleccionado = st.selectbox(
+                "⚧ Género",
+                options=["Todos", "Masculino", "Femenino", "No Aplica", "No Identificado"],
+                index=0,
+                key="detalle_genero"
+            )
+
+        # Obtener provincias disponibles para el filtro global
+        query_provincias_global = text(f"""
+            SELECT DISTINCT registro_seccional_provincia as provincia
+            FROM datos_gob_inscripciones
+            WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
+            AND registro_seccional_provincia IS NOT NULL
+            AND registro_seccional_provincia != ''
+            ORDER BY provincia
+        """)
+
+        try:
+            df_provincias_global = pd.read_sql(query_provincias_global, engine, params={'anio': anio_seleccionado})
+            provincias_disponibles_global = df_provincias_global['provincia'].tolist()
+        except:
+            provincias_disponibles_global = []
+
+        # Filtro de provincias (transversal a todos los gráficos)
+        st.markdown("#### 🏙️ Provincias")
+        provincias_seleccionadas = st.multiselect(
+            "Selecciona una o más provincias para filtrar todos los gráficos:",
+            options=provincias_disponibles_global,
+            default=provincias_disponibles_global[:3] if len(provincias_disponibles_global) >= 3 else provincias_disponibles_global,
+            key="provincias_global"
+        )
+
         if not meses_seleccionados_detalle:
             st.warning("⚠️ Selecciona al menos un mes")
+        elif not provincias_seleccionadas:
+            st.warning("⚠️ Selecciona al menos una provincia")
         else:
             # Convertir meses a números
             meses_numeros_detalle = [list(MESES_ES.keys())[list(MESES_ES.values()).index(mes)] for mes in meses_seleccionados_detalle]
 
             st.markdown("---")
+
+            # Advertencia sobre Personas Jurídicas
+            if tipo_persona_seleccionado == "Jurídica":
+                st.info("ℹ️ **Nota:** Las Personas Jurídicas (empresas) no tienen edad registrada, por lo que el análisis demográfico estará vacío o muy limitado. Se recomienda seleccionar 'Física' o 'Ambos' para ver análisis de edades.")
 
             # 3. CONSULTA PRINCIPAL - INSCRIPCIONES CON EDAD
             # Construir filtros WHERE dinámicos
@@ -639,10 +679,14 @@ with tab5:
                 filtro_origen = f"AND UPPER(automotor_origen) = '{origen_seleccionado.upper()}'"
 
             filtro_tipo_persona = ""
-            if tipo_persona_seleccionado == "Persona Física":
-                filtro_tipo_persona = "AND UPPER(titular_tipo_persona) = 'FISICA'"
-            elif tipo_persona_seleccionado == "Persona Jurídica":
-                filtro_tipo_persona = "AND UPPER(titular_tipo_persona) = 'JURIDICA'"
+            if tipo_persona_seleccionado == "Física":
+                filtro_tipo_persona = "AND titular_tipo_persona = 'Física'"
+            elif tipo_persona_seleccionado == "Jurídica":
+                filtro_tipo_persona = "AND titular_tipo_persona = 'Jurídica'"
+
+            filtro_genero = ""
+            if genero_seleccionado != "Todos":
+                filtro_genero = f"AND titular_genero = '{genero_seleccionado}'"
 
             query_inscripciones_edad = text(f"""
                 SELECT
@@ -651,16 +695,20 @@ with tab5:
                     automotor_tipo_descripcion as tipo_vehiculo,
                     automotor_origen as origen,
                     titular_tipo_persona as tipo_persona,
+                    titular_genero as genero,
+                    registro_seccional_provincia as provincia,
                     COUNT(*) as cantidad
                 FROM datos_gob_inscripciones
                 WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
                 AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND registro_seccional_provincia = ANY(:provincias)
                 AND tramite_fecha IS NOT NULL
                 AND titular_anio_nacimiento IS NOT NULL
                 AND titular_anio_nacimiento > 0
                 {filtro_origen}
                 {filtro_tipo_persona}
-                GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona
+                {filtro_genero}
+                GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona, genero, provincia
                 HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento BETWEEN 18 AND 100
                 ORDER BY edad
             """)
@@ -668,7 +716,8 @@ with tab5:
             try:
                 df_inscripciones = pd.read_sql(query_inscripciones_edad, engine, params={
                     'anio': anio_seleccionado,
-                    'meses': meses_numeros_detalle
+                    'meses': meses_numeros_detalle,
+                    'provincias': provincias_seleccionadas
                 })
 
                 if df_inscripciones.empty:
@@ -682,23 +731,28 @@ with tab5:
                             automotor_tipo_descripcion as tipo_vehiculo,
                             automotor_origen as origen,
                             titular_tipo_persona as tipo_persona,
+                            titular_genero as genero,
+                            registro_seccional_provincia as provincia,
                             COUNT(*) as cantidad_prendas
                         FROM datos_gob_prendas
                         WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
                         AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                        AND registro_seccional_provincia = ANY(:provincias)
                         AND tramite_fecha IS NOT NULL
                         AND titular_anio_nacimiento IS NOT NULL
                         AND titular_anio_nacimiento > 0
                         {filtro_origen}
                         {filtro_tipo_persona}
-                        GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona
+                        {filtro_genero}
+                        GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona, genero, provincia
                         HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento BETWEEN 18 AND 100
                         ORDER BY edad
                     """)
 
                     df_prendas = pd.read_sql(query_prendas_edad, engine, params={
                         'anio': anio_seleccionado,
-                        'meses': meses_numeros_detalle
+                        'meses': meses_numeros_detalle,
+                        'provincias': provincias_seleccionadas
                     })
 
                     # 5. KPIs PRINCIPALES
@@ -749,14 +803,15 @@ with tab5:
                     st.plotly_chart(fig_edades, use_container_width=True)
 
                     # Estadísticas de edad
-                    col_edad1, col_edad2, col_edad3 = st.columns(3)
-                    with col_edad1:
-                        edad_mas_comun = df_edades_compradores.loc[df_edades_compradores['cantidad'].idxmax(), 'edad']
-                        st.info(f"🎯 **Edad más frecuente:** {int(edad_mas_comun)} años")
-                    with col_edad2:
-                        st.info(f"📊 **Edad mínima:** {int(df_edades_compradores['edad'].min())} años")
-                    with col_edad3:
-                        st.info(f"📊 **Edad máxima:** {int(df_edades_compradores['edad'].max())} años")
+                    if not df_edades_compradores.empty and len(df_edades_compradores) > 0:
+                        col_edad1, col_edad2, col_edad3 = st.columns(3)
+                        with col_edad1:
+                            edad_mas_comun = df_edades_compradores.loc[df_edades_compradores['cantidad'].idxmax(), 'edad']
+                            st.info(f"🎯 **Edad más frecuente:** {int(edad_mas_comun)} años")
+                        with col_edad2:
+                            st.info(f"📊 **Edad mínima:** {int(df_edades_compradores['edad'].min())} años")
+                        with col_edad3:
+                            st.info(f"📊 **Edad máxima:** {int(df_edades_compradores['edad'].max())} años")
 
                     st.markdown("---")
 
@@ -812,14 +867,15 @@ with tab5:
                         st.plotly_chart(fig_porc_prenda, use_container_width=True)
 
                         # Estadísticas de prendas por edad
-                        edad_max_prendas = df_prendas_edad.loc[df_prendas_edad['cantidad_prendas'].idxmax(), 'edad']
-                        edad_max_porc = df_edad_completo.loc[df_edad_completo['porcentaje_prenda'].idxmax(), 'edad']
+                        if not df_prendas_edad.empty and len(df_prendas_edad) > 0:
+                            edad_max_prendas = df_prendas_edad.loc[df_prendas_edad['cantidad_prendas'].idxmax(), 'edad']
+                            edad_max_porc = df_edad_completo.loc[df_edad_completo['porcentaje_prenda'].idxmax(), 'edad']
 
-                        col_prenda1, col_prenda2 = st.columns(2)
-                        with col_prenda1:
-                            st.info(f"🎯 **Edad con más prendas:** {int(edad_max_prendas)} años ({int(df_prendas_edad.loc[df_prendas_edad['edad']==edad_max_prendas, 'cantidad_prendas'].values[0])} prendas)")
-                        with col_prenda2:
-                            st.info(f"💰 **Edad con mayor % financiación:** {int(edad_max_porc)} años ({df_edad_completo.loc[df_edad_completo['edad']==edad_max_porc, 'porcentaje_prenda'].values[0]:.1f}%)")
+                            col_prenda1, col_prenda2 = st.columns(2)
+                            with col_prenda1:
+                                st.info(f"🎯 **Edad con más prendas:** {int(edad_max_prendas)} años ({int(df_prendas_edad.loc[df_prendas_edad['edad']==edad_max_prendas, 'cantidad_prendas'].values[0])} prendas)")
+                            with col_prenda2:
+                                st.info(f"💰 **Edad con mayor % financiación:** {int(edad_max_porc)} años ({df_edad_completo.loc[df_edad_completo['edad']==edad_max_porc, 'porcentaje_prenda'].values[0]:.1f}%)")
 
                     else:
                         st.warning("⚠️ No se encontraron prendas con los filtros seleccionados")
@@ -878,14 +934,15 @@ with tab5:
                             st.plotly_chart(fig_porc_marca, use_container_width=True)
 
                         # Marcas más financiadas
-                        marca_max_prendas = df_marca_completo.iloc[0]['marca']
-                        marca_max_porc = df_marca_completo.loc[df_marca_completo['porcentaje_prenda'].idxmax(), 'marca']
+                        if not df_marca_completo.empty and len(df_marca_completo) > 0:
+                            marca_max_prendas = df_marca_completo.iloc[0]['marca']
+                            marca_max_porc = df_marca_completo.loc[df_marca_completo['porcentaje_prenda'].idxmax(), 'marca']
 
-                        col_m1, col_m2 = st.columns(2)
-                        with col_m1:
-                            st.success(f"🥇 **Marca con más prendas:** {marca_max_prendas} ({int(df_marca_completo.iloc[0]['cantidad_prendas'])} prendas)")
-                        with col_m2:
-                            st.success(f"💰 **Marca con mayor % financiación:** {marca_max_porc} ({df_marca_completo.loc[df_marca_completo['marca']==marca_max_porc, 'porcentaje_prenda'].values[0]:.1f}%)")
+                            col_m1, col_m2 = st.columns(2)
+                            with col_m1:
+                                st.success(f"🥇 **Marca con más prendas:** {marca_max_prendas} ({int(df_marca_completo.iloc[0]['cantidad_prendas'])} prendas)")
+                            with col_m2:
+                                st.success(f"💰 **Marca con mayor % financiación:** {marca_max_porc} ({df_marca_completo.loc[df_marca_completo['marca']==marca_max_porc, 'porcentaje_prenda'].values[0]:.1f}%)")
 
                     st.markdown("---")
 
@@ -936,7 +993,112 @@ with tab5:
 
                     st.markdown("---")
 
-                    # 10. INSIGHTS Y CONCLUSIONES
+                    # 10. COMPARACIÓN ENTRE PROVINCIAS
+                    st.markdown("### 🗺️ Gráfico 5: Comparación entre Provincias")
+
+                    # Usar las provincias ya seleccionadas en el filtro global
+                    if len(provincias_seleccionadas) > 1:
+                        # Agrupar por provincia y edad desde los datos ya cargados
+                        df_prov_edad = df_inscripciones.groupby(['provincia', 'edad'])['cantidad'].sum().reset_index()
+                        df_prov_edad = df_prov_edad.sort_values(['provincia', 'edad'])
+
+                        if not df_prov_edad.empty:
+                            # Gráfico 1: Distribución de edades por provincia
+                            st.markdown("#### 📊 Distribución de Edades por Provincia")
+
+                            fig_prov_edad = px.line(
+                                df_prov_edad,
+                                x='edad',
+                                y='cantidad',
+                                color='provincia',
+                                title=f'Comparación de Edades entre Provincias - Año {anio_seleccionado}',
+                                labels={'edad': 'Edad (años)', 'cantidad': 'Cantidad de Compradores', 'provincia': 'Provincia'},
+                                markers=True
+                            )
+                            fig_prov_edad.update_layout(
+                                xaxis_title='Edad (años)',
+                                yaxis_title='Cantidad de Compradores',
+                                legend_title='Provincia',
+                                hovermode='x unified'
+                            )
+                            st.plotly_chart(fig_prov_edad, use_container_width=True)
+
+                            # Agrupar prendas por provincia y edad desde los datos ya cargados
+                            if not df_prendas.empty:
+                                df_prendas_prov_edad = df_prendas.groupby(['provincia', 'edad'])['cantidad_prendas'].sum().reset_index()
+                                df_prendas_prov_edad = df_prendas_prov_edad.sort_values(['provincia', 'edad'])
+
+                                if not df_prendas_prov_edad.empty:
+                                    # Gráfico 2: Prendas por edad y provincia
+                                    st.markdown("#### 💰 Prendas por Edad y Provincia")
+
+                                    fig_prendas_prov = px.line(
+                                        df_prendas_prov_edad,
+                                        x='edad',
+                                        y='cantidad_prendas',
+                                        color='provincia',
+                                        title=f'Comparación de Prendas por Edad entre Provincias - Año {anio_seleccionado}',
+                                        labels={'edad': 'Edad (años)', 'cantidad_prendas': 'Cantidad de Prendas', 'provincia': 'Provincia'},
+                                        markers=True
+                                    )
+                                    fig_prendas_prov.update_layout(
+                                        xaxis_title='Edad (años)',
+                                        yaxis_title='Cantidad de Prendas',
+                                        legend_title='Provincia',
+                                        hovermode='x unified'
+                                    )
+                                    st.plotly_chart(fig_prendas_prov, use_container_width=True)
+
+                                    # Calcular % de financiación por provincia
+                                    st.markdown("#### 📈 Porcentaje de Financiación por Provincia")
+
+                                    # Agrupar totales por provincia
+                                    total_inscripciones_prov = df_prov_edad.groupby('provincia')['cantidad'].sum().reset_index()
+                                    total_prendas_prov = df_prendas_prov_edad.groupby('provincia')['cantidad_prendas'].sum().reset_index()
+
+                                    df_financiacion_prov = total_inscripciones_prov.merge(
+                                        total_prendas_prov,
+                                        on='provincia',
+                                        how='left'
+                                    )
+                                    df_financiacion_prov['cantidad_prendas'] = df_financiacion_prov['cantidad_prendas'].fillna(0)
+                                    df_financiacion_prov['porcentaje_financiacion'] = (
+                                        df_financiacion_prov['cantidad_prendas'] / df_financiacion_prov['cantidad'] * 100
+                                    )
+                                    df_financiacion_prov = df_financiacion_prov.sort_values('porcentaje_financiacion', ascending=False)
+
+                                    # Gráfico de barras
+                                    fig_financ_prov = px.bar(
+                                        df_financiacion_prov,
+                                        x='provincia',
+                                        y='porcentaje_financiacion',
+                                        title='Porcentaje de Financiación por Provincia',
+                                        labels={'provincia': 'Provincia', 'porcentaje_financiacion': '% Financiación'},
+                                        text='porcentaje_financiacion',
+                                        color='porcentaje_financiacion',
+                                        color_continuous_scale='RdYlGn_r'
+                                    )
+                                    fig_financ_prov.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                                    fig_financ_prov.update_layout(showlegend=False)
+                                    st.plotly_chart(fig_financ_prov, use_container_width=True)
+
+                                    # Tabla comparativa
+                                    st.markdown("#### 📋 Tabla Comparativa de Provincias")
+                                    df_tabla_comp = df_financiacion_prov.copy()
+                                    df_tabla_comp.columns = ['Provincia', 'Total Inscripciones', 'Total Prendas', '% Financiación']
+                                    df_tabla_comp['Total Inscripciones'] = df_tabla_comp['Total Inscripciones'].apply(lambda x: format_number(x))
+                                    df_tabla_comp['Total Prendas'] = df_tabla_comp['Total Prendas'].apply(lambda x: format_number(x))
+                                    df_tabla_comp['% Financiación'] = df_tabla_comp['% Financiación'].apply(lambda x: f"{x:.1f}%")
+
+                                    st.dataframe(df_tabla_comp, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("No hay datos suficientes para comparar las provincias seleccionadas")
+                    else:
+                        st.info("💡 Selecciona **2 o más provincias** en el filtro de arriba para ver la comparación entre provincias")
+
+                    st.markdown("---")
+
+                    # 11. INSIGHTS Y CONCLUSIONES
                     with st.expander("💡 Ver Insights y Análisis Adicionales"):
                         col_ins1, col_ins2 = st.columns(2)
 
@@ -950,15 +1112,18 @@ with tab5:
                                 bins=[18, 25, 35, 45, 55, 65, 100],
                                 labels=['18-25', '26-35', '36-45', '46-55', '56-65', '65+']
                             )
-                            df_rangos = df_edad_rangos.groupby('rango_edad')['cantidad'].sum().reset_index()
+                            df_rangos = df_edad_rangos.groupby('rango_edad', observed=True)['cantidad'].sum().reset_index()
                             df_rangos = df_rangos.sort_values('cantidad', ascending=False)
 
-                            st.write(f"• **Rango etario más activo:** {df_rangos.iloc[0]['rango_edad']} años")
-                            st.write(f"• **Total inscripciones en ese rango:** {format_number(df_rangos.iloc[0]['cantidad'])}")
+                            if not df_rangos.empty and len(df_rangos) > 0:
+                                st.write(f"• **Rango etario más activo:** {df_rangos.iloc[0]['rango_edad']} años")
+                                st.write(f"• **Total inscripciones en ese rango:** {format_number(df_rangos.iloc[0]['cantidad'])}")
 
-                            if origen_seleccionado == "Ambos":
-                                origen_preferido = df_inscripciones.groupby('origen')['cantidad'].sum().idxmax()
-                                st.write(f"• **Origen preferido:** {origen_preferido}")
+                            if origen_seleccionado == "Ambos" and not df_inscripciones.empty:
+                                df_origen_agg = df_inscripciones.groupby('origen')['cantidad'].sum()
+                                if not df_origen_agg.empty:
+                                    origen_preferido = df_origen_agg.idxmax()
+                                    st.write(f"• **Origen preferido:** {origen_preferido}")
 
                         with col_ins2:
                             st.markdown("**💰 Análisis de Financiación**")
@@ -975,6 +1140,295 @@ with tab5:
             except Exception as e:
                 st.error(f"❌ Error al cargar datos: {str(e)}")
                 st.exception(e)
+
+# ==================== TAB 6: TENDENCIAS HISTÓRICAS ====================
+with tab6:
+    st.header("📊 Tendencias Históricas (2007-2025)")
+    st.markdown("Análisis de estadísticas agregadas mensuales por provincia")
+    st.markdown("---")
+
+    # Verificar que las tablas existan
+    try:
+        test_query = text("SELECT COUNT(*) FROM estadisticas_inscripciones")
+        with engine.connect() as conn:
+            result = conn.execute(test_query)
+            count_insc = result.fetchone()[0]
+
+        if count_insc == 0:
+            st.warning("⚠️ No hay datos de estadísticas agregadas cargados")
+            st.info("💡 **Para cargar datos:**\n\n"
+                    "1. Asegúrate de tener los archivos CSV en `data/estadisticas_dnrpa/`\n"
+                    "2. Ejecuta: `python cargar_estadisticas_agregadas.py`")
+        else:
+            # ========== FILTROS ==========
+            st.markdown("### 🎯 Filtros de Análisis")
+
+            col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+
+            with col_f1:
+                tipo_vehiculo_hist = st.selectbox(
+                    "🚗 Tipo de Vehículo",
+                    options=["Motovehículos", "Maquinarias"],
+                    index=0,
+                    key="hist_tipo_vehiculo"
+                )
+
+            with col_f2:
+                tipo_tramite_hist = st.selectbox(
+                    "📋 Tipo de Trámite",
+                    options=["Inscripciones", "Transferencias"],
+                    index=0,
+                    key="hist_tipo_tramite"
+                )
+
+            # Obtener años disponibles
+            tabla_hist = "estadisticas_inscripciones" if tipo_tramite_hist == "Inscripciones" else "estadisticas_transferencias"
+
+            query_anios_hist = text(f"""
+                SELECT DISTINCT anio
+                FROM {tabla_hist}
+                WHERE tipo_vehiculo = :tipo_vehiculo
+                ORDER BY anio DESC
+            """)
+
+            with engine.connect() as conn:
+                df_anios_hist = pd.read_sql(query_anios_hist, conn, params={"tipo_vehiculo": tipo_vehiculo_hist})
+
+            anios_disponibles_hist = df_anios_hist['anio'].tolist() if not df_anios_hist.empty else []
+
+            with col_f3:
+                anio_desde_hist = st.selectbox(
+                    "📅 Año Desde",
+                    options=anios_disponibles_hist[::-1],  # Orden ascendente
+                    index=0 if len(anios_disponibles_hist) > 10 else 0,
+                    key="hist_anio_desde"
+                )
+
+            with col_f4:
+                anio_hasta_hist = st.selectbox(
+                    "📅 Año Hasta",
+                    options=anios_disponibles_hist,
+                    index=0,
+                    key="hist_anio_hasta"
+                )
+
+            # Filtro de provincias
+            query_provincias_hist = text(f"""
+                SELECT DISTINCT provincia
+                FROM {tabla_hist}
+                WHERE tipo_vehiculo = :tipo_vehiculo
+                ORDER BY provincia
+            """)
+
+            with engine.connect() as conn:
+                df_provincias_hist = pd.read_sql(query_provincias_hist, conn, params={"tipo_vehiculo": tipo_vehiculo_hist})
+
+            provincias_disponibles_hist = df_provincias_hist['provincia'].tolist() if not df_provincias_hist.empty else []
+
+            provincias_seleccionadas_hist = st.multiselect(
+                "🗺️ Provincias (dejar vacío para todas)",
+                options=provincias_disponibles_hist,
+                default=[],
+                key="hist_provincias"
+            )
+
+            st.markdown("---")
+
+            # ========== CONSULTA PRINCIPAL ==========
+            filtro_provincias_hist = ""
+            if provincias_seleccionadas_hist:
+                provincias_str = "', '".join(provincias_seleccionadas_hist)
+                filtro_provincias_hist = f"AND provincia IN ('{provincias_str}')"
+
+            query_datos_hist = text(f"""
+                SELECT
+                    anio,
+                    mes,
+                    provincia,
+                    SUM(cantidad) as total
+                FROM {tabla_hist}
+                WHERE tipo_vehiculo = :tipo_vehiculo
+                AND anio BETWEEN :anio_desde AND :anio_hasta
+                {filtro_provincias_hist}
+                GROUP BY anio, mes, provincia
+                ORDER BY anio, mes
+            """)
+
+            with engine.connect() as conn:
+                df_hist = pd.read_sql(query_datos_hist, conn, params={
+                    "tipo_vehiculo": tipo_vehiculo_hist,
+                    "anio_desde": anio_desde_hist,
+                    "anio_hasta": anio_hasta_hist
+                })
+
+            if df_hist.empty:
+                st.warning("⚠️ No hay datos para los filtros seleccionados")
+            else:
+                # Crear columna de fecha para gráficos
+                df_hist['fecha'] = pd.to_datetime(df_hist['anio'].astype(str) + '-' + df_hist['mes'].astype(str) + '-01')
+                df_hist['mes_nombre'] = df_hist['mes'].map(MESES_ES)
+
+                # ========== MÉTRICAS GENERALES ==========
+                st.markdown("### 📈 Métricas Generales")
+
+                total_tramites = df_hist['total'].sum()
+                provincias_activas = df_hist['provincia'].nunique()
+                periodo_meses = df_hist['fecha'].nunique()
+                promedio_mensual = total_tramites / periodo_meses if periodo_meses > 0 else 0
+
+                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+
+                with col_m1:
+                    st.metric("Total de Trámites", format_number(total_tramites))
+
+                with col_m2:
+                    st.metric("Provincias Activas", provincias_activas)
+
+                with col_m3:
+                    st.metric("Período", f"{periodo_meses} meses")
+
+                with col_m4:
+                    st.metric("Promedio Mensual", format_number(promedio_mensual))
+
+                st.markdown("---")
+
+                # ========== GRÁFICO 1: SERIE TEMPORAL NACIONAL ==========
+                st.markdown("### 📊 Evolución Temporal Nacional")
+
+                df_temporal = df_hist.groupby('fecha')['total'].sum().reset_index()
+
+                fig_temporal = px.line(
+                    df_temporal,
+                    x='fecha',
+                    y='total',
+                    title=f'Evolución de {tipo_tramite_hist} - {tipo_vehiculo_hist} ({anio_desde_hist}-{anio_hasta_hist})',
+                    labels={'fecha': 'Fecha', 'total': 'Cantidad'}
+                )
+
+                fig_temporal.update_layout(
+                    hovermode='x unified',
+                    height=400
+                )
+
+                fig_temporal.update_traces(
+                    line=dict(width=2),
+                    hovertemplate='<b>%{x|%Y-%m}</b><br>Cantidad: %{y:,.0f}<extra></extra>'
+                )
+
+                st.plotly_chart(fig_temporal, use_container_width=True)
+
+                # ========== GRÁFICO 2: TOP 10 PROVINCIAS ==========
+                st.markdown("### 🏆 Top 10 Provincias")
+
+                df_provincias_total = df_hist.groupby('provincia')['total'].sum().reset_index()
+                df_provincias_total = df_provincias_total.sort_values('total', ascending=False).head(10)
+
+                fig_provincias = px.bar(
+                    df_provincias_total,
+                    x='total',
+                    y='provincia',
+                    orientation='h',
+                    title=f'Top 10 Provincias - {tipo_tramite_hist} de {tipo_vehiculo_hist}',
+                    labels={'total': 'Total de Trámites', 'provincia': 'Provincia'}
+                )
+
+                fig_provincias.update_layout(
+                    yaxis={'categoryorder':'total ascending'},
+                    height=500
+                )
+
+                fig_provincias.update_traces(
+                    hovertemplate='<b>%{y}</b><br>Total: %{x:,.0f}<extra></extra>'
+                )
+
+                st.plotly_chart(fig_provincias, use_container_width=True)
+
+                # ========== GRÁFICOS EN COLUMNAS ==========
+                col_g1, col_g2 = st.columns(2)
+
+                with col_g1:
+                    # GRÁFICO 3: ESTACIONALIDAD (MES)
+                    st.markdown("### 📅 Estacionalidad por Mes")
+
+                    df_estacional = df_hist.groupby('mes_nombre')['total'].sum().reset_index()
+                    df_estacional['mes_numero'] = df_estacional['mes_nombre'].map({v: k for k, v in MESES_ES.items()})
+                    df_estacional = df_estacional.sort_values('mes_numero')
+
+                    fig_estacional = px.bar(
+                        df_estacional,
+                        x='mes_nombre',
+                        y='total',
+                        title='Distribución por Mes del Año',
+                        labels={'mes_nombre': 'Mes', 'total': 'Total'}
+                    )
+
+                    fig_estacional.update_traces(
+                        hovertemplate='<b>%{x}</b><br>Total: %{y:,.0f}<extra></extra>'
+                    )
+
+                    fig_estacional.update_layout(height=400)
+
+                    st.plotly_chart(fig_estacional, use_container_width=True)
+
+                with col_g2:
+                    # GRÁFICO 4: EVOLUCIÓN ANUAL
+                    st.markdown("### 📊 Evolución por Año")
+
+                    df_anual = df_hist.groupby('anio')['total'].sum().reset_index()
+
+                    fig_anual = px.bar(
+                        df_anual,
+                        x='anio',
+                        y='total',
+                        title='Total por Año',
+                        labels={'anio': 'Año', 'total': 'Total'}
+                    )
+
+                    fig_anual.update_traces(
+                        hovertemplate='<b>%{x}</b><br>Total: %{y:,.0f}<extra></extra>'
+                    )
+
+                    fig_anual.update_layout(height=400)
+
+                    st.plotly_chart(fig_anual, use_container_width=True)
+
+                # ========== GRÁFICO 5: HEATMAP ESTACIONAL ==========
+                if len(anios_disponibles_hist) > 1 and anio_hasta_hist - anio_desde_hist >= 2:
+                    st.markdown("### 🌡️ Mapa de Calor Estacional (Año vs Mes)")
+
+                    df_heatmap = df_hist.groupby(['anio', 'mes'])['total'].sum().reset_index()
+                    df_pivot = df_heatmap.pivot(index='anio', columns='mes', values='total').fillna(0)
+
+                    # Renombrar columnas con nombres de meses
+                    df_pivot.columns = [MESES_ES[int(col)] for col in df_pivot.columns]
+
+                    fig_heatmap = px.imshow(
+                        df_pivot,
+                        labels=dict(x="Mes", y="Año", color="Cantidad"),
+                        x=df_pivot.columns,
+                        y=df_pivot.index,
+                        title=f'Mapa de Calor - {tipo_tramite_hist} de {tipo_vehiculo_hist}',
+                        color_continuous_scale='Blues',
+                        aspect='auto'
+                    )
+
+                    fig_heatmap.update_layout(height=400)
+
+                    st.plotly_chart(fig_heatmap, use_container_width=True)
+
+                # ========== TABLA DE DATOS ==========
+                with st.expander("📋 Ver Datos Detallados"):
+                    df_tabla = df_hist.groupby(['anio', 'mes_nombre', 'provincia'])['total'].sum().reset_index()
+                    df_tabla = df_tabla.sort_values(['anio', 'mes', 'total'], ascending=[False, False, False])
+                    df_tabla_display = df_tabla[['anio', 'mes_nombre', 'provincia', 'total']].copy()
+                    df_tabla_display.columns = ['Año', 'Mes', 'Provincia', 'Total']
+                    st.dataframe(df_tabla_display, use_container_width=True, height=400)
+
+    except Exception as e:
+        st.error(f"❌ Error al cargar estadísticas históricas: {str(e)}")
+        st.info("💡 Asegúrate de haber ejecutado:\n\n"
+                "1. `python -c \"...\"` para crear las tablas\n"
+                "2. `python cargar_estadisticas_agregadas.py` para cargar los datos")
 
 # Footer
 st.markdown("---")
