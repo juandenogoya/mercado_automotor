@@ -590,7 +590,7 @@ with tab5:
         # 2. FILTROS PERSONALIZABLES
         st.markdown("### 🎯 Filtros de Análisis")
 
-        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+        col_f1, col_f2, col_f3, col_f4, col_f5 = st.columns(5)
 
         with col_f1:
             anio_seleccionado = st.selectbox(
@@ -610,7 +610,7 @@ with tab5:
 
         with col_f3:
             origen_seleccionado = st.selectbox(
-                "🌍 Origen del Vehículo",
+                "🌍 Origen",
                 options=["Ambos", "Nacional", "Importado"],
                 index=0,
                 key="detalle_origen"
@@ -618,10 +618,18 @@ with tab5:
 
         with col_f4:
             tipo_persona_seleccionado = st.selectbox(
-                "👤 Tipo de Persona",
-                options=["Ambos", "Persona Física", "Persona Jurídica"],
+                "👤 Tipo Persona",
+                options=["Ambos", "Física", "Jurídica"],
                 index=0,
                 key="detalle_tipo_persona"
+            )
+
+        with col_f5:
+            genero_seleccionado = st.selectbox(
+                "⚧ Género",
+                options=["Todos", "Masculino", "Femenino", "No Aplica", "No Identificado"],
+                index=0,
+                key="detalle_genero"
             )
 
         # Obtener provincias disponibles para el filtro global
@@ -660,8 +668,8 @@ with tab5:
             st.markdown("---")
 
             # Advertencia sobre Personas Jurídicas
-            if tipo_persona_seleccionado == "Persona Jurídica":
-                st.info("ℹ️ **Nota:** Las Personas Jurídicas (empresas) no tienen edad registrada, por lo que el análisis demográfico estará vacío o muy limitado. Se recomienda seleccionar 'Persona Física' o 'Ambos' para ver análisis de edades.")
+            if tipo_persona_seleccionado == "Jurídica":
+                st.info("ℹ️ **Nota:** Las Personas Jurídicas (empresas) no tienen edad registrada, por lo que el análisis demográfico estará vacío o muy limitado. Se recomienda seleccionar 'Física' o 'Ambos' para ver análisis de edades.")
 
             # 3. CONSULTA PRINCIPAL - INSCRIPCIONES CON EDAD
             # Construir filtros WHERE dinámicos
@@ -670,10 +678,14 @@ with tab5:
                 filtro_origen = f"AND UPPER(automotor_origen) = '{origen_seleccionado.upper()}'"
 
             filtro_tipo_persona = ""
-            if tipo_persona_seleccionado == "Persona Física":
-                filtro_tipo_persona = "AND titular_tipo_persona ILIKE '%fisic%'"
-            elif tipo_persona_seleccionado == "Persona Jurídica":
-                filtro_tipo_persona = "AND titular_tipo_persona ILIKE '%juridic%'"
+            if tipo_persona_seleccionado == "Física":
+                filtro_tipo_persona = "AND titular_tipo_persona = 'Física'"
+            elif tipo_persona_seleccionado == "Jurídica":
+                filtro_tipo_persona = "AND titular_tipo_persona = 'Jurídica'"
+
+            filtro_genero = ""
+            if genero_seleccionado != "Todos":
+                filtro_genero = f"AND titular_genero = '{genero_seleccionado}'"
 
             query_inscripciones_edad = text(f"""
                 SELECT
@@ -682,6 +694,7 @@ with tab5:
                     automotor_tipo_descripcion as tipo_vehiculo,
                     automotor_origen as origen,
                     titular_tipo_persona as tipo_persona,
+                    titular_genero as genero,
                     registro_seccional_provincia as provincia,
                     COUNT(*) as cantidad
                 FROM datos_gob_inscripciones
@@ -693,7 +706,8 @@ with tab5:
                 AND titular_anio_nacimiento > 0
                 {filtro_origen}
                 {filtro_tipo_persona}
-                GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona, provincia
+                {filtro_genero}
+                GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona, genero, provincia
                 HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento BETWEEN 18 AND 100
                 ORDER BY edad
             """)
@@ -716,6 +730,7 @@ with tab5:
                             automotor_tipo_descripcion as tipo_vehiculo,
                             automotor_origen as origen,
                             titular_tipo_persona as tipo_persona,
+                            titular_genero as genero,
                             registro_seccional_provincia as provincia,
                             COUNT(*) as cantidad_prendas
                         FROM datos_gob_prendas
@@ -727,7 +742,8 @@ with tab5:
                         AND titular_anio_nacimiento > 0
                         {filtro_origen}
                         {filtro_tipo_persona}
-                        GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona, provincia
+                        {filtro_genero}
+                        GROUP BY edad, marca, tipo_vehiculo, origen, tipo_persona, genero, provincia
                         HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento BETWEEN 18 AND 100
                         ORDER BY edad
                     """)
