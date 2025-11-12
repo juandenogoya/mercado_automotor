@@ -33,19 +33,27 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 # Directorios
 # Auto-detectar si existe dataset semanal o mensual
-INPUT_FILE_SEMANAL = 'data/processed/dataset_forecasting_completo_semanal.parquet'
+INPUT_FILE_SEMANAL_NUEVO = 'data/processed/dataset_forecasting_semanal_completo.parquet'  # Nuevo con categóricas
+INPUT_FILE_SEMANAL_VIEJO = 'data/processed/dataset_forecasting_completo_semanal.parquet'   # Viejo con NaN
 INPUT_FILE_MENSUAL = 'data/processed/dataset_forecasting_completo.parquet'
 
-# Preferir semanal si existe
-if os.path.exists(INPUT_FILE_SEMANAL):
-    INPUT_FILE = INPUT_FILE_SEMANAL
+# Preferir semanal NUEVO (con categóricas), luego viejo, luego mensual
+if os.path.exists(INPUT_FILE_SEMANAL_NUEVO):
+    INPUT_FILE = INPUT_FILE_SEMANAL_NUEVO
     GRANULARIDAD = 'semanal'
+    print(f"✅ Usando dataset semanal NUEVO con categóricas: {INPUT_FILE_SEMANAL_NUEVO}")
+elif os.path.exists(INPUT_FILE_SEMANAL_VIEJO):
+    INPUT_FILE = INPUT_FILE_SEMANAL_VIEJO
+    GRANULARIDAD = 'semanal'
+    print(f"⚠️  Usando dataset semanal VIEJO (con NaN): {INPUT_FILE_SEMANAL_VIEJO}")
 elif os.path.exists(INPUT_FILE_MENSUAL):
     INPUT_FILE = INPUT_FILE_MENSUAL
     GRANULARIDAD = 'mensual'
+    print(f"⚠️  Usando dataset mensual: {INPUT_FILE_MENSUAL}")
 else:
     INPUT_FILE = INPUT_FILE_MENSUAL  # Default
     GRANULARIDAD = 'mensual'
+    print(f"⚠️  Ningún dataset encontrado, usando default: {INPUT_FILE_MENSUAL}")
 
 OUTPUT_DIR_MODELS = 'models'
 OUTPUT_DIR_RESULTS = 'results/xgboost_optimized'
