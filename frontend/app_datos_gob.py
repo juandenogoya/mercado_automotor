@@ -1168,7 +1168,7 @@ with tab6:
             with col_f1:
                 tipo_vehiculo_hist = st.selectbox(
                     "🚗 Tipo de Vehículo",
-                    options=["Motovehículos", "Maquinarias"],
+                    options=["Automóviles", "Motovehículos", "Maquinarias"],
                     index=0,
                     key="hist_tipo_vehiculo"
                 )
@@ -1182,22 +1182,56 @@ with tab6:
                 )
 
             # Obtener años disponibles
-            if tipo_tramite_hist == "Inscripciones":
-                tabla_hist = "estadisticas_inscripciones"
-            elif tipo_tramite_hist == "Transferencias":
-                tabla_hist = "estadisticas_transferencias"
-            else:  # Inscripciones + Transferencias
-                tabla_hist = "estadisticas_inscripciones"  # Usamos una para obtener años
+            if tipo_vehiculo_hist == "Automóviles":
+                # Para automóviles usamos tablas detalladas
+                if tipo_tramite_hist == "Inscripciones":
+                    query_anios_hist = text("""
+                        SELECT DISTINCT EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio
+                        FROM datos_gob_inscripciones
+                        WHERE tramite_fecha IS NOT NULL
+                        ORDER BY anio DESC
+                    """)
+                elif tipo_tramite_hist == "Transferencias":
+                    query_anios_hist = text("""
+                        SELECT DISTINCT EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio
+                        FROM datos_gob_transferencias
+                        WHERE tramite_fecha IS NOT NULL
+                        ORDER BY anio DESC
+                    """)
+                else:  # Inscripciones + Transferencias
+                    query_anios_hist = text("""
+                        SELECT DISTINCT anio FROM (
+                            SELECT EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio
+                            FROM datos_gob_inscripciones
+                            WHERE tramite_fecha IS NOT NULL
+                            UNION
+                            SELECT EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio
+                            FROM datos_gob_transferencias
+                            WHERE tramite_fecha IS NOT NULL
+                        ) AS combined
+                        ORDER BY anio DESC
+                    """)
 
-            query_anios_hist = text(f"""
-                SELECT DISTINCT anio
-                FROM {tabla_hist}
-                WHERE tipo_vehiculo = :tipo_vehiculo
-                ORDER BY anio DESC
-            """)
+                with engine.connect() as conn:
+                    df_anios_hist = pd.read_sql(query_anios_hist, conn)
+            else:
+                # Para motovehículos y maquinarias usamos tablas agregadas
+                if tipo_tramite_hist == "Inscripciones":
+                    tabla_hist = "estadisticas_inscripciones"
+                elif tipo_tramite_hist == "Transferencias":
+                    tabla_hist = "estadisticas_transferencias"
+                else:  # Inscripciones + Transferencias
+                    tabla_hist = "estadisticas_inscripciones"  # Usamos una para obtener años
 
-            with engine.connect() as conn:
-                df_anios_hist = pd.read_sql(query_anios_hist, conn, params={"tipo_vehiculo": tipo_vehiculo_hist})
+                query_anios_hist = text(f"""
+                    SELECT DISTINCT anio
+                    FROM {tabla_hist}
+                    WHERE tipo_vehiculo = :tipo_vehiculo
+                    ORDER BY anio DESC
+                """)
+
+                with engine.connect() as conn:
+                    df_anios_hist = pd.read_sql(query_anios_hist, conn, params={"tipo_vehiculo": tipo_vehiculo_hist})
 
             anios_disponibles_hist = df_anios_hist['anio'].tolist() if not df_anios_hist.empty else []
 
@@ -1218,15 +1252,49 @@ with tab6:
                 )
 
             # Filtro de provincias
-            query_provincias_hist = text(f"""
-                SELECT DISTINCT provincia
-                FROM {tabla_hist}
-                WHERE tipo_vehiculo = :tipo_vehiculo
-                ORDER BY provincia
-            """)
+            if tipo_vehiculo_hist == "Automóviles":
+                # Para automóviles usamos tablas detalladas
+                if tipo_tramite_hist == "Inscripciones":
+                    query_provincias_hist = text("""
+                        SELECT DISTINCT registro_seccional_provincia as provincia
+                        FROM datos_gob_inscripciones
+                        WHERE registro_seccional_provincia IS NOT NULL
+                        ORDER BY provincia
+                    """)
+                elif tipo_tramite_hist == "Transferencias":
+                    query_provincias_hist = text("""
+                        SELECT DISTINCT registro_seccional_provincia as provincia
+                        FROM datos_gob_transferencias
+                        WHERE registro_seccional_provincia IS NOT NULL
+                        ORDER BY provincia
+                    """)
+                else:  # Inscripciones + Transferencias
+                    query_provincias_hist = text("""
+                        SELECT DISTINCT provincia FROM (
+                            SELECT registro_seccional_provincia as provincia
+                            FROM datos_gob_inscripciones
+                            WHERE registro_seccional_provincia IS NOT NULL
+                            UNION
+                            SELECT registro_seccional_provincia as provincia
+                            FROM datos_gob_transferencias
+                            WHERE registro_seccional_provincia IS NOT NULL
+                        ) AS combined
+                        ORDER BY provincia
+                    """)
 
-            with engine.connect() as conn:
-                df_provincias_hist = pd.read_sql(query_provincias_hist, conn, params={"tipo_vehiculo": tipo_vehiculo_hist})
+                with engine.connect() as conn:
+                    df_provincias_hist = pd.read_sql(query_provincias_hist, conn)
+            else:
+                # Para motovehículos y maquinarias usamos tablas agregadas
+                query_provincias_hist = text(f"""
+                    SELECT DISTINCT provincia
+                    FROM {tabla_hist}
+                    WHERE tipo_vehiculo = :tipo_vehiculo
+                    ORDER BY provincia
+                """)
+
+                with engine.connect() as conn:
+                    df_provincias_hist = pd.read_sql(query_provincias_hist, conn, params={"tipo_vehiculo": tipo_vehiculo_hist})
 
             provincias_disponibles_hist = df_provincias_hist['provincia'].tolist() if not df_provincias_hist.empty else []
 
@@ -1241,59 +1309,140 @@ with tab6:
 
             # ========== CONSULTA PRINCIPAL ==========
             filtro_provincias_hist = ""
+            filtro_provincias_detallado = ""
+
             if provincias_seleccionadas_hist:
                 provincias_str = "', '".join(provincias_seleccionadas_hist)
                 filtro_provincias_hist = f"AND provincia IN ('{provincias_str}')"
+                filtro_provincias_detallado = f"AND registro_seccional_provincia IN ('{provincias_str}')"
 
-            # Construir consulta según tipo de trámite
-            if tipo_tramite_hist == "Inscripciones + Transferencias":
-                # UNION de ambas tablas
-                query_datos_hist = text(f"""
-                    SELECT
-                        anio,
-                        mes,
-                        provincia,
-                        SUM(cantidad) as total
-                    FROM (
-                        SELECT anio, mes, provincia, cantidad
-                        FROM estadisticas_inscripciones
-                        WHERE tipo_vehiculo = :tipo_vehiculo
-                        AND anio BETWEEN :anio_desde AND :anio_hasta
-                        {filtro_provincias_hist}
+            # Construir consulta según tipo de vehículo
+            if tipo_vehiculo_hist == "Automóviles":
+                # Para automóviles usamos tablas detalladas
+                if tipo_tramite_hist == "Inscripciones + Transferencias":
+                    # UNION de inscripciones y transferencias
+                    query_datos_hist = text(f"""
+                        SELECT
+                            anio,
+                            mes,
+                            provincia,
+                            SUM(total) as total
+                        FROM (
+                            SELECT
+                                EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                                EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                                registro_seccional_provincia as provincia,
+                                COUNT(*) as total
+                            FROM datos_gob_inscripciones
+                            WHERE tramite_fecha IS NOT NULL
+                            AND registro_seccional_provincia IS NOT NULL
+                            AND EXTRACT(YEAR FROM tramite_fecha) BETWEEN :anio_desde AND :anio_hasta
+                            {filtro_provincias_detallado}
+                            GROUP BY anio, mes, provincia
 
-                        UNION ALL
+                            UNION ALL
 
-                        SELECT anio, mes, provincia, cantidad
-                        FROM estadisticas_transferencias
-                        WHERE tipo_vehiculo = :tipo_vehiculo
-                        AND anio BETWEEN :anio_desde AND :anio_hasta
-                        {filtro_provincias_hist}
-                    ) AS combined
-                    GROUP BY anio, mes, provincia
-                    ORDER BY anio, mes
-                """)
+                            SELECT
+                                EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                                EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                                registro_seccional_provincia as provincia,
+                                COUNT(*) as total
+                            FROM datos_gob_transferencias
+                            WHERE tramite_fecha IS NOT NULL
+                            AND registro_seccional_provincia IS NOT NULL
+                            AND EXTRACT(YEAR FROM tramite_fecha) BETWEEN :anio_desde AND :anio_hasta
+                            {filtro_provincias_detallado}
+                            GROUP BY anio, mes, provincia
+                        ) AS combined
+                        GROUP BY anio, mes, provincia
+                        ORDER BY anio, mes
+                    """)
+                elif tipo_tramite_hist == "Inscripciones":
+                    query_datos_hist = text(f"""
+                        SELECT
+                            EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                            EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                            registro_seccional_provincia as provincia,
+                            COUNT(*) as total
+                        FROM datos_gob_inscripciones
+                        WHERE tramite_fecha IS NOT NULL
+                        AND registro_seccional_provincia IS NOT NULL
+                        AND EXTRACT(YEAR FROM tramite_fecha) BETWEEN :anio_desde AND :anio_hasta
+                        {filtro_provincias_detallado}
+                        GROUP BY anio, mes, provincia
+                        ORDER BY anio, mes
+                    """)
+                else:  # Transferencias
+                    query_datos_hist = text(f"""
+                        SELECT
+                            EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                            EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                            registro_seccional_provincia as provincia,
+                            COUNT(*) as total
+                        FROM datos_gob_transferencias
+                        WHERE tramite_fecha IS NOT NULL
+                        AND registro_seccional_provincia IS NOT NULL
+                        AND EXTRACT(YEAR FROM tramite_fecha) BETWEEN :anio_desde AND :anio_hasta
+                        {filtro_provincias_detallado}
+                        GROUP BY anio, mes, provincia
+                        ORDER BY anio, mes
+                    """)
+
+                with engine.connect() as conn:
+                    df_hist = pd.read_sql(query_datos_hist, conn, params={
+                        "anio_desde": anio_desde_hist,
+                        "anio_hasta": anio_hasta_hist
+                    })
             else:
-                # Consulta simple para una sola tabla
-                query_datos_hist = text(f"""
-                    SELECT
-                        anio,
-                        mes,
-                        provincia,
-                        SUM(cantidad) as total
-                    FROM {tabla_hist}
-                    WHERE tipo_vehiculo = :tipo_vehiculo
-                    AND anio BETWEEN :anio_desde AND :anio_hasta
-                    {filtro_provincias_hist}
-                    GROUP BY anio, mes, provincia
-                    ORDER BY anio, mes
-                """)
+                # Para motovehículos y maquinarias usamos tablas agregadas
+                if tipo_tramite_hist == "Inscripciones + Transferencias":
+                    # UNION de ambas tablas
+                    query_datos_hist = text(f"""
+                        SELECT
+                            anio,
+                            mes,
+                            provincia,
+                            SUM(cantidad) as total
+                        FROM (
+                            SELECT anio, mes, provincia, cantidad
+                            FROM estadisticas_inscripciones
+                            WHERE tipo_vehiculo = :tipo_vehiculo
+                            AND anio BETWEEN :anio_desde AND :anio_hasta
+                            {filtro_provincias_hist}
 
-            with engine.connect() as conn:
-                df_hist = pd.read_sql(query_datos_hist, conn, params={
-                    "tipo_vehiculo": tipo_vehiculo_hist,
-                    "anio_desde": anio_desde_hist,
-                    "anio_hasta": anio_hasta_hist
-                })
+                            UNION ALL
+
+                            SELECT anio, mes, provincia, cantidad
+                            FROM estadisticas_transferencias
+                            WHERE tipo_vehiculo = :tipo_vehiculo
+                            AND anio BETWEEN :anio_desde AND :anio_hasta
+                            {filtro_provincias_hist}
+                        ) AS combined
+                        GROUP BY anio, mes, provincia
+                        ORDER BY anio, mes
+                    """)
+                else:
+                    # Consulta simple para una sola tabla
+                    query_datos_hist = text(f"""
+                        SELECT
+                            anio,
+                            mes,
+                            provincia,
+                            SUM(cantidad) as total
+                        FROM {tabla_hist}
+                        WHERE tipo_vehiculo = :tipo_vehiculo
+                        AND anio BETWEEN :anio_desde AND :anio_hasta
+                        {filtro_provincias_hist}
+                        GROUP BY anio, mes, provincia
+                        ORDER BY anio, mes
+                    """)
+
+                with engine.connect() as conn:
+                    df_hist = pd.read_sql(query_datos_hist, conn, params={
+                        "tipo_vehiculo": tipo_vehiculo_hist,
+                        "anio_desde": anio_desde_hist,
+                        "anio_hasta": anio_hasta_hist
+                    })
 
             if df_hist.empty:
                 st.warning("⚠️ No hay datos para los filtros seleccionados")
