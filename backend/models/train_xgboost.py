@@ -99,7 +99,15 @@ def preparar_features(df, target_col='total_operaciones'):
         'fecha',  # No es feature numérica
         target_col,  # Es el target
         'tramite_fecha',  # Si existe
+        'total_inscripciones',  # No usar componentes del target
+        'total_transferencias',  # No usar componentes del target
+        'total_prendas',  # No usar componentes del target
     ]
+
+    print(f"\n⚠️  Columnas excluidas (para evitar data leakage):")
+    for col in excluir:
+        if col in df.columns:
+            print(f"   - {col}")
 
     # Columnas de features
     feature_cols = [col for col in df.columns if col not in excluir]
@@ -129,14 +137,30 @@ def preparar_features(df, target_col='total_operaciones'):
     X = df[numericas].copy()
     y = df[target_col].copy()
 
-    # Imputar NaN en lugar de eliminar (usar forward fill + backward fill)
+    # Imputar NaN en lugar de eliminar
     print(f"\n🔄 Manejando valores faltantes...")
 
     # Contar NaN antes
     nan_antes = X.isnull().sum().sum()
+    print(f"   - Total NaN antes: {nan_antes:,}")
 
-    # Imputar: forward fill primero, luego backward fill, luego media
-    X = X.fillna(method='ffill').fillna(method='bfill').fillna(X.mean())
+    # Identificar columnas con todos NaN
+    cols_all_nan = X.columns[X.isnull().all()].tolist()
+    if cols_all_nan:
+        print(f"   ⚠️  Columnas completamente NaN (eliminando): {len(cols_all_nan)}")
+        for col in cols_all_nan[:5]:  # Mostrar primeras 5
+            print(f"      - {col}")
+        X = X.drop(columns=cols_all_nan)
+        numericas = [col for col in numericas if col not in cols_all_nan]
+
+    # Imputar usando métodos actualizados (no deprecated)
+    X = X.ffill().bfill()  # Forward fill y backward fill
+
+    # Para columnas que aún tienen NaN (por ejemplo, todas eran NaN al inicio), usar media
+    X = X.fillna(X.mean())
+
+    # Si aún quedan NaN (columnas con varianza 0), usar 0
+    X = X.fillna(0)
 
     # Verificar si quedaron NaN después de imputación
     nan_despues = X.isnull().sum().sum()
@@ -149,6 +173,16 @@ def preparar_features(df, target_col='total_operaciones'):
     print(f"   - NaN imputados: {nan_antes:,}")
     print(f"   - NaN restantes: {nan_despues}")
     print(f"   - Filas con target NaN removidas: {(~mask).sum()}")
+
+    # Verificar features con varianza cero
+    variance = X.var()
+    zero_var_cols = variance[variance == 0].index.tolist()
+    if zero_var_cols:
+        print(f"   ⚠️  Features con varianza cero (eliminando): {len(zero_var_cols)}")
+        for col in zero_var_cols[:5]:
+            print(f"      - {col}")
+        X = X.drop(columns=zero_var_cols)
+        numericas = [col for col in numericas if col not in zero_var_cols]
 
     print(f"\n✓ Dataset preparado:")
     print(f"   - Registros: {len(X):,}")
