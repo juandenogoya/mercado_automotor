@@ -97,7 +97,7 @@ def cargar_datos():
     return df
 
 
-def preparar_features(df, target_col='total_operaciones', top_n_features=15):
+def preparar_features(df, target_col='total_operaciones', top_n_features=15, incluir_categoricas=False):
     """
     Prepara features con SELECCIÓN AUTOMÁTICA de las más importantes.
 
@@ -178,61 +178,70 @@ def preparar_features(df, target_col='total_operaciones', top_n_features=15):
     print(f"   - Interacciones: {len(features_interaccion)}")
     print(f"   - Categóricas (provincias/marcas): {len(features_categoricas)}")
 
-    # ESTRATEGIA: Forzar features importantes para forecasting temporal
-    # 1. SIEMPRE incluir todas las autogresivas (críticas para forecasting)
-    # 2. SIEMPRE incluir features macro (BCRA/INDEC)
-    # 3. SIEMPRE incluir temporales
-    # 4. Seleccionar solo Top 5-10 categóricas (reducir dependencia de patrones geográficos)
-
-    features_obligatorias = features_autogresivas + features_macro + features_temporales + features_interaccion
-
-    # Calcular cuántas categóricas podemos incluir
-    n_categoricas_permitidas = max(5, top_n_features - len(features_obligatorias))
+    # ESTRATEGIA: Forecasting temporal puro (sin data leakage)
+    # Las features categóricas (operaciones_X) SON COMPONENTES del target
+    # total_operaciones = sum(operaciones_provincia_X) = sum(operaciones_marca_X)
+    # Esto causa data leakage y hace que el modelo las prefiera sobre features temporales reales
 
     print(f"\n🎯 Estrategia de selección:")
     print(f"   1. Incluir TODAS las autogresivas: {len(features_autogresivas)}")
     print(f"   2. Incluir TODAS las macro: {len(features_macro)}")
     print(f"   3. Incluir TODAS las temporales: {len(features_temporales)}")
     print(f"   4. Incluir TODAS las interacciones: {len(features_interaccion)}")
-    print(f"   5. Seleccionar Top {n_categoricas_permitidas} categóricas")
 
-    # Entrenar modelo preliminar SOLO con categóricas para seleccionar las mejores
-    if len(features_categoricas) > n_categoricas_permitidas:
-        n = len(X)
-        train_size = int(n * 0.75)
-        X_temp_cat = X[features_categoricas].iloc[:train_size]
-        y_temp = y.iloc[:train_size]
+    if incluir_categoricas:
+        # Modo CON categóricas (con leakage, pero útil para análisis descriptivo)
+        features_obligatorias = features_autogresivas + features_macro + features_temporales + features_interaccion
+        n_categoricas_permitidas = max(5, top_n_features - len(features_obligatorias))
 
-        model_temp = xgb.XGBRegressor(
-            n_estimators=50,
-            max_depth=3,
-            learning_rate=0.1,
-            random_state=42
-        )
-        model_temp.fit(X_temp_cat, y_temp)
+        print(f"   5. Seleccionar Top {n_categoricas_permitidas} categóricas")
+        print(f"\n   ⚠️  ADVERTENCIA: Categóricas causan data leakage (son componentes del target)")
 
-        # Obtener top categóricas
-        importancias_cat = pd.DataFrame({
-            'feature': features_categoricas,
-            'importance': model_temp.feature_importances_
-        }).sort_values('importance', ascending=False)
+        # Entrenar modelo preliminar SOLO con categóricas para seleccionar las mejores
+        if len(features_categoricas) > n_categoricas_permitidas:
+            n = len(X)
+            train_size = int(n * 0.75)
+            X_temp_cat = X[features_categoricas].iloc[:train_size]
+            y_temp = y.iloc[:train_size]
 
-        top_categoricas = importancias_cat.head(n_categoricas_permitidas)['feature'].tolist()
-        print(f"\n   📊 Top {n_categoricas_permitidas} categóricas seleccionadas:")
-        for i, row in importancias_cat.head(n_categoricas_permitidas).iterrows():
-            print(f"      {row['feature']:45} | {row['importance']:.4f}")
+            model_temp = xgb.XGBRegressor(
+                n_estimators=50,
+                max_depth=3,
+                learning_rate=0.1,
+                random_state=42
+            )
+            model_temp.fit(X_temp_cat, y_temp)
+
+            # Obtener top categóricas
+            importancias_cat = pd.DataFrame({
+                'feature': features_categoricas,
+                'importance': model_temp.feature_importances_
+            }).sort_values('importance', ascending=False)
+
+            top_categoricas = importancias_cat.head(n_categoricas_permitidas)['feature'].tolist()
+            print(f"\n   📊 Top {n_categoricas_permitidas} categóricas seleccionadas:")
+            for i, row in importancias_cat.head(n_categoricas_permitidas).iterrows():
+                print(f"      {row['feature']:45} | {row['importance']:.4f}")
+        else:
+            top_categoricas = features_categoricas
+
+        top_features = features_obligatorias + top_categoricas
     else:
-        top_categoricas = features_categoricas
+        # Modo SIN categóricas (forecasting puro, sin leakage)
+        print(f"   5. EXCLUIR categóricas (evitar data leakage)")
+        print(f"\n   ✅ Forecasting PURO: Solo features que existen ANTES de conocer el target")
 
-    # Combinar features finales
-    top_features = features_obligatorias + top_categoricas
+        top_features = features_autogresivas + features_macro + features_temporales + features_interaccion
 
     print(f"\n✓ Features finales: {len(top_features)}")
     print(f"   - Autogresivas: {len(features_autogresivas)}")
     print(f"   - Macro: {len(features_macro)}")
     print(f"   - Temporales: {len(features_temporales)}")
     print(f"   - Interacciones: {len(features_interaccion)}")
-    print(f"   - Categóricas: {len(top_categoricas)}")
+    if incluir_categoricas:
+        print(f"   - Categóricas: {len(top_categoricas)}")
+    else:
+        print(f"   - Categóricas: 0 (EXCLUIDAS para evitar leakage)")
 
     # Filtrar X con features seleccionadas
     X_selected = X[top_features].copy()
@@ -463,8 +472,8 @@ def main():
         if df is None:
             return
 
-        # 2. Preparar features con SELECCIÓN
-        X, y, feature_names = preparar_features(df, top_n_features=15)
+        # 2. Preparar features con SELECCIÓN (SIN categóricas para evitar leakage)
+        X, y, feature_names = preparar_features(df, top_n_features=15, incluir_categoricas=False)
 
         # 3. Split temporal
         X_train, X_val, X_test, y_train, y_val, y_test = split_temporal(
