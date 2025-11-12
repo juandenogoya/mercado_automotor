@@ -1,0 +1,836 @@
+====================================================================================================
+REPORTE DE ANÁLISIS DEL DATASET DE FORECASTING AVANZADO
+Fecha: 2025-11-12 17:09:20
+====================================================================================================
+
+1. INFORMACIÓN GENERAL
+----------------------------------------------------------------------------------------------------
+Archivo: data/processed/dataset_forecasting_avanzado.parquet
+Registros: 79
+Columnas: 209
+Período: 2019-03-01 00:00:00 a 2025-09-01 00:00:00
+Memoria: 0.12 MB
+
+2. LISTA COMPLETA DE COLUMNAS
+----------------------------------------------------------------------------------------------------
+#     Nombre                                                       Tipo            NaN       
+----------------------------------------------------------------------------------------------------
+1     fecha                                                        datetime64[ns]  0         
+2     total_operaciones                                            int64           0         
+3     total_inscripciones                                          int64           0         
+4     total_prendas                                                int64           0         
+5     total_transferencias                                         int64           0         
+6     operaciones_buenos_aires                                     int64           0         
+7     operaciones_chubut                                           int64           0         
+8     operaciones_ciudad_autónoma_de_bsas                          int64           0         
+9     operaciones_ciudad_autónoma_de_buenos_aires                  int64           0         
+10    operaciones_córdoba                                          int64           0         
+11    operaciones_entre_ríos                                       int64           0         
+12    operaciones_mendoza                                          int64           0         
+13    operaciones_neuquén                                          int64           0         
+14    operaciones_santa_fe                                         int64           0         
+15    operaciones_tucumán                                          int64           0         
+16    operaciones_marca_chevrolet                                  int64           0         
+17    operaciones_marca_citroen                                    int64           0         
+18    operaciones_marca_fiat                                       int64           0         
+19    operaciones_marca_ford                                       int64           0         
+20    operaciones_marca_mercedes_benz                              int64           0         
+21    operaciones_marca_nissan                                     int64           0         
+22    operaciones_marca_peugeot                                    int64           0         
+23    operaciones_marca_renault                                    int64           0         
+24    operaciones_marca_toyota                                     int64           0         
+25    operaciones_marca_volkswagen                                 int64           0         
+26    ratio_prendas_inscripciones                                  float64         0         
+27    ratio_transferencias_inscripciones                           float64         0         
+28    Δratio_prendas_inscripciones                                 float64         0         
+29    prop_buenos_aires                                            float64         0         
+30    prop_chubut                                                  float64         0         
+31    prop_ciudad_autónoma_de_bsas                                 float64         0         
+32    prop_ciudad_autónoma_de_buenos_aires                         float64         0         
+33    prop_córdoba                                                 float64         0         
+34    prop_entre_ríos                                              float64         0         
+35    prop_mendoza                                                 float64         0         
+36    prop_neuquén                                                 float64         0         
+37    prop_santa_fe                                                float64         0         
+38    prop_tucumán                                                 float64         0         
+39    prop_marca_chevrolet                                         float64         0         
+40    prop_marca_citroen                                           float64         0         
+41    prop_marca_fiat                                              float64         0         
+42    prop_marca_ford                                              float64         0         
+43    prop_marca_mercedes_benz                                     float64         0         
+44    prop_marca_nissan                                            float64         0         
+45    prop_marca_peugeot                                           float64         0         
+46    prop_marca_renault                                           float64         0         
+47    prop_marca_toyota                                            float64         0         
+48    prop_marca_volkswagen                                        float64         0         
+49    Δprop_buenos_aires                                           float64         0         
+50    Δprop_chubut                                                 float64         0         
+51    Δprop_ciudad_autónoma_de_bsas                                float64         0         
+52    Δprop_ciudad_autónoma_de_buenos_aires                        float64         0         
+53    Δprop_córdoba                                                float64         0         
+54    Δprop_entre_ríos                                             float64         0         
+55    Δprop_mendoza                                                float64         0         
+56    Δprop_neuquén                                                float64         0         
+57    Δprop_santa_fe                                               float64         0         
+58    Δprop_tucumán                                                float64         0         
+59    Δprop_marca_chevrolet                                        float64         0         
+60    Δprop_marca_citroen                                          float64         0         
+61    Δprop_marca_fiat                                             float64         0         
+62    Δprop_marca_ford                                             float64         0         
+63    Δprop_marca_mercedes_benz                                    float64         0         
+64    Δprop_marca_nissan                                           float64         0         
+65    Δprop_marca_peugeot                                          float64         0         
+66    Δprop_marca_renault                                          float64         0         
+67    Δprop_marca_toyota                                           float64         0         
+68    Δprop_marca_volkswagen                                       float64         0         
+69    ratio_prendas_inscripciones_lag1                             float64         0         
+70    ratio_prendas_inscripciones_lag2                             float64         0         
+71    ratio_prendas_inscripciones_lag3                             float64         1 (1.3%)  
+72    ratio_transferencias_inscripciones_lag1                      float64         0         
+73    ratio_transferencias_inscripciones_lag2                      float64         0         
+74    ratio_transferencias_inscripciones_lag3                      float64         1 (1.3%)  
+75    Δratio_prendas_inscripciones_lag1                            float64         0         
+76    Δratio_prendas_inscripciones_lag2                            float64         1 (1.3%)  
+77    Δratio_prendas_inscripciones_lag3                            float64         2 (2.5%)  
+78    prop_buenos_aires_lag1                                       float64         0         
+79    prop_buenos_aires_lag2                                       float64         0         
+80    prop_buenos_aires_lag3                                       float64         1 (1.3%)  
+81    prop_chubut_lag1                                             float64         0         
+82    prop_chubut_lag2                                             float64         0         
+83    prop_chubut_lag3                                             float64         1 (1.3%)  
+84    prop_ciudad_autónoma_de_bsas_lag1                            float64         0         
+85    prop_ciudad_autónoma_de_bsas_lag2                            float64         0         
+86    prop_ciudad_autónoma_de_bsas_lag3                            float64         1 (1.3%)  
+87    prop_ciudad_autónoma_de_buenos_aires_lag1                    float64         0         
+88    prop_ciudad_autónoma_de_buenos_aires_lag2                    float64         0         
+89    prop_ciudad_autónoma_de_buenos_aires_lag3                    float64         1 (1.3%)  
+90    prop_córdoba_lag1                                            float64         0         
+91    prop_córdoba_lag2                                            float64         0         
+92    prop_córdoba_lag3                                            float64         1 (1.3%)  
+93    prop_entre_ríos_lag1                                         float64         0         
+94    prop_entre_ríos_lag2                                         float64         0         
+95    prop_entre_ríos_lag3                                         float64         1 (1.3%)  
+96    prop_mendoza_lag1                                            float64         0         
+97    prop_mendoza_lag2                                            float64         0         
+98    prop_mendoza_lag3                                            float64         1 (1.3%)  
+99    prop_neuquén_lag1                                            float64         0         
+100   prop_neuquén_lag2                                            float64         0         
+101   prop_neuquén_lag3                                            float64         1 (1.3%)  
+102   prop_santa_fe_lag1                                           float64         0         
+103   prop_santa_fe_lag2                                           float64         0         
+104   prop_santa_fe_lag3                                           float64         1 (1.3%)  
+105   prop_tucumán_lag1                                            float64         0         
+106   prop_tucumán_lag2                                            float64         0         
+107   prop_tucumán_lag3                                            float64         1 (1.3%)  
+108   prop_marca_chevrolet_lag1                                    float64         0         
+109   prop_marca_chevrolet_lag2                                    float64         0         
+110   prop_marca_chevrolet_lag3                                    float64         1 (1.3%)  
+111   prop_marca_citroen_lag1                                      float64         0         
+112   prop_marca_citroen_lag2                                      float64         0         
+113   prop_marca_citroen_lag3                                      float64         1 (1.3%)  
+114   prop_marca_fiat_lag1                                         float64         0         
+115   prop_marca_fiat_lag2                                         float64         0         
+116   prop_marca_fiat_lag3                                         float64         1 (1.3%)  
+117   prop_marca_ford_lag1                                         float64         0         
+118   prop_marca_ford_lag2                                         float64         0         
+119   prop_marca_ford_lag3                                         float64         1 (1.3%)  
+120   prop_marca_mercedes_benz_lag1                                float64         0         
+121   prop_marca_mercedes_benz_lag2                                float64         0         
+122   prop_marca_mercedes_benz_lag3                                float64         1 (1.3%)  
+123   prop_marca_nissan_lag1                                       float64         0         
+124   prop_marca_nissan_lag2                                       float64         0         
+125   prop_marca_nissan_lag3                                       float64         1 (1.3%)  
+126   prop_marca_peugeot_lag1                                      float64         0         
+127   prop_marca_peugeot_lag2                                      float64         0         
+128   prop_marca_peugeot_lag3                                      float64         1 (1.3%)  
+129   prop_marca_renault_lag1                                      float64         0         
+130   prop_marca_renault_lag2                                      float64         0         
+131   prop_marca_renault_lag3                                      float64         1 (1.3%)  
+132   prop_marca_toyota_lag1                                       float64         0         
+133   prop_marca_toyota_lag2                                       float64         0         
+134   prop_marca_toyota_lag3                                       float64         1 (1.3%)  
+135   prop_marca_volkswagen_lag1                                   float64         0         
+136   prop_marca_volkswagen_lag2                                   float64         0         
+137   prop_marca_volkswagen_lag3                                   float64         1 (1.3%)  
+138   Δprop_buenos_aires_lag1                                      float64         0         
+139   Δprop_buenos_aires_lag2                                      float64         1 (1.3%)  
+140   Δprop_buenos_aires_lag3                                      float64         2 (2.5%)  
+141   Δprop_chubut_lag1                                            float64         0         
+142   Δprop_chubut_lag2                                            float64         1 (1.3%)  
+143   Δprop_chubut_lag3                                            float64         2 (2.5%)  
+144   Δprop_ciudad_autónoma_de_bsas_lag1                           float64         0         
+145   Δprop_ciudad_autónoma_de_bsas_lag2                           float64         1 (1.3%)  
+146   Δprop_ciudad_autónoma_de_bsas_lag3                           float64         2 (2.5%)  
+147   Δprop_ciudad_autónoma_de_buenos_aires_lag1                   float64         0         
+148   Δprop_ciudad_autónoma_de_buenos_aires_lag2                   float64         1 (1.3%)  
+149   Δprop_ciudad_autónoma_de_buenos_aires_lag3                   float64         2 (2.5%)  
+150   Δprop_córdoba_lag1                                           float64         0         
+151   Δprop_córdoba_lag2                                           float64         1 (1.3%)  
+152   Δprop_córdoba_lag3                                           float64         2 (2.5%)  
+153   Δprop_entre_ríos_lag1                                        float64         0         
+154   Δprop_entre_ríos_lag2                                        float64         1 (1.3%)  
+155   Δprop_entre_ríos_lag3                                        float64         2 (2.5%)  
+156   Δprop_mendoza_lag1                                           float64         0         
+157   Δprop_mendoza_lag2                                           float64         1 (1.3%)  
+158   Δprop_mendoza_lag3                                           float64         2 (2.5%)  
+159   Δprop_neuquén_lag1                                           float64         0         
+160   Δprop_neuquén_lag2                                           float64         1 (1.3%)  
+161   Δprop_neuquén_lag3                                           float64         2 (2.5%)  
+162   Δprop_santa_fe_lag1                                          float64         0         
+163   Δprop_santa_fe_lag2                                          float64         1 (1.3%)  
+164   Δprop_santa_fe_lag3                                          float64         2 (2.5%)  
+165   Δprop_tucumán_lag1                                           float64         0         
+166   Δprop_tucumán_lag2                                           float64         1 (1.3%)  
+167   Δprop_tucumán_lag3                                           float64         2 (2.5%)  
+168   Δprop_marca_chevrolet_lag1                                   float64         0         
+169   Δprop_marca_chevrolet_lag2                                   float64         1 (1.3%)  
+170   Δprop_marca_chevrolet_lag3                                   float64         2 (2.5%)  
+171   Δprop_marca_citroen_lag1                                     float64         0         
+172   Δprop_marca_citroen_lag2                                     float64         1 (1.3%)  
+173   Δprop_marca_citroen_lag3                                     float64         2 (2.5%)  
+174   Δprop_marca_fiat_lag1                                        float64         0         
+175   Δprop_marca_fiat_lag2                                        float64         1 (1.3%)  
+176   Δprop_marca_fiat_lag3                                        float64         2 (2.5%)  
+177   Δprop_marca_ford_lag1                                        float64         0         
+178   Δprop_marca_ford_lag2                                        float64         1 (1.3%)  
+179   Δprop_marca_ford_lag3                                        float64         2 (2.5%)  
+180   Δprop_marca_mercedes_benz_lag1                               float64         0         
+181   Δprop_marca_mercedes_benz_lag2                               float64         1 (1.3%)  
+182   Δprop_marca_mercedes_benz_lag3                               float64         2 (2.5%)  
+183   Δprop_marca_nissan_lag1                                      float64         0         
+184   Δprop_marca_nissan_lag2                                      float64         1 (1.3%)  
+185   Δprop_marca_nissan_lag3                                      float64         2 (2.5%)  
+186   Δprop_marca_peugeot_lag1                                     float64         0         
+187   Δprop_marca_peugeot_lag2                                     float64         1 (1.3%)  
+188   Δprop_marca_peugeot_lag3                                     float64         2 (2.5%)  
+189   Δprop_marca_renault_lag1                                     float64         0         
+190   Δprop_marca_renault_lag2                                     float64         1 (1.3%)  
+191   Δprop_marca_renault_lag3                                     float64         2 (2.5%)  
+192   Δprop_marca_toyota_lag1                                      float64         0         
+193   Δprop_marca_toyota_lag2                                      float64         1 (1.3%)  
+194   Δprop_marca_toyota_lag3                                      float64         2 (2.5%)  
+195   Δprop_marca_volkswagen_lag1                                  float64         0         
+196   Δprop_marca_volkswagen_lag2                                  float64         1 (1.3%)  
+197   Δprop_marca_volkswagen_lag3                                  float64         2 (2.5%)  
+198   total_operaciones_lag1                                       float64         0         
+199   total_operaciones_lag2                                       float64         0         
+200   total_operaciones_lag3                                       float64         1 (1.3%)  
+201   total_operaciones_lag6                                       float64         4 (5.1%)  
+202   total_operaciones_lag12                                      float64         10 (12.7%)
+203   total_operaciones_rolling3                                   float64         0         
+204   total_operaciones_rolling6                                   float64         3 (3.8%)  
+205   total_operaciones_rolling12                                  float64         9 (11.4%) 
+206   mes                                                          int32           0         
+207   trimestre                                                    int32           0         
+208   anio                                                         int32           0         
+209   semestre                                                     int32           0         
+
+
+3. COLUMNAS POR CATEGORÍA
+----------------------------------------------------------------------------------------------------
+
+Target: 1 columnas
+   - total_operaciones
+
+Fecha: 1 columnas
+   - fecha
+
+Componentes del Target: 3 columnas
+   - total_inscripciones
+   - total_transferencias
+   - total_prendas
+
+Operaciones por Provincia: 10 columnas
+   - operaciones_buenos_aires
+   - operaciones_chubut
+   - operaciones_ciudad_autónoma_de_bsas
+   - operaciones_ciudad_autónoma_de_buenos_aires
+   - operaciones_córdoba
+   - operaciones_entre_ríos
+   - operaciones_mendoza
+   - operaciones_neuquén
+   - operaciones_santa_fe
+   - operaciones_tucumán
+
+Operaciones por Marca: 10 columnas
+   - operaciones_marca_chevrolet
+   - operaciones_marca_citroen
+   - operaciones_marca_fiat
+   - operaciones_marca_ford
+   - operaciones_marca_mercedes_benz
+   - operaciones_marca_nissan
+   - operaciones_marca_peugeot
+   - operaciones_marca_renault
+   - operaciones_marca_toyota
+   - operaciones_marca_volkswagen
+
+Proporciones (market share): 80 columnas
+   - prop_buenos_aires
+   - prop_chubut
+   - prop_ciudad_autónoma_de_bsas
+   - prop_ciudad_autónoma_de_buenos_aires
+   - prop_córdoba
+   - prop_entre_ríos
+   - prop_mendoza
+   - prop_neuquén
+   - prop_santa_fe
+   - prop_tucumán
+   - prop_marca_chevrolet
+   - prop_marca_citroen
+   - prop_marca_fiat
+   - prop_marca_ford
+   - prop_marca_mercedes_benz
+   - prop_marca_nissan
+   - prop_marca_peugeot
+   - prop_marca_renault
+   - prop_marca_toyota
+   - prop_marca_volkswagen
+   - prop_buenos_aires_lag1
+   - prop_buenos_aires_lag2
+   - prop_buenos_aires_lag3
+   - prop_chubut_lag1
+   - prop_chubut_lag2
+   - prop_chubut_lag3
+   - prop_ciudad_autónoma_de_bsas_lag1
+   - prop_ciudad_autónoma_de_bsas_lag2
+   - prop_ciudad_autónoma_de_bsas_lag3
+   - prop_ciudad_autónoma_de_buenos_aires_lag1
+   - prop_ciudad_autónoma_de_buenos_aires_lag2
+   - prop_ciudad_autónoma_de_buenos_aires_lag3
+   - prop_córdoba_lag1
+   - prop_córdoba_lag2
+   - prop_córdoba_lag3
+   - prop_entre_ríos_lag1
+   - prop_entre_ríos_lag2
+   - prop_entre_ríos_lag3
+   - prop_mendoza_lag1
+   - prop_mendoza_lag2
+   - prop_mendoza_lag3
+   - prop_neuquén_lag1
+   - prop_neuquén_lag2
+   - prop_neuquén_lag3
+   - prop_santa_fe_lag1
+   - prop_santa_fe_lag2
+   - prop_santa_fe_lag3
+   - prop_tucumán_lag1
+   - prop_tucumán_lag2
+   - prop_tucumán_lag3
+   - prop_marca_chevrolet_lag1
+   - prop_marca_chevrolet_lag2
+   - prop_marca_chevrolet_lag3
+   - prop_marca_citroen_lag1
+   - prop_marca_citroen_lag2
+   - prop_marca_citroen_lag3
+   - prop_marca_fiat_lag1
+   - prop_marca_fiat_lag2
+   - prop_marca_fiat_lag3
+   - prop_marca_ford_lag1
+   - prop_marca_ford_lag2
+   - prop_marca_ford_lag3
+   - prop_marca_mercedes_benz_lag1
+   - prop_marca_mercedes_benz_lag2
+   - prop_marca_mercedes_benz_lag3
+   - prop_marca_nissan_lag1
+   - prop_marca_nissan_lag2
+   - prop_marca_nissan_lag3
+   - prop_marca_peugeot_lag1
+   - prop_marca_peugeot_lag2
+   - prop_marca_peugeot_lag3
+   - prop_marca_renault_lag1
+   - prop_marca_renault_lag2
+   - prop_marca_renault_lag3
+   - prop_marca_toyota_lag1
+   - prop_marca_toyota_lag2
+   - prop_marca_toyota_lag3
+   - prop_marca_volkswagen_lag1
+   - prop_marca_volkswagen_lag2
+   - prop_marca_volkswagen_lag3
+
+Variaciones de Proporciones (Δ): 80 columnas
+   - Δprop_buenos_aires
+   - Δprop_chubut
+   - Δprop_ciudad_autónoma_de_bsas
+   - Δprop_ciudad_autónoma_de_buenos_aires
+   - Δprop_córdoba
+   - Δprop_entre_ríos
+   - Δprop_mendoza
+   - Δprop_neuquén
+   - Δprop_santa_fe
+   - Δprop_tucumán
+   - Δprop_marca_chevrolet
+   - Δprop_marca_citroen
+   - Δprop_marca_fiat
+   - Δprop_marca_ford
+   - Δprop_marca_mercedes_benz
+   - Δprop_marca_nissan
+   - Δprop_marca_peugeot
+   - Δprop_marca_renault
+   - Δprop_marca_toyota
+   - Δprop_marca_volkswagen
+   - Δprop_buenos_aires_lag1
+   - Δprop_buenos_aires_lag2
+   - Δprop_buenos_aires_lag3
+   - Δprop_chubut_lag1
+   - Δprop_chubut_lag2
+   - Δprop_chubut_lag3
+   - Δprop_ciudad_autónoma_de_bsas_lag1
+   - Δprop_ciudad_autónoma_de_bsas_lag2
+   - Δprop_ciudad_autónoma_de_bsas_lag3
+   - Δprop_ciudad_autónoma_de_buenos_aires_lag1
+   - Δprop_ciudad_autónoma_de_buenos_aires_lag2
+   - Δprop_ciudad_autónoma_de_buenos_aires_lag3
+   - Δprop_córdoba_lag1
+   - Δprop_córdoba_lag2
+   - Δprop_córdoba_lag3
+   - Δprop_entre_ríos_lag1
+   - Δprop_entre_ríos_lag2
+   - Δprop_entre_ríos_lag3
+   - Δprop_mendoza_lag1
+   - Δprop_mendoza_lag2
+   - Δprop_mendoza_lag3
+   - Δprop_neuquén_lag1
+   - Δprop_neuquén_lag2
+   - Δprop_neuquén_lag3
+   - Δprop_santa_fe_lag1
+   - Δprop_santa_fe_lag2
+   - Δprop_santa_fe_lag3
+   - Δprop_tucumán_lag1
+   - Δprop_tucumán_lag2
+   - Δprop_tucumán_lag3
+   - Δprop_marca_chevrolet_lag1
+   - Δprop_marca_chevrolet_lag2
+   - Δprop_marca_chevrolet_lag3
+   - Δprop_marca_citroen_lag1
+   - Δprop_marca_citroen_lag2
+   - Δprop_marca_citroen_lag3
+   - Δprop_marca_fiat_lag1
+   - Δprop_marca_fiat_lag2
+   - Δprop_marca_fiat_lag3
+   - Δprop_marca_ford_lag1
+   - Δprop_marca_ford_lag2
+   - Δprop_marca_ford_lag3
+   - Δprop_marca_mercedes_benz_lag1
+   - Δprop_marca_mercedes_benz_lag2
+   - Δprop_marca_mercedes_benz_lag3
+   - Δprop_marca_nissan_lag1
+   - Δprop_marca_nissan_lag2
+   - Δprop_marca_nissan_lag3
+   - Δprop_marca_peugeot_lag1
+   - Δprop_marca_peugeot_lag2
+   - Δprop_marca_peugeot_lag3
+   - Δprop_marca_renault_lag1
+   - Δprop_marca_renault_lag2
+   - Δprop_marca_renault_lag3
+   - Δprop_marca_toyota_lag1
+   - Δprop_marca_toyota_lag2
+   - Δprop_marca_toyota_lag3
+   - Δprop_marca_volkswagen_lag1
+   - Δprop_marca_volkswagen_lag2
+   - Δprop_marca_volkswagen_lag3
+
+Ratios Transaccionales: 12 columnas
+   - ratio_prendas_inscripciones
+   - ratio_transferencias_inscripciones
+   - Δratio_prendas_inscripciones
+   - ratio_prendas_inscripciones_lag1
+   - ratio_prendas_inscripciones_lag2
+   - ratio_prendas_inscripciones_lag3
+   - ratio_transferencias_inscripciones_lag1
+   - ratio_transferencias_inscripciones_lag2
+   - ratio_transferencias_inscripciones_lag3
+   - Δratio_prendas_inscripciones_lag1
+   - Δratio_prendas_inscripciones_lag2
+   - Δratio_prendas_inscripciones_lag3
+
+Lags y Rolling del Target: 8 columnas
+   - total_operaciones_lag1
+   - total_operaciones_lag2
+   - total_operaciones_lag3
+   - total_operaciones_lag6
+   - total_operaciones_lag12
+   - total_operaciones_rolling3
+   - total_operaciones_rolling6
+   - total_operaciones_rolling12
+
+Features Temporales: 4 columnas
+   - mes
+   - trimestre
+   - anio
+   - semestre
+
+Features Macro (BCRA/INDEC): 13 columnas
+   - total_inscripciones
+   - ratio_prendas_inscripciones
+   - ratio_transferencias_inscripciones
+   - Δratio_prendas_inscripciones
+   - ratio_prendas_inscripciones_lag1
+   - ratio_prendas_inscripciones_lag2
+   - ratio_prendas_inscripciones_lag3
+   - ratio_transferencias_inscripciones_lag1
+   - ratio_transferencias_inscripciones_lag2
+   - ratio_transferencias_inscripciones_lag3
+   - Δratio_prendas_inscripciones_lag1
+   - Δratio_prendas_inscripciones_lag2
+   - Δratio_prendas_inscripciones_lag3
+
+
+4. ESTADÍSTICAS DEL TARGET (total_operaciones)
+----------------------------------------------------------------------------------------------------
+count          : 79.00
+mean           : 170,167.06
+std            : 70,366.88
+min            : 25,108.00
+25%            : 140,085.50
+50%            : 193,628.00
+75%            : 211,881.00
+max            : 288,324.00
+
+
+5. PRIMEROS 20 REGISTROS
+----------------------------------------------------------------------------------------------------
+NOTA: Solo se muestran las columnas más relevantes para legibilidad
+
+     fecha  total_operaciones  total_inscripciones  total_transferencias  total_prendas  ratio_prendas_inscripciones  ratio_transferencias_inscripciones  Δratio_prendas_inscripciones  ratio_prendas_inscripciones_lag1  ratio_prendas_inscripciones_lag2  ratio_prendas_inscripciones_lag3  ratio_transferencias_inscripciones_lag1  ratio_transferencias_inscripciones_lag2  ratio_transferencias_inscripciones_lag3  Δratio_prendas_inscripciones_lag1  Δratio_prendas_inscripciones_lag2  Δratio_prendas_inscripciones_lag3  total_operaciones_lag1  total_operaciones_lag2  total_operaciones_lag3  mes  trimestre  anio  semestre
+2019-03-01              62261                39133                     0          23128                     0.591010                            0.000000                      0.002122                          0.589759                          0.518541                               NaN                                 0.000000                                 0.000000                                      NaN                           0.137342                                NaN                                NaN                 63894.0                 91647.0                     NaN    3          1  2019         1
+2019-04-01              59721                37499                     0          22222                     0.592602                            0.000000                      0.002694                          0.591010                          0.589759                          0.518541                                 0.000000                                 0.000000                                 0.000000                           0.002122                           0.137342                                NaN                 62261.0                 63894.0                 91647.0    4          2  2019         1
+2019-05-01              59145                36873                     0          22272                     0.604019                            0.000000                      0.019265                          0.592602                          0.591010                          0.589759                                 0.000000                                 0.000000                                 0.000000                           0.002694                           0.002122                           0.137342                 59721.0                 62261.0                 63894.0    5          2  2019         1
+2019-06-01              54980                36321                     0          18659                     0.513725                            0.000000                     -0.149489                          0.604019                          0.592602                          0.591010                                 0.000000                                 0.000000                                 0.000000                           0.019265                           0.002694                           0.002122                 59145.0                 59721.0                 62261.0    6          2  2019         1
+2019-07-01              76320                49920                     0          26400                     0.528846                            0.000000                      0.029435                          0.513725                          0.604019                          0.592602                                 0.000000                                 0.000000                                 0.000000                          -0.149489                           0.019265                           0.002694                 54980.0                 59145.0                 59721.0    7          3  2019         2
+2019-08-01              67691                44455                     0          23236                     0.522686                            0.000000                     -0.011649                          0.528846                          0.513725                          0.604019                                 0.000000                                 0.000000                                 0.000000                           0.029435                          -0.149489                           0.019265                 76320.0                 54980.0                 59145.0    8          3  2019         2
+2019-09-01              53815                36182                     0          17633                     0.487342                            0.000000                     -0.067620                          0.522686                          0.528846                          0.513725                                 0.000000                                 0.000000                                 0.000000                          -0.011649                           0.029435                          -0.149489                 67691.0                 76320.0                 54980.0    9          3  2019         2
+2019-10-01              49835                32696                     0          17139                     0.524193                            0.000000                      0.075616                          0.487342                          0.522686                          0.528846                                 0.000000                                 0.000000                                 0.000000                          -0.067620                          -0.011649                           0.029435                 53815.0                 67691.0                 76320.0   10          4  2019         2
+2019-11-01              39220                25944                     0          13276                     0.511718                            0.000000                     -0.023799                          0.524193                          0.487342                          0.522686                                 0.000000                                 0.000000                                 0.000000                           0.075616                          -0.067620                          -0.011649                 49835.0                 53815.0                 67691.0   11          4  2019         2
+2019-12-01              33126                21530                     0          11596                     0.538597                            0.000000                      0.052529                          0.511718                          0.524193                          0.487342                                 0.000000                                 0.000000                                 0.000000                          -0.023799                           0.075616                          -0.067620                 39220.0                 49835.0                 53815.0   12          4  2019         2
+2020-01-01             219182                45038                152996          21148                     0.469559                            3.397042                     -0.128182                          0.538597                          0.511718                          0.524193                                 0.000000                                 0.000000                                 0.000000                           0.052529                          -0.023799                           0.075616                 33126.0                 39220.0                 49835.0    1          1  2020         1
+2020-02-01             167942                27806                125060          15076                     0.542185                            4.497590                      0.154669                          0.469559                          0.538597                          0.511718                                 3.397042                                 0.000000                                 0.000000                          -0.128182                           0.052529                          -0.023799                219182.0                 33126.0                 39220.0    2          1  2020         1
+2020-03-01             123199                17925                 95201          10073                     0.561953                            5.311074                      0.036459                          0.542185                          0.469559                          0.538597                                 4.497590                                 3.397042                                 0.000000                           0.154669                          -0.128182                           0.052529                167942.0                219182.0                 33126.0    3          1  2020         1
+2020-04-01              25108                 4415                 18033           2660                     0.602492                            4.084485                      0.072139                          0.561953                          0.542185                          0.469559                                 5.311074                                 4.497590                                 3.397042                           0.036459                           0.154669                          -0.128182                123199.0                167942.0                219182.0    4          2  2020         1
+2020-05-01             109216                21276                 77864          10076                     0.473585                            3.659710                     -0.213955                          0.602492                          0.561953                          0.542185                                 4.084485                                 5.311074                                 4.497590                           0.072139                           0.036459                           0.154669                 25108.0                123199.0                167942.0    5          2  2020         1
+2020-06-01             182810                37398                128406          17006                     0.454730                            3.433499                     -0.039813                          0.473585                          0.602492                          0.561953                                 3.659710                                 4.084485                                 5.311074                          -0.213955                           0.072139                           0.036459                109216.0                 25108.0                123199.0    6          2  2020         1
+2020-07-01             193898                30527                147253          16118                     0.527992                            4.823697                      0.161110                          0.454730                          0.473585                          0.602492                                 3.433499                                 3.659710                                 4.084485                          -0.039813                          -0.213955                           0.072139                182810.0                109216.0                 25108.0    7          3  2020         2
+2020-08-01             200843                30658                154216          15969                     0.520875                            5.030204                     -0.013478                          0.527992                          0.454730                          0.473585                                 4.823697                                 3.433499                                 3.659710                           0.161110                          -0.039813                          -0.213955                193898.0                182810.0                109216.0    8          3  2020         2
+2020-09-01             212779                35125                159588          18066                     0.514335                            4.543431                     -0.012558                          0.520875                          0.527992                          0.454730                                 5.030204                                 4.823697                                 3.433499                          -0.013478                           0.161110                          -0.039813                200843.0                193898.0                182810.0    9          3  2020         2
+2020-10-01             210938                37638                154415          18885                     0.501754                            4.102636                     -0.024461                          0.514335                          0.520875                          0.527992                                 4.543431                                 5.030204                                 4.823697                          -0.012558                          -0.013478                           0.161110                212779.0                200843.0                193898.0   10          4  2020         2
+
+6. TOP 20 FEATURES MÁS CORRELACIONADAS CON EL TARGET
+----------------------------------------------------------------------------------------------------
+Feature                                                      |Correlación|  
+----------------------------------------------------------------------------------------------------
+operaciones_córdoba                                          0.9977         
+operaciones_buenos_aires                                     0.9967         
+operaciones_marca_volkswagen                                 0.9928         
+operaciones_mendoza                                          0.9904         
+operaciones_marca_chevrolet                                  0.9886         
+operaciones_marca_peugeot                                    0.9880         
+operaciones_marca_fiat                                       0.9861         
+operaciones_marca_ford                                       0.9843         
+operaciones_marca_citroen                                    0.9840         
+operaciones_chubut                                           0.9835         
+operaciones_marca_renault                                    0.9818         
+operaciones_santa_fe                                         0.9810         
+operaciones_entre_ríos                                       0.9801         
+operaciones_marca_mercedes_benz                              0.9786         
+operaciones_tucumán                                          0.9781         
+total_transferencias                                         0.9689         
+operaciones_neuquén                                          0.9432         
+operaciones_marca_nissan                                     0.9232         
+operaciones_marca_toyota                                     0.9170         
+total_operaciones_rolling3                                   0.8453         
+
+
+7. ANÁLISIS DE DATA LEAKAGE
+----------------------------------------------------------------------------------------------------
+Columnas con ALTO RIESGO de data leakage (correlación > 0.9):
+
+   ⚠️  operaciones_córdoba                                          | 0.9977
+   ⚠️  operaciones_buenos_aires                                     | 0.9967
+   ⚠️  operaciones_marca_volkswagen                                 | 0.9928
+   ⚠️  operaciones_mendoza                                          | 0.9904
+   ⚠️  operaciones_marca_chevrolet                                  | 0.9886
+   ⚠️  operaciones_marca_peugeot                                    | 0.9880
+   ⚠️  operaciones_marca_fiat                                       | 0.9861
+   ⚠️  operaciones_marca_ford                                       | 0.9843
+   ⚠️  operaciones_marca_citroen                                    | 0.9840
+   ⚠️  operaciones_chubut                                           | 0.9835
+   ⚠️  operaciones_marca_renault                                    | 0.9818
+   ⚠️  operaciones_santa_fe                                         | 0.9810
+   ⚠️  operaciones_entre_ríos                                       | 0.9801
+   ⚠️  operaciones_marca_mercedes_benz                              | 0.9786
+   ⚠️  operaciones_tucumán                                          | 0.9781
+   ⚠️  total_transferencias                                         | 0.9689
+   ⚠️  operaciones_neuquén                                          | 0.9432
+   ⚠️  operaciones_marca_nissan                                     | 0.9232
+   ⚠️  operaciones_marca_toyota                                     | 0.9170
+
+Estas features son muy probablemente COMPONENTES del target.
+NO deben usarse para forecasting (causan overfitting).
+
+
+8. FEATURES RECOMENDADAS PARA FORECASTING (SIN LEAKAGE)
+----------------------------------------------------------------------------------------------------
+Total: 37 features
+
+Estas features NO tienen data leakage:
+   - Lags del target: información del pasado
+   - Ratios: relaciones entre componentes (no componentes directos)
+   - Temporales: estacionalidad
+   - Macro: información externa
+
+   ✓ total_operaciones_lag1                                       | Corr: 0.6228
+   ✓ total_operaciones_lag2                                       | Corr: 0.5446
+   ✓ total_operaciones_lag3                                       | Corr: 0.4135
+   ✓ total_operaciones_lag6                                       | Corr: 0.4444
+   ✓ total_operaciones_lag12                                      | Corr: 0.3930
+   ✓ total_operaciones_rolling3                                   | Corr: 0.8453
+   ✓ total_operaciones_rolling6                                   | Corr: 0.7149
+   ✓ total_operaciones_rolling12                                  | Corr: 0.4865
+   ✓ ratio_prendas_inscripciones                                  | Corr: 0.3754
+   ✓ ratio_transferencias_inscripciones                           | Corr: 0.6436
+   ✓ Δratio_prendas_inscripciones                                 | Corr: 0.1089
+   ✓ ratio_prendas_inscripciones_lag1                             | Corr: 0.4835
+   ✓ ratio_prendas_inscripciones_lag2                             | Corr: 0.4196
+   ✓ ratio_prendas_inscripciones_lag3                             | Corr: 0.4662
+   ✓ ratio_transferencias_inscripciones_lag1                      | Corr: 0.4451
+   ✓ ratio_transferencias_inscripciones_lag2                      | Corr: 0.3828
+   ✓ ratio_transferencias_inscripciones_lag3                      | Corr: 0.4098
+   ✓ Δratio_prendas_inscripciones_lag1                            | Corr: 0.0970
+   ✓ Δratio_prendas_inscripciones_lag2                            | Corr: 0.0729
+   ✓ Δratio_prendas_inscripciones_lag3                            | Corr: 0.2043
+   ✓ mes                                                          | Corr: 0.1191
+   ✓ trimestre                                                    | Corr: 0.1249
+   ✓ anio                                                         | Corr: 0.6188
+   ✓ semestre                                                     | Corr: 0.0326
+   ✓ total_inscripciones                                          | Corr: 0.5275
+   ✓ ratio_prendas_inscripciones                                  | Corr: 0.3754
+   ✓ ratio_transferencias_inscripciones                           | Corr: 0.6436
+   ✓ Δratio_prendas_inscripciones                                 | Corr: 0.1089
+   ✓ ratio_prendas_inscripciones_lag1                             | Corr: 0.4835
+   ✓ ratio_prendas_inscripciones_lag2                             | Corr: 0.4196
+   ✓ ratio_prendas_inscripciones_lag3                             | Corr: 0.4662
+   ✓ ratio_transferencias_inscripciones_lag1                      | Corr: 0.4451
+   ✓ ratio_transferencias_inscripciones_lag2                      | Corr: 0.3828
+   ✓ ratio_transferencias_inscripciones_lag3                      | Corr: 0.4098
+   ✓ Δratio_prendas_inscripciones_lag1                            | Corr: 0.0970
+   ✓ Δratio_prendas_inscripciones_lag2                            | Corr: 0.0729
+   ✓ Δratio_prendas_inscripciones_lag3                            | Corr: 0.2043
+
+
+9. VALORES COMPLETOS - PRIMEROS 20 REGISTROS (TODAS LAS COLUMNAS)
+----------------------------------------------------------------------------------------------------
+NOTA: Valores transpuestos para mejor visualización
+
+                                                              0                    1                    2                    3                    4                    5                    6                    7                    8                    9                    10                   11                   12                   13                   14                   15                   16                   17                   18                   19
+fecha                                        2019-03-01 00:00:00  2019-04-01 00:00:00  2019-05-01 00:00:00  2019-06-01 00:00:00  2019-07-01 00:00:00  2019-08-01 00:00:00  2019-09-01 00:00:00  2019-10-01 00:00:00  2019-11-01 00:00:00  2019-12-01 00:00:00  2020-01-01 00:00:00  2020-02-01 00:00:00  2020-03-01 00:00:00  2020-04-01 00:00:00  2020-05-01 00:00:00  2020-06-01 00:00:00  2020-07-01 00:00:00  2020-08-01 00:00:00  2020-09-01 00:00:00  2020-10-01 00:00:00
+total_operaciones                                          62261                59721                59145                54980                76320                67691                53815                49835                39220                33126               219182               167942               123199                25108               109216               182810               193898               200843               212779               210938
+total_inscripciones                                        39133                37499                36873                36321                49920                44455                36182                32696                25944                21530                45038                27806                17925                 4415                21276                37398                30527                30658                35125                37638
+total_prendas                                              23128                22222                22272                18659                26400                23236                17633                17139                13276                11596                21148                15076                10073                 2660                10076                17006                16118                15969                18066                18885
+total_transferencias                                           0                    0                    0                    0                    0                    0                    0                    0                    0                    0               152996               125060                95201                18033                77864               128406               147253               154216               159588               154415
+operaciones_buenos_aires                                   17400                16540                16207                15342                21226                18115                14738                13675                10552                 9070                76129                58871                43582                 7861                35811                58702                60674                66356                75564                75082
+operaciones_chubut                                          1645                 1512                 1750                 1358                 1960                 1590                 1333                 1252                 1010                  799                 4758                 3530                 2724                  466                 2273                 3307                 3855                 4044                 4213                 3785
+operaciones_ciudad_autónoma_de_bsas                         9213                 9176                 9144                 8330                11631                 9969                 8699                 7809                 6821                 6041                23581                17209                12588                 2155                 9052                17708                15469                17959                21362                22342
+operaciones_ciudad_autónoma_de_buenos_aires                    0                    0                    0                    0                    0                    0                    0                    0                    0                    0                    0                    0                    0                    0                    0                    0                    0                    0                    0                    0
+operaciones_córdoba                                         6834                 6482                 6454                 6134                 8318                 7737                 5652                 5536                 4037                 3377                24430                19341                14154                 3182                12740                23009                24918                25382                26217                25435
+operaciones_entre_ríos                                      1638                 1556                 1523                 1384                 1997                 1744                 1373                 1338                  958                  804                 8217                 6490                 5153                 1453                 5556                 8296                 9138                 8980                 9046                 8661
+operaciones_mendoza                                         2804                 2700                 2616                 2453                 3224                 3161                 2364                 2229                 1743                 1328                10962                 8648                 6469                 1451                 6350                10252                10951                11488                11018                11005
+operaciones_neuquén                                         2023                 1933                 1912                 1732                 2356                 2277                 1779                 1539                 1145                  823                 5658                 4288                 3211                  556                 2247                 3653                 4126                 4258                 4660                 4244
+operaciones_santa_fe                                        5110                 5005                 5146                 4869                 6674                 6507                 4891                 4485                 3421                 2984                19525                15985                11830                 2865                12036                20905                23533                22951                21544                20776
+operaciones_tucumán                                         2161                 2147                 1908                 2015                 2634                 2433                 1855                 1775                 1360                 1114                 5580                 3718                 2684                  484                 2643                 4826                 5089                 5006                 4781                 5037
+operaciones_marca_chevrolet                                 7162                 6794                 6821                 5954                 9635                 8129                 6844                 5264                 3904                 4091                25013                19899                15519                 2881                11962                21483                22684                24009                24267                24933
+operaciones_marca_citroen                                   2127                 2015                 1979                 1682                 2286                 2200                 1799                 1537                 1252                 1026                 6837                 5186                 3735                  743                 3532                 5531                 5665                 6149                 6796                 6945
+operaciones_marca_fiat                                      6176                 6373                 6163                 5020                 8044                 6796                 5445                 5681                 4473                 3362                25506                19470                13738                 2850                12368                20720                22686                23040                25105                24208
+operaciones_marca_ford                                      7976                 6956                 6786                 7262                 9629                 8566                 5256                 6091                 4516                 3696                30499                22731                16706                 3399                15199                25494                27658                28673                30181                28992
+operaciones_marca_mercedes_benz                             1115                 1201                 1276                  938                 1340                 1411                 1122                 1150                  946                  710                 4478                 3265                 2538                  656                 2840                 4499                 4200                 4208                 4563                 4499
+operaciones_marca_nissan                                    1789                 1671                 1485                 1940                 2430                 1918                 1712                 1521                 1212                 1060                 3791                 2562                 1848                  305                 1757                 3249                 3018                 3189                 3058                 3462
+operaciones_marca_peugeot                                   4044                 3976                 4051                 3577                 4439                 4292                 4088                 3180                 2641                 2130                18878                15107                10667                 2172                 9802                15938                17025                18041                18563                18382
+operaciones_marca_renault                                  11021                10041                 9115                 8506                11050                 8912                 7597                 7050                 5364                 4435                30381                23920                15966                 3223                14672                23992                26394                26479                28212                27989
+operaciones_marca_toyota                                    5644                 6108                 6900                 7083                 9963                 9021                 6648                 5718                 4546                 3752                15220                11418                 9354                 1819                 7445                12368                12373                13473                14416                14639
+operaciones_marca_volkswagen                                9936                 9332                 8774                 8032                10743                10535                 8974                 7970                 6713                 5490                38581                28668                20637                 4224                17986                30509                33134                33980                35979                36026
+ratio_prendas_inscripciones                              0.59101             0.592602             0.604019             0.513725             0.528846             0.522686             0.487342             0.524193             0.511718             0.538597             0.469559             0.542185             0.561953             0.602492             0.473585              0.45473             0.527992             0.520875             0.514335             0.501754
+ratio_transferencias_inscripciones                           0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0             3.397042              4.49759             5.311074             4.084485              3.65971             3.433499             4.823697             5.030204             4.543431             4.102636
+Δratio_prendas_inscripciones                            0.002122             0.002694             0.019265            -0.149489             0.029435            -0.011649             -0.06762             0.075616            -0.023799             0.052529            -0.128182             0.154669             0.036459             0.072139            -0.213955            -0.039813              0.16111            -0.013478            -0.012558            -0.024461
+prop_buenos_aires                                       0.279469             0.276955             0.274021             0.279047             0.278118             0.267613             0.273864             0.274406             0.269046             0.273803             0.347332             0.350544             0.353753             0.313087             0.327892             0.321109             0.312917             0.330387             0.355129             0.355943
+prop_chubut                                             0.026421             0.025318             0.029588               0.0247             0.025681             0.023489              0.02477             0.025123             0.025752              0.02412             0.021708             0.021019             0.022111              0.01856             0.020812              0.01809             0.019882             0.020135               0.0198             0.017944
+prop_ciudad_autónoma_de_bsas                            0.147974             0.153648             0.154603              0.15151             0.152398             0.147272             0.161646             0.156697             0.173916             0.182364             0.107586              0.10247             0.102176             0.085829             0.082882             0.096866             0.079779             0.089418             0.100395             0.105917
+prop_ciudad_autónoma_de_buenos_aires                         0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0
+prop_córdoba                                            0.109764             0.108538             0.109122             0.111568             0.108988             0.114299             0.105026             0.111087             0.102932             0.101944              0.11146             0.115165             0.114887             0.126733              0.11665             0.125863             0.128511             0.126377             0.123212              0.12058
+prop_entre_ríos                                         0.026309             0.026054              0.02575             0.025173             0.026166             0.025764             0.025513             0.026849             0.024426             0.024271             0.037489             0.038644             0.041827              0.05787             0.050872              0.04538             0.047128             0.044712             0.042514             0.041059
+prop_mendoza                                            0.045036              0.04521              0.04423             0.044616             0.042243             0.046697             0.043928             0.044728             0.044442             0.040089             0.050013             0.051494             0.052509              0.05779             0.058142              0.05608             0.056478             0.057199             0.051781             0.052172
+prop_neuquén                                            0.032492             0.032367             0.032327             0.031502              0.03087             0.033638             0.033058             0.030882             0.029194             0.024845             0.025814             0.025533             0.026064             0.022144             0.020574             0.019982             0.021279             0.021201             0.021901              0.02012
+prop_santa_fe                                           0.082074             0.083806             0.087007             0.088559             0.087448             0.096128             0.090885             0.089997             0.087226              0.09008             0.089081             0.095182             0.096024             0.114107             0.110204             0.114354             0.121368             0.114273             0.101251             0.098493
+prop_tucumán                                            0.034709             0.035951              0.03226              0.03665             0.034513             0.035943              0.03447             0.035618             0.034676             0.033629             0.025458             0.022139             0.021786             0.019277               0.0242             0.026399             0.026246             0.024925             0.022469             0.023879
+prop_marca_chevrolet                                    0.115032             0.113762             0.115327             0.108294             0.126245              0.12009             0.127176             0.105629             0.099541             0.123498              0.11412             0.118487             0.125967             0.114744             0.109526             0.117515             0.116989             0.119541             0.114048             0.118201
+prop_marca_citroen                                      0.034163              0.03374              0.03346             0.030593             0.029953             0.032501             0.033429             0.030842             0.031922             0.030973             0.031193              0.03088             0.030317             0.029592              0.03234             0.030255             0.029216             0.030616             0.031939             0.032924
+prop_marca_fiat                                         0.099195             0.106713             0.104202             0.091306             0.105398             0.100397              0.10118             0.113996             0.114049             0.101491             0.116369             0.115933             0.111511              0.11351             0.113243             0.113342                0.117             0.114716             0.117986             0.114764
+prop_marca_ford                                         0.128106             0.116475             0.114735             0.132084             0.126166             0.126546             0.097668             0.122223             0.115145             0.111574             0.139149              0.13535             0.135602             0.135375             0.139165             0.139456             0.142642             0.142763             0.141842             0.137443
+prop_marca_mercedes_benz                                0.017908              0.02011             0.021574             0.017061             0.017558             0.020845             0.020849             0.023076              0.02412             0.021433             0.020431             0.019441             0.020601             0.026127             0.026004              0.02461             0.021661             0.020952             0.021445             0.021329
+prop_marca_nissan                                       0.028734              0.02798             0.025108             0.035286              0.03184             0.028335             0.031813             0.030521             0.030903             0.031999             0.017296             0.015255                0.015             0.012148             0.016087             0.017773             0.015565             0.015878             0.014372             0.016412
+prop_marca_peugeot                                      0.064952             0.066576             0.068493              0.06506             0.058163             0.063406             0.075964             0.063811             0.067338               0.0643             0.086129             0.089954             0.086583             0.086506             0.089749             0.087183             0.087804             0.089826             0.087241             0.087144
+prop_marca_renault                                      0.177013             0.168132             0.154113             0.154711             0.144785             0.131657             0.141169             0.141467             0.136767             0.133883             0.138611              0.14243             0.129595             0.128365             0.134339              0.13124             0.136123             0.131839             0.132588             0.132688
+prop_marca_toyota                                       0.090651             0.102276             0.116662             0.128829             0.130542             0.133267             0.123534             0.114739              0.11591             0.113265              0.06944             0.067988             0.075926             0.072447             0.068168             0.067655             0.063812             0.067082             0.067751               0.0694
+prop_marca_volkswagen                                   0.159586              0.15626             0.148347             0.146089             0.140763             0.155634             0.166756             0.159928             0.171163             0.165731             0.176023             0.170702             0.167509             0.168233             0.164683             0.166889             0.170884             0.169187             0.169091              0.17079
+Δprop_buenos_aires                                      0.004185            -0.002514            -0.002933             0.005025            -0.000928            -0.010505             0.006251             0.000541            -0.005359             0.004757             0.073529             0.003211             0.003209            -0.040665             0.014804            -0.006782            -0.008192              0.01747             0.024742             0.000814
+Δprop_chubut                                            -0.00017            -0.001103             0.004271            -0.004888             0.000981            -0.002192             0.001281             0.000353             0.000629            -0.001632            -0.002412            -0.000689             0.001091            -0.003551             0.002252            -0.002722             0.001792             0.000254            -0.000335            -0.001856
+Δprop_ciudad_autónoma_de_bsas                          -0.000131             0.005674             0.000955            -0.003093             0.000888            -0.005126             0.014374            -0.004949             0.017219             0.008448            -0.074778            -0.005116            -0.000294            -0.016347            -0.002948             0.013984            -0.017087             0.009639             0.010977             0.005522
+Δprop_ciudad_autónoma_de_buenos_aires                        0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0
+Δprop_córdoba                                           0.001522            -0.001226             0.000584             0.002446            -0.002579              0.00531            -0.009272              0.00606            -0.008154            -0.000988             0.009516             0.003705            -0.000277             0.011845            -0.010083             0.009213             0.002648            -0.002134            -0.003165            -0.002632
+Δprop_entre_ríos                                        0.000344            -0.000254            -0.000304            -0.000577             0.000993            -0.000402            -0.000251             0.001335            -0.002422            -0.000155             0.013218             0.001155             0.003182             0.016043            -0.006998            -0.005491             0.001747            -0.002416            -0.002198            -0.001454
+Δprop_mendoza                                           0.000979             0.000174             -0.00098             0.000386            -0.002373             0.004454            -0.002769             0.000799            -0.000286            -0.004352             0.009924             0.001481             0.001015             0.005282             0.000351            -0.002062             0.000398             0.000721            -0.005417              0.00039
+Δprop_neuquén                                          -0.002409            -0.000125             -0.00004            -0.000825            -0.000632             0.002768             -0.00058            -0.002176            -0.001688             -0.00435              0.00097            -0.000282             0.000531            -0.003919             -0.00157            -0.000591             0.001297            -0.000079               0.0007            -0.001781
+Δprop_santa_fe                                          0.000783             0.001733               0.0032             0.001553            -0.001112              0.00868            -0.005243            -0.000888            -0.002771             0.002854            -0.000999               0.0061             0.000842             0.018084            -0.003903              0.00415             0.007014            -0.007095            -0.013023            -0.002757
+Δprop_tucumán                                          -0.002916             0.001242            -0.003691              0.00439            -0.002137              0.00143            -0.001473             0.001148            -0.000941            -0.001047            -0.008171             -0.00332            -0.000353            -0.002509             0.004923             0.002199            -0.000153            -0.001321            -0.002456              0.00141
+Δprop_marca_chevrolet                                   0.006618             -0.00127             0.001564            -0.007033             0.017951            -0.006155             0.007087            -0.021548            -0.006088             0.023957            -0.009378             0.004368              0.00748            -0.011223            -0.005218             0.007989            -0.000526             0.002552            -0.005493             0.004153
+Δprop_marca_citroen                                     0.002031            -0.000422             -0.00028            -0.002867             -0.00064             0.002548             0.000929            -0.002588             0.001081             -0.00095             0.000221            -0.000314            -0.000563            -0.000725             0.002747            -0.002084            -0.001039               0.0014             0.001323             0.000985
+Δprop_marca_fiat                                       -0.007732             0.007518            -0.002511            -0.012896             0.014092            -0.005001             0.000783             0.012816             0.000053            -0.012558             0.014878            -0.000436            -0.004422             0.001999            -0.000266             0.000098             0.003658            -0.002283              0.00327            -0.003223
+Δprop_marca_ford                                        0.017876            -0.011631             -0.00174             0.017349            -0.005918             0.000379            -0.028878             0.024555            -0.007078            -0.003571             0.027575            -0.003799             0.000251            -0.000227             0.003789             0.000292             0.003186             0.000121            -0.000921            -0.004399
+Δprop_marca_mercedes_benz                               0.000833             0.002202             0.001464            -0.004513             0.000497             0.003287             0.000004             0.002227             0.001044            -0.002687            -0.001003            -0.000989              0.00116             0.005526            -0.000124            -0.001393            -0.002949            -0.000709             0.000493            -0.000116
+Δprop_marca_nissan                                       0.00327            -0.000754            -0.002872             0.010178            -0.003446            -0.003505             0.003478            -0.001292             0.000382             0.001096            -0.014703            -0.002041            -0.000255            -0.002853              0.00394             0.001685            -0.002208             0.000313            -0.001506             0.002041
+Δprop_marca_peugeot                                    -0.009421             0.001624             0.001916            -0.003433            -0.006897             0.005243             0.012558            -0.012153             0.003528            -0.003038             0.021829             0.003824             -0.00337            -0.000077             0.003242            -0.002565              0.00062             0.002022            -0.002586            -0.000097
+Δprop_marca_renault                                     0.004415            -0.008881            -0.014019             0.000598            -0.009926            -0.013128             0.009512             0.000298              -0.0047            -0.002884             0.004728             0.003819            -0.012835             -0.00123             0.005974            -0.003099             0.004883            -0.004284             0.000749               0.0001
+Δprop_marca_toyota                                     -0.012192             0.011625             0.014387             0.012166             0.001714             0.002725            -0.009733            -0.008796             0.001172            -0.002646            -0.043824            -0.001452             0.007938            -0.003479            -0.004279            -0.000513            -0.003843              0.00327             0.000669             0.001648
+Δprop_marca_volkswagen                                  0.005753            -0.003326            -0.007913            -0.002258            -0.005327             0.014871             0.011123            -0.006829             0.011235            -0.005432             0.010292            -0.005321            -0.003192             0.000724             -0.00355             0.002206             0.003995            -0.001697            -0.000096             0.001699
+ratio_prendas_inscripciones_lag1                        0.589759              0.59101             0.592602             0.604019             0.513725             0.528846             0.522686             0.487342             0.524193             0.511718             0.538597             0.469559             0.542185             0.561953             0.602492             0.473585              0.45473             0.527992             0.520875             0.514335
+ratio_prendas_inscripciones_lag2                        0.518541             0.589759              0.59101             0.592602             0.604019             0.513725             0.528846             0.522686             0.487342             0.524193             0.511718             0.538597             0.469559             0.542185             0.561953             0.602492             0.473585              0.45473             0.527992             0.520875
+ratio_prendas_inscripciones_lag3                             NaN             0.518541             0.589759              0.59101             0.592602             0.604019             0.513725             0.528846             0.522686             0.487342             0.524193             0.511718             0.538597             0.469559             0.542185             0.561953             0.602492             0.473585              0.45473             0.527992
+ratio_transferencias_inscripciones_lag1                      0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0             3.397042              4.49759             5.311074             4.084485              3.65971             3.433499             4.823697             5.030204             4.543431
+ratio_transferencias_inscripciones_lag2                      0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0             3.397042              4.49759             5.311074             4.084485              3.65971             3.433499             4.823697             5.030204
+ratio_transferencias_inscripciones_lag3                      NaN                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0             3.397042              4.49759             5.311074             4.084485              3.65971             3.433499             4.823697
+Δratio_prendas_inscripciones_lag1                       0.137342             0.002122             0.002694             0.019265            -0.149489             0.029435            -0.011649             -0.06762             0.075616            -0.023799             0.052529            -0.128182             0.154669             0.036459             0.072139            -0.213955            -0.039813              0.16111            -0.013478            -0.012558
+Δratio_prendas_inscripciones_lag2                            NaN             0.137342             0.002122             0.002694             0.019265            -0.149489             0.029435            -0.011649             -0.06762             0.075616            -0.023799             0.052529            -0.128182             0.154669             0.036459             0.072139            -0.213955            -0.039813              0.16111            -0.013478
+Δratio_prendas_inscripciones_lag3                            NaN                  NaN             0.137342             0.002122             0.002694             0.019265            -0.149489             0.029435            -0.011649             -0.06762             0.075616            -0.023799             0.052529            -0.128182             0.154669             0.036459             0.072139            -0.213955            -0.039813              0.16111
+prop_buenos_aires_lag1                                  0.275284             0.279469             0.276955             0.274021             0.279047             0.278118             0.267613             0.273864             0.274406             0.269046             0.273803             0.347332             0.350544             0.353753             0.313087             0.327892             0.321109             0.312917             0.330387             0.355129
+prop_buenos_aires_lag2                                  0.288149             0.275284             0.279469             0.276955             0.274021             0.279047             0.278118             0.267613             0.273864             0.274406             0.269046             0.273803             0.347332             0.350544             0.353753             0.313087             0.327892             0.321109             0.312917             0.330387
+prop_buenos_aires_lag3                                       NaN             0.288149             0.275284             0.279469             0.276955             0.274021             0.279047             0.278118             0.267613             0.273864             0.274406             0.269046             0.273803             0.347332             0.350544             0.353753             0.313087             0.327892             0.321109             0.312917
+prop_chubut_lag1                                        0.026591             0.026421             0.025318             0.029588               0.0247             0.025681             0.023489              0.02477             0.025123             0.025752              0.02412             0.021708             0.021019             0.022111              0.01856             0.020812              0.01809             0.019882             0.020135               0.0198
+prop_chubut_lag2                                        0.022936             0.026591             0.026421             0.025318             0.029588               0.0247             0.025681             0.023489              0.02477             0.025123             0.025752              0.02412             0.021708             0.021019             0.022111              0.01856             0.020812              0.01809             0.019882             0.020135
+prop_chubut_lag3                                             NaN             0.022936             0.026591             0.026421             0.025318             0.029588               0.0247             0.025681             0.023489              0.02477             0.025123             0.025752              0.02412             0.021708             0.021019             0.022111              0.01856             0.020812              0.01809             0.019882
+prop_ciudad_autónoma_de_bsas_lag1                       0.148105             0.147974             0.153648             0.154603              0.15151             0.152398             0.147272             0.161646             0.156697             0.173916             0.182364             0.107586              0.10247             0.102176             0.085829             0.082882             0.096866             0.079779             0.089418             0.100395
+prop_ciudad_autónoma_de_bsas_lag2                       0.141619             0.148105             0.147974             0.153648             0.154603              0.15151             0.152398             0.147272             0.161646             0.156697             0.173916             0.182364             0.107586              0.10247             0.102176             0.085829             0.082882             0.096866             0.079779             0.089418
+prop_ciudad_autónoma_de_bsas_lag3                            NaN             0.141619             0.148105             0.147974             0.153648             0.154603              0.15151             0.152398             0.147272             0.161646             0.156697             0.173916             0.182364             0.107586              0.10247             0.102176             0.085829             0.082882             0.096866             0.079779
+prop_ciudad_autónoma_de_buenos_aires_lag1                    0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0
+prop_ciudad_autónoma_de_buenos_aires_lag2                    0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0
+prop_ciudad_autónoma_de_buenos_aires_lag3                    NaN                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0
+prop_córdoba_lag1                                       0.108242             0.109764             0.108538             0.109122             0.111568             0.108988             0.114299             0.105026             0.111087             0.102932             0.101944              0.11146             0.115165             0.114887             0.126733              0.11665             0.125863             0.128511             0.126377             0.123212
+prop_córdoba_lag2                                       0.107609             0.108242             0.109764             0.108538             0.109122             0.111568             0.108988             0.114299             0.105026             0.111087             0.102932             0.101944              0.11146             0.115165             0.114887             0.126733              0.11665             0.125863             0.128511             0.126377
+prop_córdoba_lag3                                            NaN             0.107609             0.108242             0.109764             0.108538             0.109122             0.111568             0.108988             0.114299             0.105026             0.111087             0.102932             0.101944              0.11146             0.115165             0.114887             0.126733              0.11665             0.125863             0.128511
+prop_entre_ríos_lag1                                    0.025965             0.026309             0.026054              0.02575             0.025173             0.026166             0.025764             0.025513             0.026849             0.024426             0.024271             0.037489             0.038644             0.041827              0.05787             0.050872              0.04538             0.047128             0.044712             0.042514
+prop_entre_ríos_lag2                                    0.027159             0.025965             0.026309             0.026054              0.02575             0.025173             0.026166             0.025764             0.025513             0.026849             0.024426             0.024271             0.037489             0.038644             0.041827              0.05787             0.050872              0.04538             0.047128             0.044712
+prop_entre_ríos_lag3                                         NaN             0.027159             0.025965             0.026309             0.026054              0.02575             0.025173             0.026166             0.025764             0.025513             0.026849             0.024426             0.024271             0.037489             0.038644             0.041827              0.05787             0.050872              0.04538             0.047128
+prop_mendoza_lag1                                       0.044057             0.045036              0.04521              0.04423             0.044616             0.042243             0.046697             0.043928             0.044728             0.044442             0.040089             0.050013             0.051494             0.052509              0.05779             0.058142              0.05608             0.056478             0.057199             0.051781
+prop_mendoza_lag2                                       0.042675             0.044057             0.045036              0.04521              0.04423             0.044616             0.042243             0.046697             0.043928             0.044728             0.044442             0.040089             0.050013             0.051494             0.052509              0.05779             0.058142              0.05608             0.056478             0.057199
+prop_mendoza_lag3                                            NaN             0.042675             0.044057             0.045036              0.04521              0.04423             0.044616             0.042243             0.046697             0.043928             0.044728             0.044442             0.040089             0.050013             0.051494             0.052509              0.05779             0.058142              0.05608             0.056478
+prop_neuquén_lag1                                       0.034902             0.032492             0.032367             0.032327             0.031502              0.03087             0.033638             0.033058             0.030882             0.029194             0.024845             0.025814             0.025533             0.026064             0.022144             0.020574             0.019982             0.021279             0.021201             0.021901
+prop_neuquén_lag2                                       0.030879             0.034902             0.032492             0.032367             0.032327             0.031502              0.03087             0.033638             0.033058             0.030882             0.029194             0.024845             0.025814             0.025533             0.026064             0.022144             0.020574             0.019982             0.021279             0.021201
+prop_neuquén_lag3                                            NaN             0.030879             0.034902             0.032492             0.032367             0.032327             0.031502              0.03087             0.033638             0.033058             0.030882             0.029194             0.024845             0.025814             0.025533             0.026064             0.022144             0.020574             0.019982             0.021279
+prop_santa_fe_lag1                                      0.081291             0.082074             0.083806             0.087007             0.088559             0.087448             0.096128             0.090885             0.089997             0.087226              0.09008             0.089081             0.095182             0.096024             0.114107             0.110204             0.114354             0.121368             0.114273             0.101251
+prop_santa_fe_lag2                                      0.083953             0.081291             0.082074             0.083806             0.087007             0.088559             0.087448             0.096128             0.090885             0.089997             0.087226              0.09008             0.089081             0.095182             0.096024             0.114107             0.110204             0.114354             0.121368             0.114273
+prop_santa_fe_lag3                                           NaN             0.083953             0.081291             0.082074             0.083806             0.087007             0.088559             0.087448             0.096128             0.090885             0.089997             0.087226              0.09008             0.089081             0.095182             0.096024             0.114107             0.110204             0.114354             0.121368
+prop_tucumán_lag1                                       0.037625             0.034709             0.035951              0.03226              0.03665             0.034513             0.035943              0.03447             0.035618             0.034676             0.033629             0.025458             0.022139             0.021786             0.019277               0.0242             0.026399             0.026246             0.024925             0.022469
+prop_tucumán_lag2                                       0.037317             0.037625             0.034709             0.035951              0.03226              0.03665             0.034513             0.035943              0.03447             0.035618             0.034676             0.033629             0.025458             0.022139             0.021786             0.019277               0.0242             0.026399             0.026246             0.024925
+prop_tucumán_lag3                                            NaN             0.037317             0.037625             0.034709             0.035951              0.03226              0.03665             0.034513             0.035943              0.03447             0.035618             0.034676             0.033629             0.025458             0.022139             0.021786             0.019277               0.0242             0.026399             0.026246
+prop_marca_chevrolet_lag1                               0.108414             0.115032             0.113762             0.115327             0.108294             0.126245              0.12009             0.127176             0.105629             0.099541             0.123498              0.11412             0.118487             0.125967             0.114744             0.109526             0.117515             0.116989             0.119541             0.114048
+prop_marca_chevrolet_lag2                                0.10284             0.108414             0.115032             0.113762             0.115327             0.108294             0.126245              0.12009             0.127176             0.105629             0.099541             0.123498              0.11412             0.118487             0.125967             0.114744             0.109526             0.117515             0.116989             0.119541
+prop_marca_chevrolet_lag3                                    NaN              0.10284             0.108414             0.115032             0.113762             0.115327             0.108294             0.126245              0.12009             0.127176             0.105629             0.099541             0.123498              0.11412             0.118487             0.125967             0.114744             0.109526             0.117515             0.116989
+prop_marca_citroen_lag1                                 0.032131             0.034163              0.03374              0.03346             0.030593             0.029953             0.032501             0.033429             0.030842             0.031922             0.030973             0.031193              0.03088             0.030317             0.029592              0.03234             0.030255             0.029216             0.030616             0.031939
+prop_marca_citroen_lag2                                 0.033869             0.032131             0.034163              0.03374              0.03346             0.030593             0.029953             0.032501             0.033429             0.030842             0.031922             0.030973             0.031193              0.03088             0.030317             0.029592              0.03234             0.030255             0.029216             0.030616
+prop_marca_citroen_lag3                                      NaN             0.033869             0.032131             0.034163              0.03374              0.03346             0.030593             0.029953             0.032501             0.033429             0.030842             0.031922             0.030973             0.031193              0.03088             0.030317             0.029592              0.03234             0.030255             0.029216
+prop_marca_fiat_lag1                                    0.106927             0.099195             0.106713             0.104202             0.091306             0.105398             0.100397              0.10118             0.113996             0.114049             0.101491             0.116369             0.115933             0.111511              0.11351             0.113243             0.113342                0.117             0.114716             0.117986
+prop_marca_fiat_lag2                                    0.107194             0.106927             0.099195             0.106713             0.104202             0.091306             0.105398             0.100397              0.10118             0.113996             0.114049             0.101491             0.116369             0.115933             0.111511              0.11351             0.113243             0.113342                0.117             0.114716
+prop_marca_fiat_lag3                                         NaN             0.107194             0.106927             0.099195             0.106713             0.104202             0.091306             0.105398             0.100397              0.10118             0.113996             0.114049             0.101491             0.116369             0.115933             0.111511              0.11351             0.113243             0.113342                0.117
+prop_marca_ford_lag1                                    0.110229             0.128106             0.116475             0.114735             0.132084             0.126166             0.126546             0.097668             0.122223             0.115145             0.111574             0.139149              0.13535             0.135602             0.135375             0.139165             0.139456             0.142642             0.142763             0.141842
+prop_marca_ford_lag2                                    0.131897             0.110229             0.128106             0.116475             0.114735             0.132084             0.126166             0.126546             0.097668             0.122223             0.115145             0.111574             0.139149              0.13535             0.135602             0.135375             0.139165             0.139456             0.142642             0.142763
+prop_marca_ford_lag3                                         NaN             0.131897             0.110229             0.128106             0.116475             0.114735             0.132084             0.126166             0.126546             0.097668             0.122223             0.115145             0.111574             0.139149              0.13535             0.135602             0.135375             0.139165             0.139456             0.142642
+prop_marca_mercedes_benz_lag1                           0.017075             0.017908              0.02011             0.021574             0.017061             0.017558             0.020845             0.020849             0.023076              0.02412             0.021433             0.020431             0.019441             0.020601             0.026127             0.026004              0.02461             0.021661             0.020952             0.021445
+prop_marca_mercedes_benz_lag2                           0.014829             0.017075             0.017908              0.02011             0.021574             0.017061             0.017558             0.020845             0.020849             0.023076              0.02412             0.021433             0.020431             0.019441             0.020601             0.026127             0.026004              0.02461             0.021661             0.020952
+prop_marca_mercedes_benz_lag3                                NaN             0.014829             0.017075             0.017908              0.02011             0.021574             0.017061             0.017558             0.020845             0.020849             0.023076              0.02412             0.021433             0.020431             0.019441             0.020601             0.026127             0.026004              0.02461             0.021661
+prop_marca_nissan_lag1                                  0.025464             0.028734              0.02798             0.025108             0.035286              0.03184             0.028335             0.031813             0.030521             0.030903             0.031999             0.017296             0.015255                0.015             0.012148             0.016087             0.017773             0.015565             0.015878             0.014372
+prop_marca_nissan_lag2                                  0.025293             0.025464             0.028734              0.02798             0.025108             0.035286              0.03184             0.028335             0.031813             0.030521             0.030903             0.031999             0.017296             0.015255                0.015             0.012148             0.016087             0.017773             0.015565             0.015878
+prop_marca_nissan_lag3                                       NaN             0.025293             0.025464             0.028734              0.02798             0.025108             0.035286              0.03184             0.028335             0.031813             0.030521             0.030903             0.031999             0.017296             0.015255                0.015             0.012148             0.016087             0.017773             0.015565
+prop_marca_peugeot_lag1                                 0.074373             0.064952             0.066576             0.068493              0.06506             0.058163             0.063406             0.075964             0.063811             0.067338               0.0643             0.086129             0.089954             0.086583             0.086506             0.089749             0.087183             0.087804             0.089826             0.087241
+prop_marca_peugeot_lag2                                 0.068262             0.074373             0.064952             0.066576             0.068493              0.06506             0.058163             0.063406             0.075964             0.063811             0.067338               0.0643             0.086129             0.089954             0.086583             0.086506             0.089749             0.087183             0.087804             0.089826
+prop_marca_peugeot_lag3                                      NaN             0.068262             0.074373             0.064952             0.066576             0.068493              0.06506             0.058163             0.063406             0.075964             0.063811             0.067338               0.0643             0.086129             0.089954             0.086583             0.086506             0.089749             0.087183             0.087804
+prop_marca_renault_lag1                                 0.172598             0.177013             0.168132             0.154113             0.154711             0.144785             0.131657             0.141169             0.141467             0.136767             0.133883             0.138611              0.14243             0.129595             0.128365             0.134339              0.13124             0.136123             0.131839             0.132588
+prop_marca_renault_lag2                                 0.151145             0.172598             0.177013             0.168132             0.154113             0.154711             0.144785             0.131657             0.141169             0.141467             0.136767             0.133883             0.138611              0.14243             0.129595             0.128365             0.134339              0.13124             0.136123             0.131839
+prop_marca_renault_lag3                                      NaN             0.151145             0.172598             0.177013             0.168132             0.154113             0.154711             0.144785             0.131657             0.141169             0.141467             0.136767             0.133883             0.138611              0.14243             0.129595             0.128365             0.134339              0.13124             0.136123
+prop_marca_toyota_lag1                                  0.102842             0.090651             0.102276             0.116662             0.128829             0.130542             0.133267             0.123534             0.114739              0.11591             0.113265              0.06944             0.067988             0.075926             0.072447             0.068168             0.067655             0.063812             0.067082             0.067751
+prop_marca_toyota_lag2                                   0.11637             0.102842             0.090651             0.102276             0.116662             0.128829             0.130542             0.133267             0.123534             0.114739              0.11591             0.113265              0.06944             0.067988             0.075926             0.072447             0.068168             0.067655             0.063812             0.067082
+prop_marca_toyota_lag3                                       NaN              0.11637             0.102842             0.090651             0.102276             0.116662             0.128829             0.130542             0.133267             0.123534             0.114739              0.11591             0.113265              0.06944             0.067988             0.075926             0.072447             0.068168             0.067655             0.063812
+prop_marca_volkswagen_lag1                              0.153833             0.159586              0.15626             0.148347             0.146089             0.140763             0.155634             0.166756             0.159928             0.171163             0.165731             0.176023             0.170702             0.167509             0.168233             0.164683             0.166889             0.170884             0.169187             0.169091
+prop_marca_volkswagen_lag2                              0.161958             0.153833             0.159586              0.15626             0.148347             0.146089             0.140763             0.155634             0.166756             0.159928             0.171163             0.165731             0.176023             0.170702             0.167509             0.168233             0.164683             0.166889             0.170884             0.169187
+prop_marca_volkswagen_lag3                                   NaN             0.161958             0.153833             0.159586              0.15626             0.148347             0.146089             0.140763             0.155634             0.166756             0.159928             0.171163             0.165731             0.176023             0.170702             0.167509             0.168233             0.164683             0.166889             0.170884
+Δprop_buenos_aires_lag1                                -0.012865             0.004185            -0.002514            -0.002933             0.005025            -0.000928            -0.010505             0.006251             0.000541            -0.005359             0.004757             0.073529             0.003211             0.003209            -0.040665             0.014804            -0.006782            -0.008192              0.01747             0.024742
+Δprop_buenos_aires_lag2                                      NaN            -0.012865             0.004185            -0.002514            -0.002933             0.005025            -0.000928            -0.010505             0.006251             0.000541            -0.005359             0.004757             0.073529             0.003211             0.003209            -0.040665             0.014804            -0.006782            -0.008192              0.01747
+Δprop_buenos_aires_lag3                                      NaN                  NaN            -0.012865             0.004185            -0.002514            -0.002933             0.005025            -0.000928            -0.010505             0.006251             0.000541            -0.005359             0.004757             0.073529             0.003211             0.003209            -0.040665             0.014804            -0.006782            -0.008192
+Δprop_chubut_lag1                                       0.003655             -0.00017            -0.001103             0.004271            -0.004888             0.000981            -0.002192             0.001281             0.000353             0.000629            -0.001632            -0.002412            -0.000689             0.001091            -0.003551             0.002252            -0.002722             0.001792             0.000254            -0.000335
+Δprop_chubut_lag2                                            NaN             0.003655             -0.00017            -0.001103             0.004271            -0.004888             0.000981            -0.002192             0.001281             0.000353             0.000629            -0.001632            -0.002412            -0.000689             0.001091            -0.003551             0.002252            -0.002722             0.001792             0.000254
+Δprop_chubut_lag3                                            NaN                  NaN             0.003655             -0.00017            -0.001103             0.004271            -0.004888             0.000981            -0.002192             0.001281             0.000353             0.000629            -0.001632            -0.002412            -0.000689             0.001091            -0.003551             0.002252            -0.002722             0.001792
+Δprop_ciudad_autónoma_de_bsas_lag1                      0.006485            -0.000131             0.005674             0.000955            -0.003093             0.000888            -0.005126             0.014374            -0.004949             0.017219             0.008448            -0.074778            -0.005116            -0.000294            -0.016347            -0.002948             0.013984            -0.017087             0.009639             0.010977
+Δprop_ciudad_autónoma_de_bsas_lag2                           NaN             0.006485            -0.000131             0.005674             0.000955            -0.003093             0.000888            -0.005126             0.014374            -0.004949             0.017219             0.008448            -0.074778            -0.005116            -0.000294            -0.016347            -0.002948             0.013984            -0.017087             0.009639
+Δprop_ciudad_autónoma_de_bsas_lag3                           NaN                  NaN             0.006485            -0.000131             0.005674             0.000955            -0.003093             0.000888            -0.005126             0.014374            -0.004949             0.017219             0.008448            -0.074778            -0.005116            -0.000294            -0.016347            -0.002948             0.013984            -0.017087
+Δprop_ciudad_autónoma_de_buenos_aires_lag1                   0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0
+Δprop_ciudad_autónoma_de_buenos_aires_lag2                   NaN                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0
+Δprop_ciudad_autónoma_de_buenos_aires_lag3                   NaN                  NaN                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0                  0.0
+Δprop_córdoba_lag1                                      0.000633             0.001522            -0.001226             0.000584             0.002446            -0.002579              0.00531            -0.009272              0.00606            -0.008154            -0.000988             0.009516             0.003705            -0.000277             0.011845            -0.010083             0.009213             0.002648            -0.002134            -0.003165
+Δprop_córdoba_lag2                                           NaN             0.000633             0.001522            -0.001226             0.000584             0.002446            -0.002579              0.00531            -0.009272              0.00606            -0.008154            -0.000988             0.009516             0.003705            -0.000277             0.011845            -0.010083             0.009213             0.002648            -0.002134
+Δprop_córdoba_lag3                                           NaN                  NaN             0.000633             0.001522            -0.001226             0.000584             0.002446            -0.002579              0.00531            -0.009272              0.00606            -0.008154            -0.000988             0.009516             0.003705            -0.000277             0.011845            -0.010083             0.009213             0.002648
+Δprop_entre_ríos_lag1                                  -0.001194             0.000344            -0.000254            -0.000304            -0.000577             0.000993            -0.000402            -0.000251             0.001335            -0.002422            -0.000155             0.013218             0.001155             0.003182             0.016043            -0.006998            -0.005491             0.001747            -0.002416            -0.002198
+Δprop_entre_ríos_lag2                                        NaN            -0.001194             0.000344            -0.000254            -0.000304            -0.000577             0.000993            -0.000402            -0.000251             0.001335            -0.002422            -0.000155             0.013218             0.001155             0.003182             0.016043            -0.006998            -0.005491             0.001747            -0.002416
+Δprop_entre_ríos_lag3                                        NaN                  NaN            -0.001194             0.000344            -0.000254            -0.000304            -0.000577             0.000993            -0.000402            -0.000251             0.001335            -0.002422            -0.000155             0.013218             0.001155             0.003182             0.016043            -0.006998            -0.005491             0.001747
+Δprop_mendoza_lag1                                      0.001383             0.000979             0.000174             -0.00098             0.000386            -0.002373             0.004454            -0.002769             0.000799            -0.000286            -0.004352             0.009924             0.001481             0.001015             0.005282             0.000351            -0.002062             0.000398             0.000721            -0.005417
+Δprop_mendoza_lag2                                           NaN             0.001383             0.000979             0.000174             -0.00098             0.000386            -0.002373             0.004454            -0.002769             0.000799            -0.000286            -0.004352             0.009924             0.001481             0.001015             0.005282             0.000351            -0.002062             0.000398             0.000721
+Δprop_mendoza_lag3                                           NaN                  NaN             0.001383             0.000979             0.000174             -0.00098             0.000386            -0.002373             0.004454            -0.002769             0.000799            -0.000286            -0.004352             0.009924             0.001481             0.001015             0.005282             0.000351            -0.002062             0.000398
+Δprop_neuquén_lag1                                      0.004022            -0.002409            -0.000125             -0.00004            -0.000825            -0.000632             0.002768             -0.00058            -0.002176            -0.001688             -0.00435              0.00097            -0.000282             0.000531            -0.003919             -0.00157            -0.000591             0.001297            -0.000079               0.0007
+Δprop_neuquén_lag2                                           NaN             0.004022            -0.002409            -0.000125             -0.00004            -0.000825            -0.000632             0.002768             -0.00058            -0.002176            -0.001688             -0.00435              0.00097            -0.000282             0.000531            -0.003919             -0.00157            -0.000591             0.001297            -0.000079
+Δprop_neuquén_lag3                                           NaN                  NaN             0.004022            -0.002409            -0.000125             -0.00004            -0.000825            -0.000632             0.002768             -0.00058            -0.002176            -0.001688             -0.00435              0.00097            -0.000282             0.000531            -0.003919             -0.00157            -0.000591             0.001297
+Δprop_santa_fe_lag1                                    -0.002662             0.000783             0.001733               0.0032             0.001553            -0.001112              0.00868            -0.005243            -0.000888            -0.002771             0.002854            -0.000999               0.0061             0.000842             0.018084            -0.003903              0.00415             0.007014            -0.007095            -0.013023
+Δprop_santa_fe_lag2                                          NaN            -0.002662             0.000783             0.001733               0.0032             0.001553            -0.001112              0.00868            -0.005243            -0.000888            -0.002771             0.002854            -0.000999               0.0061             0.000842             0.018084            -0.003903              0.00415             0.007014            -0.007095
+Δprop_santa_fe_lag3                                          NaN                  NaN            -0.002662             0.000783             0.001733               0.0032             0.001553            -0.001112              0.00868            -0.005243            -0.000888            -0.002771             0.002854            -0.000999               0.0061             0.000842             0.018084            -0.003903              0.00415             0.007014
+Δprop_tucumán_lag1                                      0.000308            -0.002916             0.001242            -0.003691              0.00439            -0.002137              0.00143            -0.001473             0.001148            -0.000941            -0.001047            -0.008171             -0.00332            -0.000353            -0.002509             0.004923             0.002199            -0.000153            -0.001321            -0.002456
+Δprop_tucumán_lag2                                           NaN             0.000308            -0.002916             0.001242            -0.003691              0.00439            -0.002137              0.00143            -0.001473             0.001148            -0.000941            -0.001047            -0.008171             -0.00332            -0.000353            -0.002509             0.004923             0.002199            -0.000153            -0.001321
+Δprop_tucumán_lag3                                           NaN                  NaN             0.000308            -0.002916             0.001242            -0.003691              0.00439            -0.002137              0.00143            -0.001473             0.001148            -0.000941            -0.001047            -0.008171             -0.00332            -0.000353            -0.002509             0.004923             0.002199            -0.000153
+Δprop_marca_chevrolet_lag1                              0.005574             0.006618             -0.00127             0.001564            -0.007033             0.017951            -0.006155             0.007087            -0.021548            -0.006088             0.023957            -0.009378             0.004368              0.00748            -0.011223            -0.005218             0.007989            -0.000526             0.002552            -0.005493
+Δprop_marca_chevrolet_lag2                                   NaN             0.005574             0.006618             -0.00127             0.001564            -0.007033             0.017951            -0.006155             0.007087            -0.021548            -0.006088             0.023957            -0.009378             0.004368              0.00748            -0.011223            -0.005218             0.007989            -0.000526             0.002552
+Δprop_marca_chevrolet_lag3                                   NaN                  NaN             0.005574             0.006618             -0.00127             0.001564            -0.007033             0.017951            -0.006155             0.007087            -0.021548            -0.006088             0.023957            -0.009378             0.004368              0.00748            -0.011223            -0.005218             0.007989            -0.000526
+Δprop_marca_citroen_lag1                               -0.001738             0.002031            -0.000422             -0.00028            -0.002867             -0.00064             0.002548             0.000929            -0.002588             0.001081             -0.00095             0.000221            -0.000314            -0.000563            -0.000725             0.002747            -0.002084            -0.001039               0.0014             0.001323
+Δprop_marca_citroen_lag2                                     NaN            -0.001738             0.002031            -0.000422             -0.00028            -0.002867             -0.00064             0.002548             0.000929            -0.002588             0.001081             -0.00095             0.000221            -0.000314            -0.000563            -0.000725             0.002747            -0.002084            -0.001039               0.0014
+Δprop_marca_citroen_lag3                                     NaN                  NaN            -0.001738             0.002031            -0.000422             -0.00028            -0.002867             -0.00064             0.002548             0.000929            -0.002588             0.001081             -0.00095             0.000221            -0.000314            -0.000563            -0.000725             0.002747            -0.002084            -0.001039
+Δprop_marca_fiat_lag1                                  -0.000267            -0.007732             0.007518            -0.002511            -0.012896             0.014092            -0.005001             0.000783             0.012816             0.000053            -0.012558             0.014878            -0.000436            -0.004422             0.001999            -0.000266             0.000098             0.003658            -0.002283              0.00327
+Δprop_marca_fiat_lag2                                        NaN            -0.000267            -0.007732             0.007518            -0.002511            -0.012896             0.014092            -0.005001             0.000783             0.012816             0.000053            -0.012558             0.014878            -0.000436            -0.004422             0.001999            -0.000266             0.000098             0.003658            -0.002283
+Δprop_marca_fiat_lag3                                        NaN                  NaN            -0.000267            -0.007732             0.007518            -0.002511            -0.012896             0.014092            -0.005001             0.000783             0.012816             0.000053            -0.012558             0.014878            -0.000436            -0.004422             0.001999            -0.000266             0.000098             0.003658
+Δprop_marca_ford_lag1                                  -0.021668             0.017876            -0.011631             -0.00174             0.017349            -0.005918             0.000379            -0.028878             0.024555            -0.007078            -0.003571             0.027575            -0.003799             0.000251            -0.000227             0.003789             0.000292             0.003186             0.000121            -0.000921
+Δprop_marca_ford_lag2                                        NaN            -0.021668             0.017876            -0.011631             -0.00174             0.017349            -0.005918             0.000379            -0.028878             0.024555            -0.007078            -0.003571             0.027575            -0.003799             0.000251            -0.000227             0.003789             0.000292             0.003186             0.000121
+Δprop_marca_ford_lag3                                        NaN                  NaN            -0.021668             0.017876            -0.011631             -0.00174             0.017349            -0.005918             0.000379            -0.028878             0.024555            -0.007078            -0.003571             0.027575            -0.003799             0.000251            -0.000227             0.003789             0.000292             0.003186
+Δprop_marca_mercedes_benz_lag1                          0.002247             0.000833             0.002202             0.001464            -0.004513             0.000497             0.003287             0.000004             0.002227             0.001044            -0.002687            -0.001003            -0.000989              0.00116             0.005526            -0.000124            -0.001393            -0.002949            -0.000709             0.000493
+Δprop_marca_mercedes_benz_lag2                               NaN             0.002247             0.000833             0.002202             0.001464            -0.004513             0.000497             0.003287             0.000004             0.002227             0.001044            -0.002687            -0.001003            -0.000989              0.00116             0.005526            -0.000124            -0.001393            -0.002949            -0.000709
+Δprop_marca_mercedes_benz_lag3                               NaN                  NaN             0.002247             0.000833             0.002202             0.001464            -0.004513             0.000497             0.003287             0.000004             0.002227             0.001044            -0.002687            -0.001003            -0.000989              0.00116             0.005526            -0.000124            -0.001393            -0.002949
+Δprop_marca_nissan_lag1                                 0.000171              0.00327            -0.000754            -0.002872             0.010178            -0.003446            -0.003505             0.003478            -0.001292             0.000382             0.001096            -0.014703            -0.002041            -0.000255            -0.002853              0.00394             0.001685            -0.002208             0.000313            -0.001506
+Δprop_marca_nissan_lag2                                      NaN             0.000171              0.00327            -0.000754            -0.002872             0.010178            -0.003446            -0.003505             0.003478            -0.001292             0.000382             0.001096            -0.014703            -0.002041            -0.000255            -0.002853              0.00394             0.001685            -0.002208             0.000313
+Δprop_marca_nissan_lag3                                      NaN                  NaN             0.000171              0.00327            -0.000754            -0.002872             0.010178            -0.003446            -0.003505             0.003478            -0.001292             0.000382             0.001096            -0.014703            -0.002041            -0.000255            -0.002853              0.00394             0.001685            -0.002208
+Δprop_marca_peugeot_lag1                                0.006111            -0.009421             0.001624             0.001916            -0.003433            -0.006897             0.005243             0.012558            -0.012153             0.003528            -0.003038             0.021829             0.003824             -0.00337            -0.000077             0.003242            -0.002565              0.00062             0.002022            -0.002586
+Δprop_marca_peugeot_lag2                                     NaN             0.006111            -0.009421             0.001624             0.001916            -0.003433            -0.006897             0.005243             0.012558            -0.012153             0.003528            -0.003038             0.021829             0.003824             -0.00337            -0.000077             0.003242            -0.002565              0.00062             0.002022
+Δprop_marca_peugeot_lag3                                     NaN                  NaN             0.006111            -0.009421             0.001624             0.001916            -0.003433            -0.006897             0.005243             0.012558            -0.012153             0.003528            -0.003038             0.021829             0.003824             -0.00337            -0.000077             0.003242            -0.002565              0.00062
+Δprop_marca_renault_lag1                                0.021453             0.004415            -0.008881            -0.014019             0.000598            -0.009926            -0.013128             0.009512             0.000298              -0.0047            -0.002884             0.004728             0.003819            -0.012835             -0.00123             0.005974            -0.003099             0.004883            -0.004284             0.000749
+Δprop_marca_renault_lag2                                     NaN             0.021453             0.004415            -0.008881            -0.014019             0.000598            -0.009926            -0.013128             0.009512             0.000298              -0.0047            -0.002884             0.004728             0.003819            -0.012835             -0.00123             0.005974            -0.003099             0.004883            -0.004284
+Δprop_marca_renault_lag3                                     NaN                  NaN             0.021453             0.004415            -0.008881            -0.014019             0.000598            -0.009926            -0.013128             0.009512             0.000298              -0.0047            -0.002884             0.004728             0.003819            -0.012835             -0.00123             0.005974            -0.003099             0.004883
+Δprop_marca_toyota_lag1                                -0.013528            -0.012192             0.011625             0.014387             0.012166             0.001714             0.002725            -0.009733            -0.008796             0.001172            -0.002646            -0.043824            -0.001452             0.007938            -0.003479            -0.004279            -0.000513            -0.003843              0.00327             0.000669
+Δprop_marca_toyota_lag2                                      NaN            -0.013528            -0.012192             0.011625             0.014387             0.012166             0.001714             0.002725            -0.009733            -0.008796             0.001172            -0.002646            -0.043824            -0.001452             0.007938            -0.003479            -0.004279            -0.000513            -0.003843              0.00327
+Δprop_marca_toyota_lag3                                      NaN                  NaN            -0.013528            -0.012192             0.011625             0.014387             0.012166             0.001714             0.002725            -0.009733            -0.008796             0.001172            -0.002646            -0.043824            -0.001452             0.007938            -0.003479            -0.004279            -0.000513            -0.003843
+Δprop_marca_volkswagen_lag1                            -0.008125             0.005753            -0.003326            -0.007913            -0.002258            -0.005327             0.014871             0.011123            -0.006829             0.011235            -0.005432             0.010292            -0.005321            -0.003192             0.000724             -0.00355             0.002206             0.003995            -0.001697            -0.000096
+Δprop_marca_volkswagen_lag2                                  NaN            -0.008125             0.005753            -0.003326            -0.007913            -0.002258            -0.005327             0.014871             0.011123            -0.006829             0.011235            -0.005432             0.010292            -0.005321            -0.003192             0.000724             -0.00355             0.002206             0.003995            -0.001697
+Δprop_marca_volkswagen_lag3                                  NaN                  NaN            -0.008125             0.005753            -0.003326            -0.007913            -0.002258            -0.005327             0.014871             0.011123            -0.006829             0.011235            -0.005432             0.010292            -0.005321            -0.003192             0.000724             -0.00355             0.002206             0.003995
+total_operaciones_lag1                                   63894.0              62261.0              59721.0              59145.0              54980.0              76320.0              67691.0              53815.0              49835.0              39220.0              33126.0             219182.0             167942.0             123199.0              25108.0             109216.0             182810.0             193898.0             200843.0             212779.0
+total_operaciones_lag2                                   91647.0              63894.0              62261.0              59721.0              59145.0              54980.0              76320.0              67691.0              53815.0              49835.0              39220.0              33126.0             219182.0             167942.0             123199.0              25108.0             109216.0             182810.0             193898.0             200843.0
+total_operaciones_lag3                                       NaN              91647.0              63894.0              62261.0              59721.0              59145.0              54980.0              76320.0              67691.0              53815.0              49835.0              39220.0              33126.0             219182.0             167942.0             123199.0              25108.0             109216.0             182810.0             193898.0
+total_operaciones_lag6                                       NaN                  NaN                  NaN                  NaN              91647.0              63894.0              62261.0              59721.0              59145.0              54980.0              76320.0              67691.0              53815.0              49835.0              39220.0              33126.0             219182.0             167942.0             123199.0              25108.0
+total_operaciones_lag12                                      NaN                  NaN                  NaN                  NaN                  NaN                  NaN                  NaN                  NaN                  NaN                  NaN              91647.0              63894.0              62261.0              59721.0              59145.0              54980.0              76320.0              67691.0              53815.0              49835.0
+total_operaciones_rolling3                          72600.666667         61958.666667         60375.666667         57948.666667         63481.666667         66330.333333              65942.0         57113.666667         47623.333333              40727.0              97176.0        140083.333333        170107.666667        105416.333333              85841.0        105711.333333        161974.666667             192517.0        202506.666667        208186.666667
+total_operaciones_rolling6                                   NaN                  NaN                  NaN         65274.666667         62720.166667              63353.0         61945.333333         60297.666667         56976.833333              53334.5         77144.833333         93853.333333        105417.333333        101296.166667        112962.166667             137909.5             133695.5             139179.0             154109.0        185080.666667
+total_operaciones_rolling12                                  NaN                  NaN                  NaN                  NaN                  NaN                  NaN                  NaN                  NaN                  NaN         59304.583333              69932.5         78603.166667         83681.333333         80796.916667              84969.5              95622.0        105420.166667        116516.166667        129763.166667        143188.416667
+mes                                                            3                    4                    5                    6                    7                    8                    9                   10                   11                   12                    1                    2                    3                    4                    5                    6                    7                    8                    9                   10
+trimestre                                                      1                    2                    2                    2                    3                    3                    3                    4                    4                    4                    1                    1                    1                    2                    2                    2                    3                    3                    3                    4
+anio                                                        2019                 2019                 2019                 2019                 2019                 2019                 2019                 2019                 2019                 2019                 2020                 2020                 2020                 2020                 2020                 2020                 2020                 2020                 2020                 2020
+semestre                                                       1                    1                    1                    1                    2                    2                    2                    2                    2                    2                    1                    1                    1                    1                    1                    1                    2                    2                    2                    2
+
+
+====================================================================================================
+FIN DEL REPORTE
+====================================================================================================
