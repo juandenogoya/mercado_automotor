@@ -16,11 +16,19 @@ Ejecutar desde: mercado_automotor/
 Comando: python backend/data_processing/02_unir_datasets.py
 """
 
+# Configurar encoding UTF-8 para Windows
+import sys
+import os
+if sys.platform == 'win32':
+    # Forzar UTF-8 en Windows
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    if sys.stdout.encoding != 'utf-8':
+        sys.stdout.reconfigure(encoding='utf-8')
+
 from sqlalchemy import create_engine, text
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import os
 
 # Configuración de conexión
 DB_CONFIG = {
@@ -31,10 +39,15 @@ DB_CONFIG = {
     'database': 'mercado_automotor'
 }
 
-# Crear engine
+# Crear engine con configuración de encoding para Windows
 engine = create_engine(
     f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@"
-    f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}"
+    f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}",
+    connect_args={
+        'client_encoding': 'utf8',
+        'options': '-c client_encoding=utf8'
+    },
+    pool_pre_ping=True  # Verifica conexión antes de usarla
 )
 
 # Directorio de salida

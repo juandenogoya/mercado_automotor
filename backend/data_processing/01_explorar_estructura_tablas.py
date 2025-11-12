@@ -29,10 +29,15 @@ DB_CONFIG = {
     'database': 'mercado_automotor'
 }
 
-# Crear engine
+# Crear engine con configuración de encoding para Windows
 engine = create_engine(
     f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@"
-    f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}"
+    f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}",
+    connect_args={
+        'client_encoding': 'utf8',
+        'options': '-c client_encoding=utf8'
+    },
+    pool_pre_ping=True  # Verifica conexión antes de usarla
 )
 
 def explorar_tabla(tabla_nombre):
