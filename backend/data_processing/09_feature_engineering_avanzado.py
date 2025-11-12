@@ -60,7 +60,22 @@ def agregar_transaccional_mensual(df_trans):
 
     # Agregar por tipo de operación
     df_tipo = df_trans.groupby(['fecha_mes', 'tipo_operacion']).size().unstack(fill_value=0)
-    df_tipo.columns = ['total_' + col.lower() + 's' for col in df_tipo.columns]
+
+    # Mapeo correcto de plurales
+    plural_map = {
+        'inscripcion': 'inscripciones',
+        'prenda': 'prendas',
+        'transferencia': 'transferencias'
+    }
+
+    new_cols = []
+    for col in df_tipo.columns:
+        col_lower = col.lower()
+        # Buscar en el mapeo o agregar 's' por defecto
+        plural = plural_map.get(col_lower, col_lower + 's')
+        new_cols.append('total_' + plural)
+
+    df_tipo.columns = new_cols
 
     # Merge
     df_mensual = df_mensual.join(df_tipo)
