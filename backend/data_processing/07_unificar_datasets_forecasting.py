@@ -128,13 +128,26 @@ def agregar_transaccional_mensual(df_transaccional):
         # Rellenar NaN con 0
         df_mensual = df_mensual.fillna(0)
 
-        # Renombrar columnas
+        # Limpiar nombre de columnas
         df_mensual.columns.name = None
-        columnas_rename = {
-            'inscripciones': 'total_inscripciones',
-            'transferencias': 'total_transferencias',
-            'prendas': 'total_prendas'
-        }
+
+        print(f"   Columnas después del pivot: {list(df_mensual.columns)}")
+
+        # Renombrar columnas (buscar flexible)
+        columnas_actuales = [col for col in df_mensual.columns if col != 'fecha']
+
+        # Mapeo flexible de nombres
+        columnas_rename = {}
+        for col in columnas_actuales:
+            col_lower = col.lower()
+            if 'inscripc' in col_lower or 'inscripcion' in col_lower:
+                columnas_rename[col] = 'total_inscripciones'
+            elif 'transfer' in col_lower:
+                columnas_rename[col] = 'total_transferencias'
+            elif 'prenda' in col_lower:
+                columnas_rename[col] = 'total_prendas'
+
+        print(f"   Renombrando: {columnas_rename}")
         df_mensual = df_mensual.rename(columns=columnas_rename)
     else:
         print("   Método: Sumar columnas directas")
