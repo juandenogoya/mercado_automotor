@@ -57,7 +57,7 @@ def extraer_datos_tabla(engine, tabla_nombre, tipo_operacion, limit=None):
             automotor_marca_descripcion,
             automotor_tipo_descripcion,
             automotor_modelo_descripcion,
-            automotor_uso,
+            automotor_uso_descripcion,
             automotor_anio_modelo,
             '{tipo_operacion}' as tipo_operacion
         FROM {tabla_nombre}
