@@ -129,7 +129,7 @@ def descargar_datos_bcra_incremental(fecha_desde=None, fecha_hasta=None, modo='i
         variable_ids=variable_ids,
         desde=fecha_desde,
         hasta=fecha_hasta,
-        formato='wide'
+        format='wide'
     )
 
     if df.empty:
