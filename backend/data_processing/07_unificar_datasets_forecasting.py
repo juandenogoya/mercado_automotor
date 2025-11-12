@@ -90,44 +90,82 @@ def agregar_transaccional_mensual(df_transaccional):
 
     print(f"\n📊 Dataset original:")
     print(f"   - Registros: {len(df_transaccional):,}")
-    print(f"   - Período: {df_transaccional['tramite_fecha'].min()} a {df_transaccional['tramite_fecha'].max()}")
+
+    # Verificar qué columna de fecha existe
+    fecha_col = None
+    for col in ['tramite_fecha', 'fecha']:
+        if col in df_transaccional.columns:
+            fecha_col = col
+            break
+
+    if fecha_col is None:
+        print("❌ ERROR: No se encontró columna de fecha")
+        return None
+
+    print(f"   - Columna de fecha: {fecha_col}")
+    print(f"   - Período: {df_transaccional[fecha_col].min()} a {df_transaccional[fecha_col].max()}")
 
     # Convertir fecha a datetime
     df = df_transaccional.copy()
-    df['tramite_fecha'] = pd.to_datetime(df['tramite_fecha'])
+    df[fecha_col] = pd.to_datetime(df[fecha_col])
 
     # Crear columna de fecha mensual
-    df['fecha'] = df['tramite_fecha'].dt.to_period('M').dt.to_timestamp()
+    df['fecha'] = df[fecha_col].dt.to_period('M').dt.to_timestamp()
 
-    print(f"\n🔄 Agregando por mes y tipo de operación...")
+    print(f"\n🔄 Agregando por mes...")
 
-    # Agrupar por mes y tipo_operacion
-    df_mensual = df.groupby(['fecha', 'tipo_operacion']).size().reset_index(name='cantidad')
+    # VERIFICAR SI TIENE COLUMNA tipo_operacion O COLUMNAS DIRECTAS
+    if 'tipo_operacion' in df.columns:
+        print("   Método: Pivotar tipo_operacion")
 
-    # Pivotar para tener columnas por tipo de operación
-    df_mensual = df_mensual.pivot(index='fecha', columns='tipo_operacion', values='cantidad')
-    df_mensual = df_mensual.reset_index()
+        # Agrupar por mes y tipo_operacion
+        df_mensual = df.groupby(['fecha', 'tipo_operacion']).size().reset_index(name='cantidad')
 
-    # Rellenar NaN con 0
-    df_mensual = df_mensual.fillna(0)
+        # Pivotar para tener columnas por tipo de operación
+        df_mensual = df_mensual.pivot(index='fecha', columns='tipo_operacion', values='cantidad')
+        df_mensual = df_mensual.reset_index()
 
-    # Renombrar columnas
-    df_mensual.columns.name = None
-    columnas_rename = {
-        'inscripciones': 'total_inscripciones',
-        'transferencias': 'total_transferencias',
-        'prendas': 'total_prendas'
-    }
-    df_mensual = df_mensual.rename(columns=columnas_rename)
+        # Rellenar NaN con 0
+        df_mensual = df_mensual.fillna(0)
+
+        # Renombrar columnas
+        df_mensual.columns.name = None
+        columnas_rename = {
+            'inscripciones': 'total_inscripciones',
+            'transferencias': 'total_transferencias',
+            'prendas': 'total_prendas'
+        }
+        df_mensual = df_mensual.rename(columns=columnas_rename)
+    else:
+        print("   Método: Sumar columnas directas")
+
+        # Sumar por mes (las columnas ya están separadas)
+        df_mensual = df.groupby('fecha').agg({
+            col: 'sum' for col in ['inscripcion', 'prenda', 'transferencia'] if col in df.columns
+        }).reset_index()
+
+        # Renombrar
+        columnas_rename = {
+            'inscripcion': 'total_inscripciones',
+            'transferencia': 'total_transferencias',
+            'prenda': 'total_prendas'
+        }
+        df_mensual = df_mensual.rename(columns=columnas_rename)
 
     # Calcular total general
     cols_totales = [col for col in df_mensual.columns if col.startswith('total_')]
-    df_mensual['total_operaciones'] = df_mensual[cols_totales].sum(axis=1)
+    if cols_totales:
+        df_mensual['total_operaciones'] = df_mensual[cols_totales].sum(axis=1)
+    else:
+        print("❌ ERROR: No se encontraron columnas de totales")
+        return None
 
     print(f"\n✓ Agregación completada:")
     print(f"   - Meses únicos: {len(df_mensual):,}")
     print(f"   - Período: {df_mensual['fecha'].min()} a {df_mensual['fecha'].max()}")
     print(f"   - Columnas creadas: {list(df_mensual.columns)}")
+    print(f"   - Total operaciones (primeras 5):")
+    print(f"      {df_mensual[['fecha', 'total_operaciones']].head().to_string(index=False)}")
 
     return df_mensual
 
