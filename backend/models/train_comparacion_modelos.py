@@ -124,14 +124,20 @@ def entrenar_prophet(df_train, df_val, df_test, target_col='total_operaciones'):
         'y': df_train[target_col]
     })
 
-    # Buscar features macro para usar como regresores
-    macro_features = [col for col in df_train.columns if any(x in col.lower() for x in ['tipo_de_cambio', 'ipc', 'badlar'])]
+    # Buscar features macro para usar como regresores (SOLO macro reales, no ratios ni componentes del target)
+    macro_features = [col for col in df_train.columns if any(x in col.lower() for x in ['tipo_de_cambio', 'ipc', 'badlar', 'leliq', 'emae'])]
+
+    # Excluir componentes del target
+    excluir_prophet = ['total_inscripciones', 'total_transferencias', 'total_prendas', 'total_operaciones']
+    macro_features = [col for col in macro_features if col not in excluir_prophet]
 
     # Si no hay macro, usar lags del target como regresores
     if len(macro_features) == 0:
         print(f"\n⚠️  No hay features macro disponibles")
-        print(f"   Usando lags del target como regresores")
-        regressors = ['total_operaciones_lag1', 'total_operaciones_lag2', 'total_operaciones_lag3']
+        print(f"   Usando lags y ratios del target como regresores")
+        regressors = ['total_operaciones_lag1', 'ratio_prendas_inscripciones', 'ratio_transferencias_inscripciones']
+        # Verificar que existen
+        regressors = [r for r in regressors if r in df_train.columns][:3]
     else:
         print(f"\n✓ Usando {len(macro_features)} features macro como regresores")
         regressors = macro_features[:3]  # Máximo 3 regresores
@@ -426,18 +432,18 @@ def entrenar_elasticnet(df_train, df_val, df_test, target_col='total_operaciones
     return model, resultados, selector, scaler, selected_features
 
 
-def comparar_modelos(resultados_prophet, resultados_sarimax, resultados_elasticnet):
-    """Compara los tres modelos."""
+def comparar_modelos_disponibles(resultados_modelos):
+    """Compara los modelos que se entrenaron exitosamente."""
     print("\n" + "="*80)
     print("COMPARACIÓN DE MODELOS")
     print("="*80)
 
-    # Consolidar resultados
-    comparacion = {
-        'Prophet': resultados_prophet,
-        'SARIMAX': resultados_sarimax,
-        'ElasticNet': resultados_elasticnet
-    }
+    print(f"\n✓ Modelos entrenados exitosamente: {len(resultados_modelos)}")
+    for modelo in resultados_modelos.keys():
+        print(f"   - {modelo}")
+
+    # Usar resultados directamente
+    comparacion = resultados_modelos
 
     # Tabla comparativa en Test
     print(f"\n📊 Performance en TEST:")
@@ -503,36 +509,65 @@ def main():
         # 2. Split temporal
         df_train, df_val, df_test = split_temporal(df)
 
-        # 3. Entrenar Prophet
-        model_prophet, resultados_prophet = entrenar_prophet(df_train, df_val, df_test)
+        # Diccionario para almacenar modelos y resultados
+        modelos_entrenados = {}
+        resultados_modelos = {}
+
+        # 3. Entrenar Prophet (con manejo de errores)
+        try:
+            model_prophet, resultados_prophet = entrenar_prophet(df_train, df_val, df_test)
+            modelos_entrenados['prophet'] = model_prophet
+            resultados_modelos['Prophet'] = resultados_prophet
+        except Exception as e:
+            print(f"\n❌ Prophet falló: {e}")
+            print(f"   Continuando con otros modelos...")
 
         # 4. Entrenar SARIMAX
-        model_sarimax, resultados_sarimax, features_sarimax = entrenar_sarimax(df_train, df_val, df_test)
+        try:
+            model_sarimax, resultados_sarimax, features_sarimax = entrenar_sarimax(df_train, df_val, df_test)
+            modelos_entrenados['sarimax'] = model_sarimax
+            resultados_modelos['SARIMAX'] = resultados_sarimax
+        except Exception as e:
+            print(f"\n❌ SARIMAX falló: {e}")
+            print(f"   Continuando con otros modelos...")
 
         # 5. Entrenar ElasticNet
-        model_elasticnet, resultados_elasticnet, selector, scaler, features_elasticnet = entrenar_elasticnet(
-            df_train, df_val, df_test, n_features=15
-        )
+        try:
+            model_elasticnet, resultados_elasticnet, selector, scaler, features_elasticnet = entrenar_elasticnet(
+                df_train, df_val, df_test, n_features=15
+            )
+            modelos_entrenados['elasticnet'] = {'model': model_elasticnet, 'selector': selector, 'scaler': scaler}
+            resultados_modelos['ElasticNet'] = resultados_elasticnet
+        except Exception as e:
+            print(f"\n❌ ElasticNet falló: {e}")
 
-        # 6. Comparar modelos
-        comparacion, mejor_modelo = comparar_modelos(resultados_prophet, resultados_sarimax, resultados_elasticnet)
+        # Verificar que al menos un modelo funcionó
+        if len(resultados_modelos) == 0:
+            print(f"\n❌ ERROR: Ningún modelo pudo entrenarse correctamente")
+            return
 
-        # 7. Guardar modelos
+        # 6. Comparar modelos (solo los que funcionaron)
+        comparacion, mejor_modelo = comparar_modelos_disponibles(resultados_modelos)
+
+        # 7. Guardar modelos (solo los que funcionaron)
         print("\n" + "="*80)
         print("GUARDANDO MODELOS")
         print("="*80)
 
-        with open(os.path.join(OUTPUT_DIR_MODELS, 'prophet_model.pkl'), 'wb') as f:
-            pickle.dump(model_prophet, f)
-        print(f"   ✓ Prophet guardado")
+        if 'prophet' in modelos_entrenados:
+            with open(os.path.join(OUTPUT_DIR_MODELS, 'prophet_model.pkl'), 'wb') as f:
+                pickle.dump(modelos_entrenados['prophet'], f)
+            print(f"   ✓ Prophet guardado")
 
-        with open(os.path.join(OUTPUT_DIR_MODELS, 'sarimax_model.pkl'), 'wb') as f:
-            pickle.dump(model_sarimax, f)
-        print(f"   ✓ SARIMAX guardado")
+        if 'sarimax' in modelos_entrenados:
+            with open(os.path.join(OUTPUT_DIR_MODELS, 'sarimax_model.pkl'), 'wb') as f:
+                pickle.dump(modelos_entrenados['sarimax'], f)
+            print(f"   ✓ SARIMAX guardado")
 
-        with open(os.path.join(OUTPUT_DIR_MODELS, 'elasticnet_model.pkl'), 'wb') as f:
-            pickle.dump({'model': model_elasticnet, 'selector': selector, 'scaler': scaler}, f)
-        print(f"   ✓ ElasticNet guardado")
+        if 'elasticnet' in modelos_entrenados:
+            with open(os.path.join(OUTPUT_DIR_MODELS, 'elasticnet_model.pkl'), 'wb') as f:
+                pickle.dump(modelos_entrenados['elasticnet'], f)
+            print(f"   ✓ ElasticNet guardado")
 
         # 8. Guardar resultados
         guardar_resultados(comparacion, mejor_modelo)
@@ -544,9 +579,8 @@ def main():
 
         print(f"\n🏆 Mejor modelo: {mejor_modelo}")
         print(f"\n📁 Archivos generados:")
-        print(f"   - models/prophet_model.pkl")
-        print(f"   - models/sarimax_model.pkl")
-        print(f"   - models/elasticnet_model.pkl")
+        for nombre_modelo in modelos_entrenados.keys():
+            print(f"   - models/{nombre_modelo}_model.pkl")
         print(f"   - results/comparacion_modelos/comparison.json")
 
         print(f"\n💡 Recomendación:")
