@@ -1,8 +1,12 @@
 # Dependencias para Fase 4: Modelos de Forecasting
 # Instalar con: pip install -r backend/models/requirements_models.txt
 
+# IMPORTANTE para Prophet en Windows:
+# Si pip falla, usar conda es más confiable:
+#   conda install -c conda-forge prophet
+
 # Modelos
-prophet>=1.1.5          # Forecasting con estacionalidad (Facebook)
+# prophet>=1.1.5          # Forecasting - COMENTADO, mejor instalar con conda
 xgboost>=2.0.0          # Gradient Boosting (ML)
 
 # Machine Learning
@@ -16,3 +20,21 @@ pyarrow>=12.0.0         # Para Parquet
 # Opcional: modelos adicionales
 # lightgbm>=4.0.0       # Alternativa a XGBoost (más rápido)
 # catboost>=1.2.0       # Otra alternativa de Gradient Boosting
+
+# =============================================================================
+# INSTRUCCIONES DE INSTALACIÓN
+# =============================================================================
+#
+# Para XGBoost (funciona en Windows con pip):
+#   pip install xgboost scikit-learn
+#
+# Para Prophet (RECOMENDADO usar conda en Windows):
+#   conda install -c conda-forge prophet
+#
+# Si no tienes conda, intentar con pip (puede fallar):
+#   pip install prophet
+#
+# Si pip falla con Prophet, necesitas instalar dependencias manualmente:
+#   pip install cmdstanpy
+#   pip install prophet
+#

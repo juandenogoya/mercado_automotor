@@ -129,15 +129,30 @@ def preparar_features(df, target_col='total_operaciones'):
     X = df[numericas].copy()
     y = df[target_col].copy()
 
-    # Remover NaN
-    mask = ~(X.isnull().any(axis=1) | y.isnull())
+    # Imputar NaN en lugar de eliminar (usar forward fill + backward fill)
+    print(f"\n🔄 Manejando valores faltantes...")
+
+    # Contar NaN antes
+    nan_antes = X.isnull().sum().sum()
+
+    # Imputar: forward fill primero, luego backward fill, luego media
+    X = X.fillna(method='ffill').fillna(method='bfill').fillna(X.mean())
+
+    # Verificar si quedaron NaN después de imputación
+    nan_despues = X.isnull().sum().sum()
+
+    # Eliminar solo filas donde el target es NaN
+    mask = ~y.isnull()
     X = X[mask]
     y = y[mask]
+
+    print(f"   - NaN imputados: {nan_antes:,}")
+    print(f"   - NaN restantes: {nan_despues}")
+    print(f"   - Filas con target NaN removidas: {(~mask).sum()}")
 
     print(f"\n✓ Dataset preparado:")
     print(f"   - Registros: {len(X):,}")
     print(f"   - Features: {len(numericas)}")
-    print(f"   - NaN removidos: {(~mask).sum()}")
 
     return X, y, numericas
 

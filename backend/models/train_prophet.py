@@ -36,6 +36,8 @@ try:
 except ImportError:
     print("❌ ERROR: Prophet no está instalado")
     print("Instala con: pip install prophet")
+    print("\nEn Windows, si falla, usa conda:")
+    print("  conda install -c conda-forge prophet")
     exit(1)
 
 # Directorios
@@ -194,7 +196,19 @@ def entrenar_prophet(train, regresores=[], **kwargs):
         print(f"   - {key}: {val}")
 
     # Crear modelo
-    model = Prophet(**config)
+    try:
+        model = Prophet(**config)
+    except AttributeError as e:
+        print(f"\n❌ ERROR: Problema con instalación de Prophet")
+        print(f"   Error: {e}")
+        print("\n📝 Solución:")
+        print("   1. Desinstalar Prophet:")
+        print("      pip uninstall prophet")
+        print("   2. Reinstalar con conda (recomendado en Windows):")
+        print("      conda install -c conda-forge prophet")
+        print("   3. O instalar con todas las dependencias:")
+        print("      pip install prophet[full]")
+        raise
 
     # Agregar regresores
     for reg in regresores:
