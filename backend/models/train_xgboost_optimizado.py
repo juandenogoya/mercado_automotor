@@ -32,7 +32,21 @@ import xgboost as xgb
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 # Directorios
-INPUT_FILE = 'data/processed/dataset_forecasting_completo.parquet'
+# Auto-detectar si existe dataset semanal o mensual
+INPUT_FILE_SEMANAL = 'data/processed/dataset_forecasting_completo_semanal.parquet'
+INPUT_FILE_MENSUAL = 'data/processed/dataset_forecasting_completo.parquet'
+
+# Preferir semanal si existe
+if os.path.exists(INPUT_FILE_SEMANAL):
+    INPUT_FILE = INPUT_FILE_SEMANAL
+    GRANULARIDAD = 'semanal'
+elif os.path.exists(INPUT_FILE_MENSUAL):
+    INPUT_FILE = INPUT_FILE_MENSUAL
+    GRANULARIDAD = 'mensual'
+else:
+    INPUT_FILE = INPUT_FILE_MENSUAL  # Default
+    GRANULARIDAD = 'mensual'
+
 OUTPUT_DIR_MODELS = 'models'
 OUTPUT_DIR_RESULTS = 'results/xgboost_optimized'
 
@@ -48,14 +62,29 @@ def cargar_datos():
 
     if not os.path.exists(INPUT_FILE):
         print(f"\n❌ ERROR: Archivo no encontrado: {INPUT_FILE}")
+        print(f"\n💡 Archivos disponibles:")
+        if os.path.exists(INPUT_FILE_SEMANAL):
+            print(f"   ✓ Dataset semanal: {INPUT_FILE_SEMANAL}")
+        if os.path.exists(INPUT_FILE_MENSUAL):
+            print(f"   ✓ Dataset mensual: {INPUT_FILE_MENSUAL}")
+        if not os.path.exists(INPUT_FILE_SEMANAL) and not os.path.exists(INPUT_FILE_MENSUAL):
+            print(f"   ❌ Ningún dataset encontrado")
+            print(f"\n📝 Ejecuta primero:")
+            print(f"   python backend/data_processing/07b_unificar_datasets_forecasting_semanal.py")
         return None
 
     df = pd.read_parquet(INPUT_FILE)
 
-    print(f"\n✓ Dataset cargado:")
+    print(f"\n✓ Dataset cargado ({GRANULARIDAD.upper()}):")
+    print(f"   - Archivo: {INPUT_FILE}")
     print(f"   - Registros: {len(df):,}")
     print(f"   - Columnas: {len(df.columns)}")
     print(f"   - Período: {df['fecha'].min()} a {df['fecha'].max()}")
+
+    if GRANULARIDAD == 'mensual' and len(df) < 100:
+        print(f"\n⚠️  ADVERTENCIA: Dataset mensual con solo {len(df)} registros")
+        print(f"   💡 Recomendación: Usar dataset semanal para mejor generalización")
+        print(f"   📝 Ejecutar: python backend/data_processing/07b_unificar_datasets_forecasting_semanal.py")
 
     return df
 
