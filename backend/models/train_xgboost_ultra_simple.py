@@ -32,7 +32,21 @@ import xgboost as xgb
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 # Directorios
-INPUT_FILE = 'data/processed/dataset_forecasting_completo.parquet'
+# Auto-detectar si existe dataset semanal o mensual
+INPUT_FILE_SEMANAL = 'data/processed/dataset_forecasting_completo_semanal.parquet'
+INPUT_FILE_MENSUAL = 'data/processed/dataset_forecasting_completo.parquet'
+
+# Preferir semanal si existe
+if os.path.exists(INPUT_FILE_SEMANAL):
+    INPUT_FILE = INPUT_FILE_SEMANAL
+    GRANULARIDAD = 'semanal'
+elif os.path.exists(INPUT_FILE_MENSUAL):
+    INPUT_FILE = INPUT_FILE_MENSUAL
+    GRANULARIDAD = 'mensual'
+else:
+    INPUT_FILE = INPUT_FILE_MENSUAL  # Default
+    GRANULARIDAD = 'mensual'
+
 OUTPUT_DIR_MODELS = 'models'
 OUTPUT_DIR_RESULTS = 'results/xgboost_ultra_simple'
 
