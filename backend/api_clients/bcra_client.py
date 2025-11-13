@@ -13,6 +13,10 @@ import requests
 import pandas as pd
 from io import StringIO
 from loguru import logger
+import urllib3
+
+# Deshabilitar warnings de SSL
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from backend.config.settings import settings
 from backend.models.bcra_indicadores import BCRAIndicador
@@ -48,6 +52,8 @@ class BCRAClient:
             'Accept': 'application/json',
         })
         self.timeout = settings.bcra_timeout
+        # Deshabilitar verificación SSL para evitar errores de certificados
+        self.session.verify = False
 
     def get_principales_variables(self) -> Dict[str, Any]:
         """
