@@ -181,7 +181,7 @@ def analizar_tramites(tabla_nombre, titulo, icono):
     # Filtro de género
     col_filtro4, col_filtro5 = st.columns([1, 2])
     with col_filtro4:
-        generos_opciones = ['Todos', 'Masculino', 'Femenino']
+        generos_opciones = ['Todos', 'Masculino', 'Femenino', 'No aplica', 'No identificado']
         genero_seleccionado = st.selectbox(
             "👤 Género del Titular",
             options=generos_opciones,
@@ -200,12 +200,10 @@ def analizar_tramites(tabla_nombre, titulo, icono):
 
     # 3. Consulta principal con filtro de género
     # Construir condición de género
-    if genero_seleccionado == 'Masculino':
-        filtro_genero = "AND titular_genero = 'M'"
-    elif genero_seleccionado == 'Femenino':
-        filtro_genero = "AND titular_genero = 'F'"
-    else:
+    if genero_seleccionado == 'Todos':
         filtro_genero = ""  # Todos los géneros
+    else:
+        filtro_genero = f"AND titular_genero = '{genero_seleccionado}'"
 
     query = text(f"""
         SELECT
@@ -442,8 +440,8 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                 'edad_promedio_titular': 'mean'
             }).reset_index()
 
-            # Filtrar solo M y F (excluir nulos o valores inválidos)
-            df_genero = df_genero[df_genero['genero'].isin(['M', 'F'])]
+            # Filtrar solo Masculino y Femenino (excluir "No aplica", "No identificado", etc.)
+            df_genero = df_genero[df_genero['genero'].isin(['Masculino', 'Femenino'])]
 
             if not df_genero.empty:
                 col_g1, col_g2 = st.columns(2)
@@ -458,10 +456,9 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                         labels={'genero': 'Género', 'cantidad': 'Cantidad'},
                         text='cantidad',
                         color='genero',
-                        color_discrete_map={'M': 'lightblue', 'F': 'pink'}
+                        color_discrete_map={'Masculino': 'lightblue', 'Femenino': 'pink'}
                     )
                     fig_genero_cant.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
-                    fig_genero_cant.update_xaxes(ticktext=['Masculino', 'Femenino'], tickvals=['M', 'F'])
                     fig_genero_cant.update_layout(showlegend=False)
                     st.plotly_chart(fig_genero_cant, use_container_width=True)
 
@@ -475,19 +472,21 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                         labels={'genero': 'Género', 'edad_promedio_titular': 'Edad Promedio (años)'},
                         text='edad_promedio_titular',
                         color='genero',
-                        color_discrete_map={'M': 'darkblue', 'F': 'deeppink'}
+                        color_discrete_map={'Masculino': 'darkblue', 'Femenino': 'deeppink'}
                     )
                     fig_genero_edad.update_traces(texttemplate='%{text:.1f} años', textposition='outside')
-                    fig_genero_edad.update_xaxes(ticktext=['Masculino', 'Femenino'], tickvals=['M', 'F'])
                     fig_genero_edad.update_layout(showlegend=False)
                     st.plotly_chart(fig_genero_edad, use_container_width=True)
 
-                # Métricas comparativas
+                # Métricas comparativas - verificar que existen ambos géneros
                 col_gm1, col_gm2, col_gm3 = st.columns(3)
 
-                if len(df_genero) >= 2:
-                    masculino = df_genero[df_genero['genero'] == 'M'].iloc[0]
-                    femenino = df_genero[df_genero['genero'] == 'F'].iloc[0]
+                masculino_data = df_genero[df_genero['genero'] == 'Masculino']
+                femenino_data = df_genero[df_genero['genero'] == 'Femenino']
+
+                if len(masculino_data) > 0 and len(femenino_data) > 0:
+                    masculino = masculino_data.iloc[0]
+                    femenino = femenino_data.iloc[0]
 
                     with col_gm1:
                         total_m = masculino['cantidad']
@@ -501,11 +500,22 @@ def analizar_tramites(tabla_nombre, titulo, icono):
 
                     with col_gm3:
                         diff_edad = masculino['edad_promedio_titular'] - femenino['edad_promedio_titular']
+                        genero_mayor = 'Masculino' if diff_edad > 0 else 'Femenino'
                         st.metric(
                             "Diferencia de Edad Promedio",
                             f"{abs(diff_edad):.1f} años",
-                            f"{'M' if diff_edad > 0 else 'F'} mayor"
+                            f"{genero_mayor} mayor"
                         )
+                elif len(masculino_data) > 0:
+                    with col_gm1:
+                        st.metric("Total Masculino", f"{masculino_data.iloc[0]['cantidad']:,} trámites")
+                    with col_gm2:
+                        st.info("ℹ️ No hay datos de género Femenino para comparar")
+                elif len(femenino_data) > 0:
+                    with col_gm1:
+                        st.metric("Total Femenino", f"{femenino_data.iloc[0]['cantidad']:,} trámites")
+                    with col_gm2:
+                        st.info("ℹ️ No hay datos de género Masculino para comparar")
 
             st.markdown("---")
 
