@@ -203,8 +203,22 @@ def cargar_macro_ipc():
     print(f"\n📂 Cargando: {DATASET_FORECASTING}")
     df = pd.read_parquet(DATASET_FORECASTING)
 
-    # Extraer solo fecha e IPC
-    df_ipc = df[['fecha', 'ipc_mes']].copy()
+    # Buscar columna de IPC (puede tener diferentes nombres)
+    col_ipc = None
+    for posible_col in ['ipc_mes', 'IPC_mensual', 'ipc', 'IPC']:
+        if posible_col in df.columns:
+            col_ipc = posible_col
+            break
+
+    if col_ipc is None:
+        print(f"   ⚠️  Columna IPC no encontrada. Columnas disponibles: {df.columns.tolist()}")
+        # Crear DataFrame vacío con estructura
+        df_ipc = pd.DataFrame({'fecha': df['fecha'], 'ipc_mes': np.nan})
+    else:
+        # Extraer fecha e IPC
+        df_ipc = df[['fecha', col_ipc]].copy()
+        df_ipc = df_ipc.rename(columns={col_ipc: 'ipc_mes'})
+
     df_ipc = df_ipc.sort_values('fecha', ascending=False)
 
     print(f"\n✓ Serie IPC:")
@@ -229,8 +243,20 @@ def cargar_macro_badlar():
     print(f"\n📂 Cargando: {DATASET_FORECASTING}")
     df = pd.read_parquet(DATASET_FORECASTING)
 
-    # Extraer solo fecha y BADLAR
-    df_badlar = df[['fecha', 'badlar']].copy()
+    # Buscar columna de BADLAR
+    col_badlar = None
+    for posible_col in ['badlar', 'BADLAR', 'Badlar']:
+        if posible_col in df.columns:
+            col_badlar = posible_col
+            break
+
+    if col_badlar is None:
+        print(f"   ⚠️  Columna BADLAR no encontrada. Columnas disponibles: {df.columns.tolist()}")
+        df_badlar = pd.DataFrame({'fecha': df['fecha'], 'badlar': np.nan})
+    else:
+        df_badlar = df[['fecha', col_badlar]].copy()
+        df_badlar = df_badlar.rename(columns={col_badlar: 'badlar'})
+
     df_badlar = df_badlar.sort_values('fecha', ascending=False)
 
     print(f"\n✓ Serie BADLAR:")
@@ -255,8 +281,20 @@ def cargar_macro_tc():
     print(f"\n📂 Cargando: {DATASET_FORECASTING}")
     df = pd.read_parquet(DATASET_FORECASTING)
 
-    # Extraer solo fecha y TC
-    df_tc = df[['fecha', 'tipo_de_cambio_usd_prom']].copy()
+    # Buscar columna de TC
+    col_tc = None
+    for posible_col in ['tipo_de_cambio_usd_prom', 'tipo_cambio', 'tc_usd', 'TC']:
+        if posible_col in df.columns:
+            col_tc = posible_col
+            break
+
+    if col_tc is None:
+        print(f"   ⚠️  Columna TC no encontrada. Columnas disponibles: {df.columns.tolist()}")
+        df_tc = pd.DataFrame({'fecha': df['fecha'], 'tipo_de_cambio_usd_prom': np.nan})
+    else:
+        df_tc = df[['fecha', col_tc]].copy()
+        df_tc = df_tc.rename(columns={col_tc: 'tipo_de_cambio_usd_prom'})
+
     df_tc = df_tc.sort_values('fecha', ascending=False)
 
     print(f"\n✓ Serie Tipo de Cambio:")
