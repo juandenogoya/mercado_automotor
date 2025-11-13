@@ -355,7 +355,7 @@ class BCRAClient:
         id_variable: int,
         fecha_desde: date,
         fecha_hasta: date,
-        chunk_months: int = 6
+        chunk_months: int = 3
     ) -> List[Dict[str, Any]]:
         """
         Obtiene serie histórica dividiendo el rango en chunks para evitar errores 500.
@@ -364,7 +364,7 @@ class BCRAClient:
             id_variable: ID de la variable
             fecha_desde: Fecha inicial
             fecha_hasta: Fecha final
-            chunk_months: Tamaño del chunk en meses (default: 6)
+            chunk_months: Tamaño del chunk en meses (default: 3)
 
         Returns:
             Lista completa de valores históricos
