@@ -6,6 +6,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from datetime import date, datetime
 from sqlalchemy import create_engine, text
 import sys
@@ -194,12 +195,14 @@ def analizar_tramites(tabla_nombre, titulo, icono):
             registro_seccional_provincia as provincia,
             automotor_marca_descripcion as marca,
             automotor_tipo_descripcion as tipo_vehiculo,
-            COUNT(*) as cantidad
+            COUNT(*) as cantidad,
+            AVG(EXTRACT(YEAR FROM tramite_fecha) - automotor_anio_modelo) as edad_promedio
         FROM {tabla_nombre}
         WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
         AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
         AND registro_seccional_provincia = ANY(:provincias)
         AND tramite_fecha IS NOT NULL
+        AND automotor_anio_modelo IS NOT NULL
         GROUP BY anio, mes, provincia, marca, tipo_vehiculo
         ORDER BY anio, mes, provincia
     """)
@@ -348,21 +351,64 @@ def analizar_tramites(tabla_nombre, titulo, icono):
         # 8. Top Marcas
         st.markdown("### 🏆 Top 10 Marcas")
 
-        df_marcas = df.groupby('marca')['cantidad'].sum().reset_index()
-        df_marcas = df_marcas.sort_values('cantidad', ascending=False).head(10)
+        # Agrupar por marca: cantidad y edad promedio
+        df_marcas_agg = df.groupby('marca').agg({
+            'cantidad': 'sum',
+            'edad_promedio': 'mean'
+        }).reset_index()
+        df_marcas_agg = df_marcas_agg.sort_values('cantidad', ascending=False).head(10)
 
-        fig_marcas = px.bar(
-            df_marcas,
-            x='marca',
-            y='cantidad',
-            title='Top 10 Marcas más Tramitadas',
-            labels={'marca': 'Marca', 'cantidad': 'Cantidad'},
-            text='cantidad',
-            color='cantidad',
-            color_continuous_scale='Oranges'
+        # Crear gráfico combinado con barras y línea
+        fig_marcas = make_subplots(specs=[[{"secondary_y": True}]])
+
+        # Barras de cantidad
+        fig_marcas.add_trace(
+            go.Bar(
+                x=df_marcas_agg['marca'],
+                y=df_marcas_agg['cantidad'],
+                name='Cantidad',
+                text=df_marcas_agg['cantidad'],
+                texttemplate='%{text:,.0f}',
+                textposition='outside',
+                marker_color='lightsalmon'
+            ),
+            secondary_y=False
         )
-        fig_marcas.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
-        fig_marcas.update_layout(showlegend=False)
+
+        # Línea de edad promedio
+        fig_marcas.add_trace(
+            go.Scatter(
+                x=df_marcas_agg['marca'],
+                y=df_marcas_agg['edad_promedio'],
+                name='Edad Promedio (años)',
+                mode='lines+markers+text',
+                text=df_marcas_agg['edad_promedio'].round(1),
+                texttemplate='%{text:.1f} años',
+                textposition='top center',
+                line=dict(color='darkblue', width=3),
+                marker=dict(size=10, color='darkblue')
+            ),
+            secondary_y=True
+        )
+
+        # Configurar ejes
+        fig_marcas.update_xaxes(title_text="Marca")
+        fig_marcas.update_yaxes(title_text="Cantidad de Trámites", secondary_y=False)
+        fig_marcas.update_yaxes(title_text="Edad Promedio (años)", secondary_y=True)
+
+        fig_marcas.update_layout(
+            title_text='Top 10 Marcas - Cantidad y Edad Promedio de Vehículos',
+            hovermode='x unified',
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
+
         st.plotly_chart(fig_marcas, use_container_width=True)
 
         # 8.1 Top Modelos por Marca (Interactivo)
@@ -385,7 +431,8 @@ def analizar_tramites(tabla_nombre, titulo, icono):
             query_modelos = text(f"""
                 SELECT
                     automotor_modelo_descripcion as modelo,
-                    COUNT(*) as cantidad
+                    COUNT(*) as cantidad,
+                    AVG(EXTRACT(YEAR FROM tramite_fecha) - automotor_anio_modelo) as edad_promedio
                 FROM {tabla_nombre}
                 WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
                 AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
@@ -394,6 +441,7 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                 AND automotor_modelo_descripcion IS NOT NULL
                 AND automotor_modelo_descripcion != ''
                 AND tramite_fecha IS NOT NULL
+                AND automotor_anio_modelo IS NOT NULL
                 GROUP BY modelo
                 ORDER BY cantidad DESC
                 LIMIT 10
@@ -408,26 +456,61 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                 })
 
                 if not df_modelos.empty:
-                    # Gráfico de Top 10 Modelos
-                    fig_modelos = px.bar(
-                        df_modelos,
-                        x='modelo',
-                        y='cantidad',
-                        title=f'Top 10 Modelos de {marca_seleccionada}',
-                        labels={'modelo': 'Modelo', 'cantidad': 'Cantidad'},
-                        text='cantidad',
-                        color='cantidad',
-                        color_continuous_scale='Blues'
+                    # Gráfico combinado de Top 10 Modelos con edad promedio
+                    fig_modelos = make_subplots(specs=[[{"secondary_y": True}]])
+
+                    # Barras de cantidad
+                    fig_modelos.add_trace(
+                        go.Bar(
+                            x=df_modelos['modelo'],
+                            y=df_modelos['cantidad'],
+                            name='Cantidad',
+                            text=df_modelos['cantidad'],
+                            texttemplate='%{text:,.0f}',
+                            textposition='outside',
+                            marker_color='lightblue'
+                        ),
+                        secondary_y=False
                     )
-                    fig_modelos.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+
+                    # Línea de edad promedio
+                    fig_modelos.add_trace(
+                        go.Scatter(
+                            x=df_modelos['modelo'],
+                            y=df_modelos['edad_promedio'],
+                            name='Edad Promedio (años)',
+                            mode='lines+markers+text',
+                            text=df_modelos['edad_promedio'].round(1),
+                            texttemplate='%{text:.1f} años',
+                            textposition='top center',
+                            line=dict(color='darkgreen', width=3),
+                            marker=dict(size=10, color='darkgreen')
+                        ),
+                        secondary_y=True
+                    )
+
+                    # Configurar ejes
+                    fig_modelos.update_xaxes(title_text="Modelo", tickangle=-45)
+                    fig_modelos.update_yaxes(title_text="Cantidad de Trámites", secondary_y=False)
+                    fig_modelos.update_yaxes(title_text="Edad Promedio (años)", secondary_y=True)
+
                     fig_modelos.update_layout(
-                        showlegend=False,
-                        xaxis={'tickangle': -45}
+                        title_text=f'Top 10 Modelos de {marca_seleccionada} - Cantidad y Edad Promedio',
+                        hovermode='x unified',
+                        showlegend=True,
+                        legend=dict(
+                            orientation="h",
+                            yanchor="bottom",
+                            y=1.02,
+                            xanchor="right",
+                            x=1
+                        )
                     )
+
                     st.plotly_chart(fig_modelos, use_container_width=True)
 
                     # Métricas de la marca seleccionada
-                    col_m1, col_m2, col_m3 = st.columns(3)
+                    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
                     with col_m1:
                         total_marca = df_modelos['cantidad'].sum()
                         st.metric("Total de la Marca", f"{total_marca:,}")
@@ -439,6 +522,9 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                             modelo_top = df_modelos.iloc[0]['modelo']
                             cant_top = df_modelos.iloc[0]['cantidad']
                             st.metric("Modelo Más Vendido", f"{modelo_top[:20]}...", f"{cant_top:,}")
+                    with col_m4:
+                        edad_prom_marca = df_modelos['edad_promedio'].mean()
+                        st.metric("Edad Promedio", f"{edad_prom_marca:.1f} años")
                 else:
                     st.info(f"ℹ️ No se encontraron modelos para la marca {marca_seleccionada} con los filtros seleccionados")
 
