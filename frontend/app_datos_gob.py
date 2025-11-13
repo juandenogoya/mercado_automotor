@@ -365,6 +365,86 @@ def analizar_tramites(tabla_nombre, titulo, icono):
         fig_marcas.update_layout(showlegend=False)
         st.plotly_chart(fig_marcas, use_container_width=True)
 
+        # 8.1 Top Modelos por Marca (Interactivo)
+        st.markdown("#### 🔍 Análisis de Modelos por Marca")
+
+        # Obtener todas las marcas disponibles (no solo top 10) para el selectbox
+        todas_marcas = df.groupby('marca')['cantidad'].sum().reset_index()
+        todas_marcas = todas_marcas.sort_values('cantidad', ascending=False)
+        lista_marcas = todas_marcas['marca'].tolist()
+
+        # Selectbox para elegir marca
+        marca_seleccionada = st.selectbox(
+            "Selecciona una marca para ver sus modelos más vendidos:",
+            options=['-- Ninguna --'] + lista_marcas,
+            key=f"{tabla_nombre}_marca_modelos"
+        )
+
+        if marca_seleccionada != '-- Ninguna --':
+            # Query para obtener modelos de la marca seleccionada
+            query_modelos = text(f"""
+                SELECT
+                    automotor_modelo_descripcion as modelo,
+                    COUNT(*) as cantidad
+                FROM {tabla_nombre}
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND registro_seccional_provincia = ANY(:provincias)
+                AND automotor_marca_descripcion = :marca
+                AND automotor_modelo_descripcion IS NOT NULL
+                AND automotor_modelo_descripcion != ''
+                AND tramite_fecha IS NOT NULL
+                GROUP BY modelo
+                ORDER BY cantidad DESC
+                LIMIT 10
+            """)
+
+            try:
+                df_modelos = pd.read_sql(query_modelos, engine, params={
+                    'anios': anios_seleccionados,
+                    'meses': meses_numeros,
+                    'provincias': provincias_seleccionadas,
+                    'marca': marca_seleccionada
+                })
+
+                if not df_modelos.empty:
+                    # Gráfico de Top 10 Modelos
+                    fig_modelos = px.bar(
+                        df_modelos,
+                        x='modelo',
+                        y='cantidad',
+                        title=f'Top 10 Modelos de {marca_seleccionada}',
+                        labels={'modelo': 'Modelo', 'cantidad': 'Cantidad'},
+                        text='cantidad',
+                        color='cantidad',
+                        color_continuous_scale='Blues'
+                    )
+                    fig_modelos.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+                    fig_modelos.update_layout(
+                        showlegend=False,
+                        xaxis={'tickangle': -45}
+                    )
+                    st.plotly_chart(fig_modelos, use_container_width=True)
+
+                    # Métricas de la marca seleccionada
+                    col_m1, col_m2, col_m3 = st.columns(3)
+                    with col_m1:
+                        total_marca = df_modelos['cantidad'].sum()
+                        st.metric("Total de la Marca", f"{total_marca:,}")
+                    with col_m2:
+                        modelos_unicos = len(df_modelos)
+                        st.metric("Modelos en Top 10", modelos_unicos)
+                    with col_m3:
+                        if len(df_modelos) > 0:
+                            modelo_top = df_modelos.iloc[0]['modelo']
+                            cant_top = df_modelos.iloc[0]['cantidad']
+                            st.metric("Modelo Más Vendido", f"{modelo_top[:20]}...", f"{cant_top:,}")
+                else:
+                    st.info(f"ℹ️ No se encontraron modelos para la marca {marca_seleccionada} con los filtros seleccionados")
+
+            except Exception as e:
+                st.error(f"❌ Error al consultar modelos: {e}")
+
         st.markdown("---")
 
         # 9. Tabla de datos detallada
