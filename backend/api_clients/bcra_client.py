@@ -1,11 +1,12 @@
 """
 Cliente para API del BCRA (Banco Central de la República Argentina).
 
-API Documentation:
-- Base URL: https://api.bcra.gob.ar
-- Estadísticas: /estadisticas/v2.0
-- Cambiarias: /estadisticascambiarias/v1.0
+API Documentation v4.0:
+- Base URL: https://api.bcra.gob.ar/estadisticas/v4.0
+- Monetarias: /monetarias/{id_variable}?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
 - Créditos Prendarios: /pdfs/BCRAyVos/PRENDARIOS.CSV
+
+NOTA: Migrado de v2.0 a v4.0 (noviembre 2024)
 """
 from datetime import datetime, date
 from typing import Dict, List, Any, Optional
@@ -27,26 +28,30 @@ from backend.utils.database import get_db
 
 class BCRAClient:
     """
-    Cliente para interactuar con la API del BCRA.
+    Cliente para interactuar con la API v4.0 del BCRA.
 
-    Endpoints principales:
-    - /estadisticas/v2.0/principales: Principales variables
-    - /estadisticas/v2.0/datosvariable/{id_variable}/{desde}/{hasta}: Serie histórica
-    - /estadisticascambiarias/v1.0/cotizaciones: Cotizaciones
+    Endpoints principales (v4.0):
+    - /monetarias/{id}?desde=YYYY-MM-DD&hasta=YYYY-MM-DD: Variables monetarias
+
+    Cambios desde v2.0:
+    - Endpoint cambió de /datosvariable/ a /monetarias/
+    - Parámetros ahora van en query string
+    - Estructura de respuesta: results[0].detalle en lugar de results
+    - ID de tipo de cambio cambió de 1 a 5
     """
 
-    # IDs de variables relevantes para el sector automotor
+    # IDs de variables relevantes para el sector automotor (API v4.0)
     VARIABLES = {
         'tasa_badlar': 7,  # Tasa BADLAR privada en pesos
-        'tasa_pf_30_dias': 8,  # Tasa de plazo fijo a 30 días
-        'tasa_pf_90_dias': 9,  # Tasa de plazo fijo a 90 días
-        'tipo_cambio_bna': 1,  # Tipo de cambio BNA
-        'reservas': 2,  # Reservas internacionales
-        'creditos_totales': 16,  # Créditos totales al sector privado
+        'tipo_cambio_bna': 5,  # Tipo de cambio mayorista (cambió de 1 a 5 en v4.0)
+        'reservas': 1,  # Reservas internacionales
+        'base_monetaria': 15,  # Base monetaria
+        'circulacion_monetaria': 16,  # Circulación monetaria
     }
 
     def __init__(self):
-        self.base_url = settings.bcra_api_base_url
+        # API v4.0 base URL
+        self.base_url = "https://api.bcra.gob.ar/estadisticas/v4.0"
         self.session = requests.Session()
         self.session.headers.update({
             'Accept': 'application/json',
@@ -95,7 +100,7 @@ class BCRAClient:
         fecha_hasta: date
     ) -> List[Dict[str, Any]]:
         """
-        Obtiene serie histórica de una variable.
+        Obtiene serie histórica de una variable (API v4.0).
 
         Args:
             id_variable: ID de la variable (ver VARIABLES)
@@ -103,25 +108,36 @@ class BCRAClient:
             fecha_hasta: Fecha final
 
         Returns:
-            Lista de valores históricos
+            Lista de valores históricos [{fecha: 'YYYY-MM-DD', valor: float}, ...]
         """
         # Formato de fecha: YYYY-MM-DD
         desde_str = fecha_desde.strftime('%Y-%m-%d')
         hasta_str = fecha_hasta.strftime('%Y-%m-%d')
 
-        url = f"{self.base_url}/estadisticas/v2.0/datosvariable/{id_variable}/{desde_str}/{hasta_str}"
+        # API v4.0: /monetarias/{id} con query params
+        url = f"{self.base_url}/monetarias/{id_variable}"
+        params = {
+            'desde': desde_str,
+            'hasta': hasta_str,
+            'limit': 1000  # Máximo de registros a obtener
+        }
 
         logger.info(f"[BCRA] Obteniendo variable {id_variable} desde {desde_str} hasta {hasta_str}...")
 
         try:
-            response = self.session.get(url, timeout=self.timeout)
+            response = self.session.get(url, params=params, timeout=self.timeout)
             response.raise_for_status()
 
             data = response.json()
 
-            logger.success(f"[BCRA] ✓ Obtenidos {len(data['results'])} datos de variable {id_variable}")
-
-            return data['results']
+            # API v4.0: estructura es results[0].detalle
+            if 'results' in data and len(data['results']) > 0:
+                detalle = data['results'][0].get('detalle', [])
+                logger.success(f"[BCRA] ✓ Obtenidos {len(detalle)} datos de variable {id_variable}")
+                return detalle
+            else:
+                logger.warning(f"[BCRA] No se encontraron datos para variable {id_variable}")
+                return []
 
         except requests.RequestException as e:
             logger.error(f"[BCRA] Error obteniendo variable {id_variable}: {e}")
