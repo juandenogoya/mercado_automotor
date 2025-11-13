@@ -506,10 +506,6 @@ def main():
     print(f"      • {len(df_docs):,} transformaciones documentadas")
     print(f"      • Describe cada nueva columna creada")
 
-    print(f"\n💡 Variables categóricas transformadas:")
-    for col in cols_categoricas:
-        print(f"   • {col}")
-
     print(f"\n💡 Transformaciones aplicadas a cada categórica:")
     print(f"   • Label Encoding: Codificación numérica ordinal")
     print(f"   • Frequency Encoding: % de apariciones")
