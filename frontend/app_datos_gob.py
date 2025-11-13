@@ -178,6 +178,17 @@ def analizar_tramites(tabla_nombre, titulo, icono):
             key=f"{tabla_nombre}_provincias"
         )
 
+    # Filtro de género
+    col_filtro4, col_filtro5 = st.columns([1, 2])
+    with col_filtro4:
+        generos_opciones = ['Todos', 'Masculino', 'Femenino']
+        genero_seleccionado = st.selectbox(
+            "👤 Género del Titular",
+            options=generos_opciones,
+            index=0,
+            key=f"{tabla_nombre}_genero"
+        )
+
     if not anios_seleccionados or not meses_seleccionados or not provincias_seleccionadas:
         st.warning("⚠️ Selecciona al menos un año, un mes y una provincia")
         return
@@ -187,7 +198,15 @@ def analizar_tramites(tabla_nombre, titulo, icono):
 
     st.markdown("---")
 
-    # 3. Consulta principal
+    # 3. Consulta principal con filtro de género
+    # Construir condición de género
+    if genero_seleccionado == 'Masculino':
+        filtro_genero = "AND titular_genero = 'M'"
+    elif genero_seleccionado == 'Femenino':
+        filtro_genero = "AND titular_genero = 'F'"
+    else:
+        filtro_genero = ""  # Todos los géneros
+
     query = text(f"""
         SELECT
             EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
@@ -195,15 +214,17 @@ def analizar_tramites(tabla_nombre, titulo, icono):
             registro_seccional_provincia as provincia,
             automotor_marca_descripcion as marca,
             automotor_tipo_descripcion as tipo_vehiculo,
+            titular_genero as genero,
             COUNT(*) as cantidad,
-            AVG(EXTRACT(YEAR FROM tramite_fecha) - automotor_anio_modelo) as edad_promedio
+            AVG(EXTRACT(YEAR FROM tramite_fecha) - titular_anio_nacimiento) as edad_promedio_titular
         FROM {tabla_nombre}
         WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
         AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
         AND registro_seccional_provincia = ANY(:provincias)
         AND tramite_fecha IS NOT NULL
-        AND automotor_anio_modelo IS NOT NULL
-        GROUP BY anio, mes, provincia, marca, tipo_vehiculo
+        AND titular_anio_nacimiento IS NOT NULL
+        {filtro_genero}
+        GROUP BY anio, mes, provincia, marca, tipo_vehiculo, genero
         ORDER BY anio, mes, provincia
     """)
 
@@ -351,10 +372,10 @@ def analizar_tramites(tabla_nombre, titulo, icono):
         # 8. Top Marcas
         st.markdown("### 🏆 Top 10 Marcas")
 
-        # Agrupar por marca: cantidad y edad promedio
+        # Agrupar por marca: cantidad y edad promedio del titular
         df_marcas_agg = df.groupby('marca').agg({
             'cantidad': 'sum',
-            'edad_promedio': 'mean'
+            'edad_promedio_titular': 'mean'
         }).reset_index()
         df_marcas_agg = df_marcas_agg.sort_values('cantidad', ascending=False).head(10)
 
@@ -375,14 +396,14 @@ def analizar_tramites(tabla_nombre, titulo, icono):
             secondary_y=False
         )
 
-        # Línea de edad promedio
+        # Línea de edad promedio del titular
         fig_marcas.add_trace(
             go.Scatter(
                 x=df_marcas_agg['marca'],
-                y=df_marcas_agg['edad_promedio'],
-                name='Edad Promedio (años)',
+                y=df_marcas_agg['edad_promedio_titular'],
+                name='Edad Promedio Titular (años)',
                 mode='lines+markers+text',
-                text=df_marcas_agg['edad_promedio'].round(1),
+                text=df_marcas_agg['edad_promedio_titular'].round(1),
                 texttemplate='%{text:.1f} años',
                 textposition='top center',
                 line=dict(color='darkblue', width=3),
@@ -394,10 +415,10 @@ def analizar_tramites(tabla_nombre, titulo, icono):
         # Configurar ejes
         fig_marcas.update_xaxes(title_text="Marca")
         fig_marcas.update_yaxes(title_text="Cantidad de Trámites", secondary_y=False)
-        fig_marcas.update_yaxes(title_text="Edad Promedio (años)", secondary_y=True)
+        fig_marcas.update_yaxes(title_text="Edad Promedio Titular (años)", secondary_y=True)
 
         fig_marcas.update_layout(
-            title_text='Top 10 Marcas - Cantidad y Edad Promedio de Vehículos',
+            title_text='Top 10 Marcas - Cantidad y Edad Promedio de Titulares',
             hovermode='x unified',
             showlegend=True,
             legend=dict(
@@ -411,7 +432,84 @@ def analizar_tramites(tabla_nombre, titulo, icono):
 
         st.plotly_chart(fig_marcas, use_container_width=True)
 
-        # 8.1 Top Modelos por Marca (Interactivo)
+        # 8.1 Análisis Comparativo por Género
+        if genero_seleccionado == 'Todos':
+            st.markdown("#### 👥 Comparación por Género")
+
+            # Agrupar por género
+            df_genero = df.groupby('genero').agg({
+                'cantidad': 'sum',
+                'edad_promedio_titular': 'mean'
+            }).reset_index()
+
+            # Filtrar solo M y F (excluir nulos o valores inválidos)
+            df_genero = df_genero[df_genero['genero'].isin(['M', 'F'])]
+
+            if not df_genero.empty:
+                col_g1, col_g2 = st.columns(2)
+
+                with col_g1:
+                    # Gráfico de cantidad por género
+                    fig_genero_cant = px.bar(
+                        df_genero,
+                        x='genero',
+                        y='cantidad',
+                        title='Cantidad de Trámites por Género',
+                        labels={'genero': 'Género', 'cantidad': 'Cantidad'},
+                        text='cantidad',
+                        color='genero',
+                        color_discrete_map={'M': 'lightblue', 'F': 'pink'}
+                    )
+                    fig_genero_cant.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+                    fig_genero_cant.update_xaxes(ticktext=['Masculino', 'Femenino'], tickvals=['M', 'F'])
+                    fig_genero_cant.update_layout(showlegend=False)
+                    st.plotly_chart(fig_genero_cant, use_container_width=True)
+
+                with col_g2:
+                    # Gráfico de edad promedio por género
+                    fig_genero_edad = px.bar(
+                        df_genero,
+                        x='genero',
+                        y='edad_promedio_titular',
+                        title='Edad Promedio de Titulares por Género',
+                        labels={'genero': 'Género', 'edad_promedio_titular': 'Edad Promedio (años)'},
+                        text='edad_promedio_titular',
+                        color='genero',
+                        color_discrete_map={'M': 'darkblue', 'F': 'deeppink'}
+                    )
+                    fig_genero_edad.update_traces(texttemplate='%{text:.1f} años', textposition='outside')
+                    fig_genero_edad.update_xaxes(ticktext=['Masculino', 'Femenino'], tickvals=['M', 'F'])
+                    fig_genero_edad.update_layout(showlegend=False)
+                    st.plotly_chart(fig_genero_edad, use_container_width=True)
+
+                # Métricas comparativas
+                col_gm1, col_gm2, col_gm3 = st.columns(3)
+
+                if len(df_genero) >= 2:
+                    masculino = df_genero[df_genero['genero'] == 'M'].iloc[0]
+                    femenino = df_genero[df_genero['genero'] == 'F'].iloc[0]
+
+                    with col_gm1:
+                        total_m = masculino['cantidad']
+                        total_f = femenino['cantidad']
+                        porc_m = (total_m / (total_m + total_f)) * 100
+                        st.metric("Proporción Masculino", f"{porc_m:.1f}%", f"{total_m:,} trámites")
+
+                    with col_gm2:
+                        porc_f = 100 - porc_m
+                        st.metric("Proporción Femenino", f"{porc_f:.1f}%", f"{total_f:,} trámites")
+
+                    with col_gm3:
+                        diff_edad = masculino['edad_promedio_titular'] - femenino['edad_promedio_titular']
+                        st.metric(
+                            "Diferencia de Edad Promedio",
+                            f"{abs(diff_edad):.1f} años",
+                            f"{'M' if diff_edad > 0 else 'F'} mayor"
+                        )
+
+            st.markdown("---")
+
+        # 8.2 Top Modelos por Marca (Interactivo)
         st.markdown("#### 🔍 Análisis de Modelos por Marca")
 
         # Obtener todas las marcas disponibles (no solo top 10) para el selectbox
@@ -432,7 +530,7 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                 SELECT
                     automotor_modelo_descripcion as modelo,
                     COUNT(*) as cantidad,
-                    AVG(EXTRACT(YEAR FROM tramite_fecha) - automotor_anio_modelo) as edad_promedio
+                    AVG(EXTRACT(YEAR FROM tramite_fecha) - titular_anio_nacimiento) as edad_promedio_titular
                 FROM {tabla_nombre}
                 WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
                 AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
@@ -441,7 +539,7 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                 AND automotor_modelo_descripcion IS NOT NULL
                 AND automotor_modelo_descripcion != ''
                 AND tramite_fecha IS NOT NULL
-                AND automotor_anio_modelo IS NOT NULL
+                AND titular_anio_nacimiento IS NOT NULL
                 GROUP BY modelo
                 ORDER BY cantidad DESC
                 LIMIT 10
@@ -456,7 +554,7 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                 })
 
                 if not df_modelos.empty:
-                    # Gráfico combinado de Top 10 Modelos con edad promedio
+                    # Gráfico combinado de Top 10 Modelos con edad promedio del titular
                     fig_modelos = make_subplots(specs=[[{"secondary_y": True}]])
 
                     # Barras de cantidad
@@ -473,14 +571,14 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                         secondary_y=False
                     )
 
-                    # Línea de edad promedio
+                    # Línea de edad promedio del titular
                     fig_modelos.add_trace(
                         go.Scatter(
                             x=df_modelos['modelo'],
-                            y=df_modelos['edad_promedio'],
-                            name='Edad Promedio (años)',
+                            y=df_modelos['edad_promedio_titular'],
+                            name='Edad Promedio Titular (años)',
                             mode='lines+markers+text',
-                            text=df_modelos['edad_promedio'].round(1),
+                            text=df_modelos['edad_promedio_titular'].round(1),
                             texttemplate='%{text:.1f} años',
                             textposition='top center',
                             line=dict(color='darkgreen', width=3),
@@ -492,10 +590,10 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                     # Configurar ejes
                     fig_modelos.update_xaxes(title_text="Modelo", tickangle=-45)
                     fig_modelos.update_yaxes(title_text="Cantidad de Trámites", secondary_y=False)
-                    fig_modelos.update_yaxes(title_text="Edad Promedio (años)", secondary_y=True)
+                    fig_modelos.update_yaxes(title_text="Edad Promedio Titular (años)", secondary_y=True)
 
                     fig_modelos.update_layout(
-                        title_text=f'Top 10 Modelos de {marca_seleccionada} - Cantidad y Edad Promedio',
+                        title_text=f'Top 10 Modelos de {marca_seleccionada} - Cantidad y Edad Promedio de Titulares',
                         hovermode='x unified',
                         showlegend=True,
                         legend=dict(
@@ -523,8 +621,8 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                             cant_top = df_modelos.iloc[0]['cantidad']
                             st.metric("Modelo Más Vendido", f"{modelo_top[:20]}...", f"{cant_top:,}")
                     with col_m4:
-                        edad_prom_marca = df_modelos['edad_promedio'].mean()
-                        st.metric("Edad Promedio", f"{edad_prom_marca:.1f} años")
+                        edad_prom_titular = df_modelos['edad_promedio_titular'].mean()
+                        st.metric("Edad Promedio Titular", f"{edad_prom_titular:.1f} años")
                 else:
                     st.info(f"ℹ️ No se encontraron modelos para la marca {marca_seleccionada} con los filtros seleccionados")
 
