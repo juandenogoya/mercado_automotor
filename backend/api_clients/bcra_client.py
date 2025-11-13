@@ -16,6 +16,8 @@ from loguru import logger
 
 from backend.config.settings import settings
 from backend.models.bcra_indicadores import BCRAIndicador
+from backend.models.badlar import BADLAR
+from backend.models.tipo_cambio import TipoCambio
 from backend.utils.database import get_db
 
 
@@ -336,6 +338,210 @@ class BCRAClient:
 
                 except Exception as e:
                     logger.warning(f"[BCRA] Error guardando crédito prendario: {e}")
+                    continue
+
+            db.commit()
+
+        return saved_count
+
+    def sync_badlar(
+        self,
+        fecha_desde: Optional[date] = None,
+        fecha_hasta: Optional[date] = None
+    ) -> Dict[str, Any]:
+        """
+        Sincroniza datos de BADLAR a tabla específica.
+
+        Args:
+            fecha_desde: Fecha inicial (default: 5 años atrás)
+            fecha_hasta: Fecha final (default: hoy)
+
+        Returns:
+            Dict con resumen de la sincronización
+        """
+        from dateutil.relativedelta import relativedelta
+
+        if not fecha_hasta:
+            fecha_hasta = date.today()
+
+        if not fecha_desde:
+            # Por defecto, traer últimos 5 años
+            fecha_desde = fecha_hasta - relativedelta(years=5)
+
+        logger.info(f"[BCRA] Sincronizando BADLAR desde {fecha_desde} hasta {fecha_hasta}...")
+
+        # ID de BADLAR en API BCRA
+        badlar_id = self.VARIABLES['tasa_badlar']
+
+        # Obtener datos
+        data = self.get_variable_historica(badlar_id, fecha_desde, fecha_hasta)
+
+        # Guardar en tabla específica
+        saved_count = self._save_badlar_to_db(data)
+
+        result = {
+            "status": "success",
+            "timestamp": datetime.utcnow(),
+            "records_saved": saved_count,
+            "date_range": {
+                "from": fecha_desde,
+                "to": fecha_hasta
+            }
+        }
+
+        logger.success(f"[BCRA] ✓ Sincronización BADLAR completada: {saved_count} registros guardados")
+
+        return result
+
+    def _save_badlar_to_db(self, data: List[Dict[str, Any]]) -> int:
+        """
+        Guarda datos de BADLAR en tabla específica.
+
+        Args:
+            data: Lista de registros BADLAR
+
+        Returns:
+            Número de registros guardados
+        """
+        if not data:
+            return 0
+
+        saved_count = 0
+
+        with get_db() as db:
+            for record in data:
+                try:
+                    # Parsear fecha
+                    fecha_str = record['fecha']
+                    fecha_obj = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+
+                    # Verificar si existe
+                    existing = db.query(BADLAR).filter(
+                        BADLAR.fecha == fecha_obj
+                    ).first()
+
+                    if not existing:
+                        badlar = BADLAR(
+                            fecha=fecha_obj,
+                            tasa=float(record['valor']),
+                            unidad='% TNA',
+                            fuente='BCRA',
+                            descripcion='BADLAR bancos privados'
+                        )
+                        db.add(badlar)
+                        saved_count += 1
+                    else:
+                        # Actualizar si cambió
+                        if float(existing.tasa) != float(record['valor']):
+                            existing.tasa = float(record['valor'])
+                            existing.updated_at = datetime.utcnow()
+
+                except Exception as e:
+                    logger.warning(f"[BCRA] Error guardando BADLAR: {e}")
+                    continue
+
+            db.commit()
+
+        return saved_count
+
+    def sync_tipo_cambio(
+        self,
+        fecha_desde: Optional[date] = None,
+        fecha_hasta: Optional[date] = None
+    ) -> Dict[str, Any]:
+        """
+        Sincroniza datos de Tipo de Cambio a tabla específica.
+
+        Args:
+            fecha_desde: Fecha inicial (default: 5 años atrás)
+            fecha_hasta: Fecha final (default: hoy)
+
+        Returns:
+            Dict con resumen de la sincronización
+        """
+        from dateutil.relativedelta import relativedelta
+
+        if not fecha_hasta:
+            fecha_hasta = date.today()
+
+        if not fecha_desde:
+            # Por defecto, traer últimos 5 años
+            fecha_desde = fecha_hasta - relativedelta(years=5)
+
+        logger.info(f"[BCRA] Sincronizando Tipo de Cambio desde {fecha_desde} hasta {fecha_hasta}...")
+
+        # ID de Tipo de Cambio BNA en API BCRA
+        tc_id = self.VARIABLES['tipo_cambio_bna']
+
+        # Obtener datos
+        data = self.get_variable_historica(tc_id, fecha_desde, fecha_hasta)
+
+        # Guardar en tabla específica
+        saved_count = self._save_tipo_cambio_to_db(data)
+
+        result = {
+            "status": "success",
+            "timestamp": datetime.utcnow(),
+            "records_saved": saved_count,
+            "date_range": {
+                "from": fecha_desde,
+                "to": fecha_hasta
+            }
+        }
+
+        logger.success(f"[BCRA] ✓ Sincronización Tipo de Cambio completada: {saved_count} registros guardados")
+
+        return result
+
+    def _save_tipo_cambio_to_db(self, data: List[Dict[str, Any]]) -> int:
+        """
+        Guarda datos de Tipo de Cambio en tabla específica.
+
+        Args:
+            data: Lista de registros de tipo de cambio
+
+        Returns:
+            Número de registros guardados
+        """
+        if not data:
+            return 0
+
+        saved_count = 0
+
+        with get_db() as db:
+            for record in data:
+                try:
+                    # Parsear fecha
+                    fecha_str = record['fecha']
+                    fecha_obj = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+
+                    # Verificar si existe para tipo 'mayorista'
+                    existing = db.query(TipoCambio).filter(
+                        TipoCambio.fecha == fecha_obj,
+                        TipoCambio.tipo == 'mayorista'
+                    ).first()
+
+                    valor = float(record['valor'])
+
+                    if not existing:
+                        tipo_cambio = TipoCambio(
+                            fecha=fecha_obj,
+                            tipo='mayorista',
+                            promedio=valor,
+                            moneda='USD',
+                            fuente='BCRA',
+                            descripcion='Tipo de cambio mayorista (Referencia BNA)'
+                        )
+                        db.add(tipo_cambio)
+                        saved_count += 1
+                    else:
+                        # Actualizar si cambió
+                        if float(existing.promedio) != valor:
+                            existing.promedio = valor
+                            existing.updated_at = datetime.utcnow()
+
+                except Exception as e:
+                    logger.warning(f"[BCRA] Error guardando Tipo de Cambio: {e}")
                     continue
 
             db.commit()

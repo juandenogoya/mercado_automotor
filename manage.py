@@ -123,10 +123,75 @@ def run_dashboard():
     ])
 
 
+def cargar_datos_macro(tipo: str = "all", historico: bool = False):
+    """Carga datos macroeconómicos (IPC, BADLAR, Tipo de Cambio)."""
+    from datetime import date
+    from dateutil.relativedelta import relativedelta
+    from backend.api_clients.indec_client import INDECClient
+    from backend.api_clients.bcra_client import BCRAClient
+
+    logger.info(f"Cargando datos macroeconómicos: {tipo}")
+
+    # Determinar rango de fechas
+    if historico:
+        fecha_desde = date(2016, 1, 1)
+        fecha_hasta = date.today()
+        logger.info(f"📅 Modo histórico: Desde {fecha_desde} hasta {fecha_hasta}")
+    else:
+        fecha_hasta = date.today()
+        fecha_desde = fecha_hasta - relativedelta(years=5)
+        logger.info(f"📅 Últimos 5 años: Desde {fecha_desde} hasta {fecha_hasta}")
+
+    total_registros = 0
+
+    # Cargar IPC
+    if tipo in ["all", "ipc"]:
+        logger.info("\n" + "="*60)
+        logger.info("CARGANDO IPC (INDEC)")
+        logger.info("="*60)
+        try:
+            client = INDECClient()
+            result = client.sync_ipc(fecha_desde, fecha_hasta)
+            logger.success(f"✓ IPC: {result['records_saved']} registros guardados")
+            total_registros += result['records_saved']
+        except Exception as e:
+            logger.error(f"✗ Error cargando IPC: {e}")
+
+    # Cargar BADLAR
+    if tipo in ["all", "badlar"]:
+        logger.info("\n" + "="*60)
+        logger.info("CARGANDO BADLAR (BCRA)")
+        logger.info("="*60)
+        try:
+            client = BCRAClient()
+            result = client.sync_badlar(fecha_desde, fecha_hasta)
+            logger.success(f"✓ BADLAR: {result['records_saved']} registros guardados")
+            total_registros += result['records_saved']
+        except Exception as e:
+            logger.error(f"✗ Error cargando BADLAR: {e}")
+
+    # Cargar Tipo de Cambio
+    if tipo in ["all", "tipo_cambio", "tc"]:
+        logger.info("\n" + "="*60)
+        logger.info("CARGANDO TIPO DE CAMBIO (BCRA)")
+        logger.info("="*60)
+        try:
+            client = BCRAClient()
+            result = client.sync_tipo_cambio(fecha_desde, fecha_hasta)
+            logger.success(f"✓ Tipo de Cambio: {result['records_saved']} registros guardados")
+            total_registros += result['records_saved']
+        except Exception as e:
+            logger.error(f"✗ Error cargando Tipo de Cambio: {e}")
+
+    logger.info("\n" + "="*60)
+    logger.success(f"✅ TOTAL: {total_registros} registros guardados")
+    logger.info("="*60)
+
+
 def show_stats():
     """Muestra estadísticas de la base de datos."""
     from backend.utils.database import get_db
-    from backend.models import Patentamiento, Produccion, BCRAIndicador, MercadoLibreListing
+    from backend.models import Patentamiento, Produccion, BCRAIndicador, MercadoLibreListing, IPC, BADLAR, TipoCambio
 
     logger.info("Obteniendo estadísticas de la base de datos...")
 
@@ -136,6 +201,9 @@ def show_stats():
             "Producción": db.query(Produccion).count(),
             "BCRA Indicadores": db.query(BCRAIndicador).count(),
             "MercadoLibre Listings": db.query(MercadoLibreListing).count(),
+            "IPC": db.query(IPC).count(),
+            "BADLAR": db.query(BADLAR).count(),
+            "Tipo de Cambio": db.query(TipoCambio).count(),
         }
 
     logger.info("📊 Estadísticas de la base de datos:")
@@ -175,6 +243,20 @@ def main():
     # stats
     subparsers.add_parser("stats", help="Mostrar estadísticas de la BD")
 
+    # cargar-macro
+    parser_macro = subparsers.add_parser("cargar-macro", help="Cargar datos macroeconómicos")
+    parser_macro.add_argument(
+        "--tipo",
+        choices=["all", "ipc", "badlar", "tipo_cambio", "tc"],
+        default="all",
+        help="Tipo de datos a cargar"
+    )
+    parser_macro.add_argument(
+        "--historico",
+        action="store_true",
+        help="Cargar datos históricos desde 2016"
+    )
+
     args = parser.parse_args()
 
     if args.command == "init-db":
@@ -189,6 +271,8 @@ def main():
         run_dashboard()
     elif args.command == "stats":
         show_stats()
+    elif args.command == "cargar-macro":
+        cargar_datos_macro(args.tipo, args.historico)
     else:
         parser.print_help()
 
