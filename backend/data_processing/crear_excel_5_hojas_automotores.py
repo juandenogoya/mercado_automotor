@@ -90,7 +90,7 @@ def extraer_datos_transaccionales(limit=MIN_ROWS):
             automotor_uso_descripcion,
             automotor_anio_modelo,
             'Inscripción' as tipo_operacion
-        FROM inscripciones_iniciales
+        FROM datos_gob_inscripciones
         WHERE tramite_fecha IS NOT NULL
         ORDER BY tramite_fecha DESC
         LIMIT {limit // 3}
@@ -118,7 +118,7 @@ def extraer_datos_transaccionales(limit=MIN_ROWS):
             automotor_uso_descripcion,
             automotor_anio_modelo,
             'Transferencia' as tipo_operacion
-        FROM transferencias
+        FROM datos_gob_transferencias
         WHERE tramite_fecha IS NOT NULL
         ORDER BY tramite_fecha DESC
         LIMIT {limit // 3}
@@ -146,7 +146,7 @@ def extraer_datos_transaccionales(limit=MIN_ROWS):
             automotor_uso_descripcion,
             automotor_anio_modelo,
             'Prenda' as tipo_operacion
-        FROM prendas
+        FROM datos_gob_prendas
         WHERE tramite_fecha IS NOT NULL
         ORDER BY tramite_fecha DESC
         LIMIT {limit // 3}
