@@ -350,6 +350,56 @@ class BCRAClient:
 
         return saved_count
 
+    def _get_variable_historica_chunked(
+        self,
+        id_variable: int,
+        fecha_desde: date,
+        fecha_hasta: date,
+        chunk_months: int = 6
+    ) -> List[Dict[str, Any]]:
+        """
+        Obtiene serie histórica dividiendo el rango en chunks para evitar errores 500.
+
+        Args:
+            id_variable: ID de la variable
+            fecha_desde: Fecha inicial
+            fecha_hasta: Fecha final
+            chunk_months: Tamaño del chunk en meses (default: 6)
+
+        Returns:
+            Lista completa de valores históricos
+        """
+        from dateutil.relativedelta import relativedelta
+
+        all_data = []
+        current_desde = fecha_desde
+        chunk_count = 0
+
+        while current_desde < fecha_hasta:
+            chunk_count += 1
+
+            # Calcular fecha hasta del chunk (máximo chunk_months meses)
+            current_hasta = min(
+                current_desde + relativedelta(months=chunk_months),
+                fecha_hasta
+            )
+
+            logger.info(f"[BCRA] Chunk {chunk_count}: {current_desde} a {current_hasta}")
+
+            # Obtener datos del chunk
+            chunk_data = self.get_variable_historica(id_variable, current_desde, current_hasta)
+
+            if chunk_data:
+                all_data.extend(chunk_data)
+                logger.info(f"[BCRA] ✓ Chunk {chunk_count}: {len(chunk_data)} registros")
+
+            # Avanzar al siguiente chunk
+            current_desde = current_hasta + relativedelta(days=1)
+
+        logger.success(f"[BCRA] ✓ Total obtenido: {len(all_data)} registros en {chunk_count} chunks")
+
+        return all_data
+
     def sync_badlar(
         self,
         fecha_desde: Optional[date] = None,
@@ -379,8 +429,8 @@ class BCRAClient:
         # ID de BADLAR en API BCRA
         badlar_id = self.VARIABLES['tasa_badlar']
 
-        # Obtener datos
-        data = self.get_variable_historica(badlar_id, fecha_desde, fecha_hasta)
+        # Obtener datos usando chunks (para evitar error 500)
+        data = self._get_variable_historica_chunked(badlar_id, fecha_desde, fecha_hasta)
 
         # Guardar en tabla específica
         saved_count = self._save_badlar_to_db(data)
@@ -479,8 +529,8 @@ class BCRAClient:
         # ID de Tipo de Cambio BNA en API BCRA
         tc_id = self.VARIABLES['tipo_cambio_bna']
 
-        # Obtener datos
-        data = self.get_variable_historica(tc_id, fecha_desde, fecha_hasta)
+        # Obtener datos usando chunks (para evitar error 500)
+        data = self._get_variable_historica_chunked(tc_id, fecha_desde, fecha_hasta)
 
         # Guardar en tabla específica
         saved_count = self._save_tipo_cambio_to_db(data)
