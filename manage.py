@@ -188,10 +188,22 @@ def cargar_datos_macro(tipo: str = "all", historico: bool = False):
     logger.info("="*60)
 
 
+def expandir_ipc_diario_cmd(export_excel: str = None):
+    """Expande IPC mensual a diario y opcionalmente exporta a Excel."""
+    import subprocess
+
+    cmd = ["python", "backend/scripts/expandir_ipc_diario.py"]
+
+    if export_excel:
+        cmd.extend(["--export-excel", export_excel])
+
+    subprocess.run(cmd)
+
+
 def show_stats():
     """Muestra estadísticas de la base de datos."""
     from backend.utils.database import get_db
-    from backend.models import Patentamiento, Produccion, BCRAIndicador, MercadoLibreListing, IPC, BADLAR, TipoCambio
+    from backend.models import Patentamiento, Produccion, BCRAIndicador, MercadoLibreListing, IPC, IPCDiario, BADLAR, TipoCambio
 
     logger.info("Obteniendo estadísticas de la base de datos...")
 
@@ -201,7 +213,8 @@ def show_stats():
             "Producción": db.query(Produccion).count(),
             "BCRA Indicadores": db.query(BCRAIndicador).count(),
             "MercadoLibre Listings": db.query(MercadoLibreListing).count(),
-            "IPC": db.query(IPC).count(),
+            "IPC (mensual)": db.query(IPC).count(),
+            "IPC Diario": db.query(IPCDiario).count(),
             "BADLAR": db.query(BADLAR).count(),
             "Tipo de Cambio": db.query(TipoCambio).count(),
         }
@@ -257,6 +270,14 @@ def main():
         help="Cargar datos históricos desde 2016"
     )
 
+    # expandir-ipc-diario
+    parser_ipc_diario = subparsers.add_parser("expandir-ipc-diario", help="Expandir IPC mensual a diario")
+    parser_ipc_diario.add_argument(
+        "--export-excel",
+        type=str,
+        help="Nombre del archivo Excel a exportar (ej: ipc_diario.xlsx)"
+    )
+
     args = parser.parse_args()
 
     if args.command == "init-db":
@@ -273,6 +294,8 @@ def main():
         show_stats()
     elif args.command == "cargar-macro":
         cargar_datos_macro(args.tipo, args.historico)
+    elif args.command == "expandir-ipc-diario":
+        expandir_ipc_diario_cmd(args.export_excel)
     else:
         parser.print_help()
 

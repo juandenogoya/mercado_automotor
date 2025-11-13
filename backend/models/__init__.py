@@ -8,6 +8,7 @@ from .bcra_indicadores import BCRAIndicador
 from .mercadolibre_listings import MercadoLibreListing
 from .indicadores_calculados import IndicadorCalculado
 from .ipc import IPC
+from .ipc_diario import IPCDiario
 from .badlar import BADLAR
 from .tipo_cambio import TipoCambio
 
@@ -19,6 +20,7 @@ __all__ = [
     "MercadoLibreListing",
     "IndicadorCalculado",
     "IPC",
+    "IPCDiario",
     "BADLAR",
     "TipoCambio",
 ]
