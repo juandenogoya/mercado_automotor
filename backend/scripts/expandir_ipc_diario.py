@@ -67,14 +67,25 @@ def expandir_ipc_mensual_a_diario() -> tuple[int, pd.DataFrame]:
 
     # 1. Leer datos mensuales
     logger.info("\n1. Leyendo IPC mensual desde base de datos...")
-    with get_db() as db:
-        ipc_mensual = db.query(IPC).order_by(IPC.fecha).all()
 
-    if not ipc_mensual:
+    # Leer y convertir a diccionarios dentro del contexto de DB
+    ipc_data = []
+    with get_db() as db:
+        ipc_query = db.query(IPC).order_by(IPC.fecha).all()
+
+        # Convertir a diccionarios para evitar problemas con sesiones cerradas
+        for registro in ipc_query:
+            ipc_data.append({
+                'fecha': registro.fecha,
+                'variacion_mensual': registro.variacion_mensual,
+                'nivel_general': registro.nivel_general
+            })
+
+    if not ipc_data:
         logger.error("No se encontraron registros de IPC mensual en la base de datos")
         return 0, pd.DataFrame()
 
-    logger.success(f"✓ Obtenidos {len(ipc_mensual)} registros mensuales")
+    logger.success(f"✓ Obtenidos {len(ipc_data)} registros mensuales")
 
     # 2. Expandir a diario
     logger.info("\n2. Expandiendo a frecuencia diaria...")
@@ -82,9 +93,12 @@ def expandir_ipc_mensual_a_diario() -> tuple[int, pd.DataFrame]:
     registros_diarios = []
     datos_para_excel = []
 
-    for registro_mensual in ipc_mensual:
-        # Período medido (el mes que midió)
-        periodo_medido = registro_mensual.fecha
+    for registro in ipc_data:
+        # Período medido (el mes que midió) - asegurar que sea objeto date
+        periodo_medido = registro['fecha']
+        if not isinstance(periodo_medido, date):
+            # Si es datetime, convertir a date
+            periodo_medido = periodo_medido.date()
 
         # Período de vigencia (mes siguiente)
         periodo_vigencia = periodo_medido + relativedelta(months=1)
@@ -92,8 +106,11 @@ def expandir_ipc_mensual_a_diario() -> tuple[int, pd.DataFrame]:
         # Obtener número de días del mes de vigencia
         dias_en_mes = obtener_dias_del_mes(periodo_vigencia)
 
+        # Obtener variación mensual (puede ser None)
+        var_mensual = float(registro['variacion_mensual'] or 0)
+
         logger.info(
-            f"  IPC {periodo_medido.strftime('%Y-%m')} = {registro_mensual.variacion_mensual}% "
+            f"  IPC {periodo_medido.strftime('%Y-%m')} = {var_mensual}% "
             f"→ Aplicar a {periodo_vigencia.strftime('%Y-%m')} ({dias_en_mes} días)"
         )
 
@@ -110,7 +127,7 @@ def expandir_ipc_mensual_a_diario() -> tuple[int, pd.DataFrame]:
 
             registro_diario = {
                 'fecha': fecha_dia,
-                'ipc_mensual': float(registro_mensual.variacion_mensual or 0),
+                'ipc_mensual': var_mensual,
                 'periodo_medido': periodo_medido,
                 'periodo_vigencia': periodo_vigencia,
                 'dias_desde_publicacion': dias_desde_pub,
@@ -124,7 +141,7 @@ def expandir_ipc_mensual_a_diario() -> tuple[int, pd.DataFrame]:
             # Para Excel (más legible)
             datos_para_excel.append({
                 'Fecha': fecha_dia.strftime('%Y-%m-%d'),
-                'IPC Mensual (%)': float(registro_mensual.variacion_mensual or 0),
+                'IPC Mensual (%)': var_mensual,
                 'Período Medido': periodo_medido.strftime('%Y-%m'),
                 'Período Vigencia': periodo_vigencia.strftime('%Y-%m'),
                 'Año': fecha_dia.year,
@@ -172,7 +189,7 @@ def expandir_ipc_mensual_a_diario() -> tuple[int, pd.DataFrame]:
     logger.info("\n" + "="*80)
     logger.success(f"✅ EXPANSIÓN COMPLETADA")
     logger.info("="*80)
-    logger.info(f"  Registros mensuales: {len(ipc_mensual)}")
+    logger.info(f"  Registros mensuales: {len(ipc_data)}")
     logger.info(f"  Registros diarios generados: {len(registros_diarios)}")
     logger.info(f"  Registros guardados en BD: {saved_count}")
     logger.info(f"  Período: {registros_diarios[0]['fecha']} a {registros_diarios[-1]['fecha']}")
