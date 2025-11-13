@@ -220,6 +220,7 @@ def calcular_indicadores_cmd(export_excel: str = None, fecha_desde: str = None, 
 
 def show_stats():
     """Muestra estadísticas de la base de datos."""
+    from sqlalchemy import func
     from backend.utils.database import get_db
     from backend.models import Patentamiento, Produccion, BCRAIndicador, MercadoLibreListing, IPC, IPCDiario, BADLAR, TipoCambio, IndicadorCalculado
 
@@ -238,20 +239,20 @@ def show_stats():
             "Indicadores Calculados": db.query(IndicadorCalculado).count(),
         }
 
-    logger.info("📊 Estadísticas de la base de datos:")
-    for table, count in stats.items():
-        logger.info(f"  - {table}: {count:,} registros")
+        logger.info("📊 Estadísticas de la base de datos:")
+        for table, count in stats.items():
+            logger.info(f"  - {table}: {count:,} registros")
 
-    # Mostrar desglose de indicadores calculados
-    if stats["Indicadores Calculados"] > 0:
-        logger.info("\n📈 Indicadores Calculados (desglose):")
-        indicadores_desglose = db.query(
-            IndicadorCalculado.indicador,
-            db.func.count(IndicadorCalculado.id).label('count')
-        ).group_by(IndicadorCalculado.indicador).all()
+        # Mostrar desglose de indicadores calculados
+        if stats["Indicadores Calculados"] > 0:
+            logger.info("\n📈 Indicadores Calculados (desglose):")
+            indicadores_desglose = db.query(
+                IndicadorCalculado.indicador,
+                func.count(IndicadorCalculado.id).label('count')
+            ).group_by(IndicadorCalculado.indicador).all()
 
-        for indicador, count in indicadores_desglose:
-            logger.info(f"  - {indicador}: {count:,} registros")
+            for indicador, count in indicadores_desglose:
+                logger.info(f"  - {indicador}: {count:,} registros")
 
 
 def main():
