@@ -200,10 +200,28 @@ def expandir_ipc_diario_cmd(export_excel: str = None):
     subprocess.run(cmd)
 
 
+def calcular_indicadores_cmd(export_excel: str = None, fecha_desde: str = None, limpiar: bool = False):
+    """Calcula indicadores macroeconómicos derivados."""
+    import subprocess
+
+    cmd = ["python", "backend/scripts/calcular_indicadores_macro.py"]
+
+    if export_excel:
+        cmd.extend(["--export-excel", export_excel])
+
+    if fecha_desde:
+        cmd.extend(["--fecha-desde", fecha_desde])
+
+    if limpiar:
+        cmd.append("--limpiar")
+
+    subprocess.run(cmd)
+
+
 def show_stats():
     """Muestra estadísticas de la base de datos."""
     from backend.utils.database import get_db
-    from backend.models import Patentamiento, Produccion, BCRAIndicador, MercadoLibreListing, IPC, IPCDiario, BADLAR, TipoCambio
+    from backend.models import Patentamiento, Produccion, BCRAIndicador, MercadoLibreListing, IPC, IPCDiario, BADLAR, TipoCambio, IndicadorCalculado
 
     logger.info("Obteniendo estadísticas de la base de datos...")
 
@@ -217,11 +235,23 @@ def show_stats():
             "IPC Diario": db.query(IPCDiario).count(),
             "BADLAR": db.query(BADLAR).count(),
             "Tipo de Cambio": db.query(TipoCambio).count(),
+            "Indicadores Calculados": db.query(IndicadorCalculado).count(),
         }
 
     logger.info("📊 Estadísticas de la base de datos:")
     for table, count in stats.items():
         logger.info(f"  - {table}: {count:,} registros")
+
+    # Mostrar desglose de indicadores calculados
+    if stats["Indicadores Calculados"] > 0:
+        logger.info("\n📈 Indicadores Calculados (desglose):")
+        indicadores_desglose = db.query(
+            IndicadorCalculado.indicador,
+            db.func.count(IndicadorCalculado.id).label('count')
+        ).group_by(IndicadorCalculado.indicador).all()
+
+        for indicador, count in indicadores_desglose:
+            logger.info(f"  - {indicador}: {count:,} registros")
 
 
 def main():
@@ -278,6 +308,24 @@ def main():
         help="Nombre del archivo Excel a exportar (ej: ipc_diario.xlsx)"
     )
 
+    # calcular-indicadores
+    parser_indicadores = subparsers.add_parser("calcular-indicadores", help="Calcular indicadores macroeconómicos derivados")
+    parser_indicadores.add_argument(
+        "--export-excel",
+        type=str,
+        help="Nombre del archivo Excel a exportar (ej: indicadores_macro.xlsx)"
+    )
+    parser_indicadores.add_argument(
+        "--fecha-desde",
+        type=str,
+        help="Fecha desde la cual calcular (YYYY-MM-DD)"
+    )
+    parser_indicadores.add_argument(
+        "--limpiar",
+        action="store_true",
+        help="Limpiar indicadores anteriores antes de calcular"
+    )
+
     args = parser.parse_args()
 
     if args.command == "init-db":
@@ -296,6 +344,8 @@ def main():
         cargar_datos_macro(args.tipo, args.historico)
     elif args.command == "expandir-ipc-diario":
         expandir_ipc_diario_cmd(args.export_excel)
+    elif args.command == "calcular-indicadores":
+        calcular_indicadores_cmd(args.export_excel, args.fecha_desde, args.limpiar)
     else:
         parser.print_help()
 
