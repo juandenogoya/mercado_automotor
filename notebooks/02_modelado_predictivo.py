@@ -278,16 +278,16 @@ def crear_modelos():
             }
         },
         'Random_Forest': {
-            'modelo': RandomForestRegressor(random_state=42, n_jobs=-1),
+            'modelo': RandomForestRegressor(random_state=42, n_jobs=2, n_estimators=50),
             'params': {
-                'n_estimators': [100, 200],
-                'max_depth': [10, 20, None],
-                'min_samples_split': [2, 5],
-                'min_samples_leaf': [1, 2]
+                'n_estimators': [50, 100],
+                'max_depth': [10, 20],
+                'min_samples_split': [5, 10],
+                'min_samples_leaf': [2, 4]
             }
         },
         'XGBoost': {
-            'modelo': xgb.XGBRegressor(random_state=42, n_jobs=-1),
+            'modelo': xgb.XGBRegressor(random_state=42, n_jobs=2, n_estimators=50),
             'params': {
                 'n_estimators': [100, 200],
                 'max_depth': [3, 5, 7],
@@ -296,20 +296,19 @@ def crear_modelos():
             }
         },
         'LightGBM': {
-            'modelo': lgb.LGBMRegressor(random_state=42, n_jobs=-1, verbose=-1),
+            'modelo': lgb.LGBMRegressor(random_state=42, n_jobs=2, verbose=-1, n_estimators=50),
             'params': {
-                'n_estimators': [100, 200],
-                'max_depth': [3, 5, 7],
-                'learning_rate': [0.01, 0.1, 0.3],
-                'num_leaves': [31, 50]
+                'n_estimators': [50, 100],
+                'max_depth': [5, 10],
+                'learning_rate': [0.1],
+                'num_leaves': [31]
             }
         },
         'KNN': {
-            'modelo': KNeighborsRegressor(n_jobs=-1),
+            'modelo': KNeighborsRegressor(n_jobs=2),
             'params': {
-                'n_neighbors': [3, 5, 7, 10],
-                'weights': ['uniform', 'distance'],
-                'metric': ['euclidean', 'manhattan']
+                'n_neighbors': [5, 10],
+                'weights': ['uniform', 'distance']
             }
         }
     }
@@ -572,9 +571,10 @@ def main():
     # 5. Crear modelos
     modelos = crear_modelos()
 
-    # 6. Entrenar y evaluar
+    # 6. Entrenar y evaluar (sin GridSearch por recursos)
+    # NOTA: Cambiar a usar_grid_search=True si tienes RAM suficiente (32GB+)
     resultados, modelos_entrenados = entrenar_y_evaluar(
-        X_train, X_test, y_train, y_test, modelos, usar_grid_search=True
+        X_train, X_test, y_train, y_test, modelos, usar_grid_search=False
     )
 
     # 7. Comparar modelos
