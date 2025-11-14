@@ -277,15 +277,17 @@ def crear_modelos():
                 'alpha': [0.1, 1.0, 10.0, 100.0]
             }
         },
-        'Random_Forest': {
-            'modelo': RandomForestRegressor(random_state=42, n_jobs=2, n_estimators=50),
-            'params': {
-                'n_estimators': [50, 100],
-                'max_depth': [10, 20],
-                'min_samples_split': [5, 10],
-                'min_samples_leaf': [2, 4]
-            }
-        },
+        # Random_Forest comentado: Muy lento con 5M registros (15 min)
+        # Descomentar solo si tienes tiempo o dataset más pequeño
+        # 'Random_Forest': {
+        #     'modelo': RandomForestRegressor(random_state=42, n_jobs=2, n_estimators=50),
+        #     'params': {
+        #         'n_estimators': [50, 100],
+        #         'max_depth': [10, 20],
+        #         'min_samples_split': [5, 10],
+        #         'min_samples_leaf': [2, 4]
+        #     }
+        # },
         'XGBoost': {
             'modelo': xgb.XGBRegressor(random_state=42, n_jobs=2, n_estimators=50),
             'params': {
@@ -304,13 +306,15 @@ def crear_modelos():
                 'num_leaves': [31]
             }
         },
-        'KNN': {
-            'modelo': KNeighborsRegressor(n_jobs=2),
-            'params': {
-                'n_neighbors': [5, 10],
-                'weights': ['uniform', 'distance']
-            }
-        }
+        # KNN comentado: Extremadamente lento con 5M registros (30+ min)
+        # No escalable para datasets grandes
+        # 'KNN': {
+        #     'modelo': KNeighborsRegressor(n_jobs=2),
+        #     'params': {
+        #         'n_neighbors': [5, 10],
+        #         'weights': ['uniform', 'distance']
+        #     }
+        # }
     }
 
     log(f"\n✓ {len(modelos)} modelos definidos:")
