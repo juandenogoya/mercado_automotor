@@ -169,45 +169,28 @@ def cargar_variables_macro():
     df_tc = pd.read_sql(query_tc, engine)
     log(f"  ✓ Tipo Cambio: {len(df_tc)} meses")
 
-    # Indicadores calculados desde Excel
-    log("\n📊 Cargando Indicadores Calculados desde Excel...")
-    try:
-        # Leer hojas del Excel
-        df_tasa_real = pd.read_excel('indicadores_macro_corregido.xlsx', sheet_name='Tasa Real')
-        df_tcr = pd.read_excel('indicadores_macro_corregido.xlsx', sheet_name='TCR')
-        df_accesibilidad = pd.read_excel('indicadores_macro_corregido.xlsx', sheet_name='Accesibilidad')
-        df_volatilidad = pd.read_excel('indicadores_macro_corregido.xlsx', sheet_name='Volatilidad')
+    # Indicadores calculados (pivotear de formato largo a ancho)
+    log("\n📊 Cargando Indicadores Calculados...")
+    query_ind = """
+    SELECT
+        DATE_TRUNC('month', fecha) as fecha_mes,
+        indicador,
+        AVG(valor) as valor_promedio
+    FROM indicadores_calculados
+    WHERE fecha >= '2020-01-01'
+      AND indicador IN ('tasa_real', 'tcr', 'accesibilidad', 'volatilidad')
+    GROUP BY DATE_TRUNC('month', fecha), indicador
+    ORDER BY fecha_mes, indicador
+    """
+    df_ind_raw = pd.read_sql(query_ind, engine)
 
-        # Procesar cada indicador
-        df_tasa_real['Fecha'] = pd.to_datetime(df_tasa_real['Fecha'])
-        df_tasa_real['fecha_mes'] = df_tasa_real['Fecha'].dt.to_period('M').dt.to_timestamp()
-        tasa_real_mensual = df_tasa_real.groupby('fecha_mes')['Tasa Real (%)'].mean().reset_index()
-        tasa_real_mensual.columns = ['fecha_mes', 'tasa_real_promedio']
-
-        df_tcr['Fecha'] = pd.to_datetime(df_tcr['Fecha'])
-        df_tcr['fecha_mes'] = df_tcr['Fecha'].dt.to_period('M').dt.to_timestamp()
-        tcr_mensual = df_tcr.groupby('fecha_mes')['TCR'].mean().reset_index()
-        tcr_mensual.columns = ['fecha_mes', 'tcr_promedio']
-
-        df_accesibilidad['Fecha'] = pd.to_datetime(df_accesibilidad['Fecha'])
-        df_accesibilidad['fecha_mes'] = df_accesibilidad['Fecha'].dt.to_period('M').dt.to_timestamp()
-        acc_mensual = df_accesibilidad.groupby('fecha_mes')['Índice Accesibilidad'].mean().reset_index()
-        acc_mensual.columns = ['fecha_mes', 'accesibilidad_promedio']
-
-        df_volatilidad['Fecha'] = pd.to_datetime(df_volatilidad['Fecha'])
-        df_volatilidad['fecha_mes'] = df_volatilidad['Fecha'].dt.to_period('M').dt.to_timestamp()
-        vol_mensual = df_volatilidad.groupby('fecha_mes')['Volatilidad (%)'].mean().reset_index()
-        vol_mensual.columns = ['fecha_mes', 'volatilidad_promedio']
-
-        # Unir todos los indicadores
-        df_ind = tasa_real_mensual.merge(tcr_mensual, on='fecha_mes', how='outer')
-        df_ind = df_ind.merge(acc_mensual, on='fecha_mes', how='outer')
-        df_ind = df_ind.merge(vol_mensual, on='fecha_mes', how='outer')
-
-        log(f"  ✓ Indicadores desde Excel: {len(df_ind)} meses, 4 indicadores (Tasa Real, TCR, Accesibilidad, Volatilidad)")
-
-    except FileNotFoundError:
-        log("  ⚠️ Archivo 'indicadores_macro_corregido.xlsx' no encontrado")
+    # Pivotear de largo a ancho
+    if not df_ind_raw.empty:
+        df_ind = df_ind_raw.pivot(index='fecha_mes', columns='indicador', values='valor_promedio').reset_index()
+        df_ind.columns = ['fecha_mes'] + [f'{col}_promedio' for col in df_ind.columns[1:]]
+        log(f"  ✓ Indicadores: {len(df_ind)} meses, {len(df_ind.columns)-1} indicadores")
+    else:
+        log("  ⚠️ No hay indicadores calculados, creando DataFrame vacío")
         df_ind = pd.DataFrame({'fecha_mes': []})
 
     # Merge de todas las variables macro
