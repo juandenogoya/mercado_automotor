@@ -2168,56 +2168,121 @@ with tab7:
 
                                     st.plotly_chart(fig_hist, use_container_width=True)
 
-                                    # Nota sobre predicción
-                                    st.info(f"""
-                                    **🔮 Predicción para los próximos {horizonte_pred} días ({horizonte_pred//30} {'mes' if horizonte_pred==30 else 'meses'})**
+                                    # ========== PROYECCIÓN INTELIGENTE ==========
+                                    st.markdown("#### 📊 Proyección Estimada")
 
-                                    Basándose en el modelo LightGBM entrenado con:
-                                    - Datos históricos de los últimos {meses_data} meses
-                                    - Promedio mensual: {promedio_mensual_hist:.0f} transacciones
-                                    - Marca: **{marca_pred}**
-                                    - Modelo: **{modelo_pred}**
-                                    - Provincia: **{provincia_pred}**
+                                    # Calcular base de proyección usando últimos 3 meses (más reciente)
+                                    ultimos_3_meses = df_hist_pred.head(3)['cantidad_transacciones'].mean()
+                                    ultimo_mes = df_hist_pred.iloc[0]['cantidad_transacciones']
 
-                                    **Nota:** Para obtener predicciones precisas, necesitamos preparar las features exactas
-                                    (lag features, variables macro, etc.) que el modelo espera. Actualmente se muestra el análisis
-                                    histórico. La predicción completa requiere cargar las variables macro actualizadas desde la base de datos.
-                                    """)
+                                    # Calcular tendencia lineal (últimos 6 meses)
+                                    if len(df_hist_pred) >= 6:
+                                        df_tendencia = df_hist_pred.head(6).copy()
+                                        df_tendencia['indice'] = range(len(df_tendencia))
+                                        # Regresión lineal simple
+                                        from numpy import polyfit
+                                        pendiente, intercepto = polyfit(df_tendencia['indice'],
+                                                                        df_tendencia['cantidad_transacciones'], 1)
+                                        tendencia_mensual = pendiente
+                                    else:
+                                        tendencia_mensual = 0
 
-                                    # Proyección simple basada en promedio (placeholder)
-                                    st.markdown("#### 📊 Proyección Estimada (Basada en Promedio Histórico)")
+                                    # Detectar volatilidad alta
+                                    desv_std = df_hist_pred['cantidad_transacciones'].std()
+                                    coef_variacion = (desv_std / promedio_mensual_hist * 100) if promedio_mensual_hist > 0 else 0
 
+                                    # Decidir método de proyección
+                                    if coef_variacion > 50:  # Alta volatilidad
+                                        # Usar último mes como base conservadora
+                                        base_proyeccion = ultimo_mes
+                                        metodo = "Último mes (alta volatilidad detectada)"
+                                        st.warning(f"⚠️ **Alta volatilidad detectada** (CV: {coef_variacion:.1f}%). Usando último mes como base conservadora.")
+                                    elif abs(tendencia_mensual) > promedio_mensual_hist * 0.1:  # Tendencia fuerte
+                                        # Usar últimos 3 meses + tendencia
+                                        base_proyeccion = ultimos_3_meses
+                                        metodo = "Promedio últimos 3 meses con ajuste de tendencia"
+                                        if tendencia_mensual < 0:
+                                            st.info(f"📉 **Tendencia bajista** detectada ({tendencia_mensual:.1f} unidades/mes)")
+                                        else:
+                                            st.info(f"📈 **Tendencia alcista** detectada (+{tendencia_mensual:.1f} unidades/mes)")
+                                    else:
+                                        # Usar promedio de últimos 3 meses
+                                        base_proyeccion = ultimos_3_meses
+                                        metodo = "Promedio de últimos 3 meses"
+
+                                    # Calcular proyecciones
                                     meses_proyeccion = horizonte_pred // 30
-                                    proyeccion_simple = promedio_mensual_hist * meses_proyeccion
+                                    proyecciones = []
 
-                                    col_p1, col_p2, col_p3 = st.columns(3)
+                                    for mes in range(1, meses_proyeccion + 1):
+                                        proyeccion_mes = base_proyeccion + (tendencia_mensual * mes)
+                                        proyeccion_mes = max(0, proyeccion_mes)  # No permitir negativos
+                                        proyecciones.append(proyeccion_mes)
+
+                                    proyeccion_total = sum(proyecciones)
+
+                                    # Mostrar métricas
+                                    col_p1, col_p2, col_p3, col_p4 = st.columns(4)
 
                                     with col_p1:
                                         st.metric(
                                             f"Proyección {meses_proyeccion} {'mes' if meses_proyeccion==1 else 'meses'}",
-                                            format_number(proyeccion_simple),
-                                            f"Basado en promedio de {promedio_mensual_hist:.0f}/mes"
+                                            format_number(proyeccion_total),
+                                            f"{metodo}"
                                         )
 
                                     with col_p2:
-                                        # Calcular tendencia
-                                        if len(df_hist_pred) >= 2:
+                                        st.metric(
+                                            "Base Mensual",
+                                            format_number(base_proyeccion),
+                                            f"vs último mes: {ultimo_mes:.0f}"
+                                        )
+
+                                    with col_p3:
+                                        # Calcular tendencia reciente (último vs hace 3 meses)
+                                        if len(df_hist_pred) >= 4:
                                             tendencia = ((df_hist_pred.iloc[0]['cantidad_transacciones'] -
                                                         df_hist_pred.iloc[-1]['cantidad_transacciones']) /
                                                        df_hist_pred.iloc[-1]['cantidad_transacciones'] * 100)
                                             st.metric(
-                                                "Tendencia Reciente",
+                                                "Tendencia 12 meses",
                                                 f"{tendencia:+.1f}%",
-                                                "Últimos 12 meses"
+                                                "Último vs más antiguo"
                                             )
 
-                                    with col_p3:
-                                        desv_std = df_hist_pred['cantidad_transacciones'].std()
+                                    with col_p4:
                                         st.metric(
                                             "Volatilidad",
                                             f"±{desv_std:.0f}",
-                                            "Desviación estándar"
+                                            f"CV: {coef_variacion:.1f}%"
                                         )
+
+                                    # Mostrar desglose mensual de la proyección
+                                    if meses_proyeccion > 1:
+                                        with st.expander("📅 Ver Proyección Mensual Detallada"):
+                                            df_proyeccion = pd.DataFrame({
+                                                'Mes': [f"Mes {i+1}" for i in range(meses_proyeccion)],
+                                                'Proyección': [f"{p:.0f}" for p in proyecciones],
+                                                'Acumulado': [f"{sum(proyecciones[:i+1]):.0f}" for i in range(meses_proyeccion)]
+                                            })
+                                            st.dataframe(df_proyeccion, use_container_width=True, hide_index=True)
+
+                                    # Explicación del método
+                                    st.markdown("---")
+                                    st.markdown("##### 📖 Metodología de Proyección")
+                                    st.markdown(f"""
+                                    **Método aplicado:** {metodo}
+
+                                    - **Base de cálculo:** {"Último mes" if coef_variacion > 50 else "Promedio últimos 3 meses"} = {base_proyeccion:.0f} unidades/mes
+                                    - **Tendencia mensual:** {tendencia_mensual:+.2f} unidades/mes
+                                    - **Coeficiente de variación:** {coef_variacion:.1f}% {"(⚠️ Alta volatilidad)" if coef_variacion > 50 else "(✓ Volatilidad moderada)"}
+
+                                    **Interpretación:**
+                                    {"- ⚠️ Debido a la alta volatilidad en los datos históricos, se usa el **último mes** como base conservadora" if coef_variacion > 50 else ""}
+                                    {"- 📉 La tendencia bajista indica una **disminución sostenida** en la demanda" if tendencia_mensual < -promedio_mensual_hist * 0.1 else ""}
+                                    {"- 📈 La tendencia alcista indica un **crecimiento sostenido** en la demanda" if tendencia_mensual > promedio_mensual_hist * 0.1 else ""}
+                                    {"- ✓ Sin tendencia fuerte detectada, se usa promedio reciente como mejor estimador" if abs(tendencia_mensual) <= promedio_mensual_hist * 0.1 and coef_variacion <= 50 else ""}
+                                    """)
 
                                     # Tabla de datos históricos
                                     with st.expander("📋 Ver Datos Históricos Detallados"):
