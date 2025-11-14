@@ -15,6 +15,7 @@ from pathlib import Path
 from datetime import datetime
 import pandas as pd
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine.url import URL
 from contextlib import contextmanager
 
 
@@ -25,7 +26,15 @@ DB_NAME = os.getenv('DB_NAME', 'mercado_automotor')
 DB_USER = os.getenv('DB_USER', 'postgres')
 DB_PASSWORD = os.getenv('DB_PASSWORD', 'postgres')
 
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# Usar URL de SQLAlchemy para manejar correctamente caracteres especiales
+DATABASE_URL = URL.create(
+    drivername="postgresql",
+    username=DB_USER,
+    password=DB_PASSWORD,
+    host=DB_HOST,
+    port=DB_PORT,
+    database=DB_NAME
+)
 
 
 def log(message):
@@ -376,7 +385,7 @@ def generar_excel_diccionario(tablas_info, output_file='DICCIONARIO_COMPLETO_DAT
                 {'Métrica': 'Total de Registros', 'Valor': f"{sum(t['registros'] for t in tablas_info):,}"},
                 {'Métrica': 'Fecha de Generación', 'Valor': datetime.now().strftime('%Y-%m-%d %H:%M:%S')},
                 {'Métrica': 'Proyecto', 'Valor': 'Mercado Automotor - Inteligencia Comercial'},
-                {'Métrica': 'Base de Datos', 'Valor': f'PostgreSQL ({DATABASE_URL.split("@")[1]})'},
+                {'Métrica': 'Base de Datos', 'Valor': f'PostgreSQL ({DB_HOST}:{DB_PORT}/{DB_NAME})'},
             ]
 
             df_resumen = pd.DataFrame(resumen_data)
