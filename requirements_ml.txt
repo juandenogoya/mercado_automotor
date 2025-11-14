@@ -1,0 +1,32 @@
+# Machine Learning Pipeline - Mercado Automotor
+# Dependencias para análisis predictivo
+
+# Core ML
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+lightgbm>=4.0.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Data Storage
+pyarrow>=12.0.0  # Para formato Parquet
+
+# Utilities
+python-dotenv>=1.0.0
+
+# Opcional: Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.14.0
+
+# Opcional: Advanced Time Series
+# prophet>=1.1.0
+# statsmodels>=0.14.0
+
+# Opcional: Deep Learning
+# tensorflow>=2.13.0
+# torch>=2.0.0
