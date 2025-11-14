@@ -200,7 +200,7 @@ def cargar_variables_macro():
     df_macro = df_macro.merge(df_ind, on='fecha_mes', how='outer')
 
     # Ordenar y forward fill para missing values
-    df_macro = df_macro.sort_values('fecha_mes').fillna(method='ffill')
+    df_macro = df_macro.sort_values('fecha_mes').ffill()
 
     log(f"  ✓ Variables macro unificadas: {len(df_macro)} meses, {len(df_macro.columns)} variables")
 
@@ -249,11 +249,26 @@ def agregar_y_preparar_datos(df_transaccional, df_macro):
     df_ml['es_primer_semestre'] = (df_ml['mes'] <= 6).astype(int)
     df_ml['es_fin_anio'] = (df_ml['mes'] >= 11).astype(int)
 
+    # 1b. Calcular variación mensual de IPC si no existe
+    if 'ipc_var_mensual' not in df_ml.columns and 'ipc_nivel' in df_ml.columns:
+        log("  - Calculando variación mensual de IPC...")
+        df_ml = df_ml.sort_values('fecha_mes')
+        df_ml['ipc_var_mensual'] = df_ml['ipc_nivel'].pct_change() * 100
+
     # 2. Lag features (valores del mes anterior)
     log("  - Creando lag features...")
     df_ml = df_ml.sort_values(['marca', 'modelo', 'provincia', 'tipo_transaccion', 'fecha_mes'])
 
-    for col in ['cantidad_transacciones', 'ipc_var_mensual', 'badlar_promedio', 'tc_promedio']:
+    # Usar solo columnas que existen
+    lag_cols = ['cantidad_transacciones']
+    if 'badlar_promedio' in df_ml.columns:
+        lag_cols.append('badlar_promedio')
+    if 'tc_promedio' in df_ml.columns:
+        lag_cols.append('tc_promedio')
+    if 'ipc_nivel' in df_ml.columns:
+        lag_cols.append('ipc_nivel')
+
+    for col in lag_cols:
         df_ml[f'{col}_lag1'] = df_ml.groupby(['marca', 'modelo', 'provincia', 'tipo_transaccion'])[col].shift(1)
         df_ml[f'{col}_lag3'] = df_ml.groupby(['marca', 'modelo', 'provincia', 'tipo_transaccion'])[col].shift(3)
 
