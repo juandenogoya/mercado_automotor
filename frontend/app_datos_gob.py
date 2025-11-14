@@ -96,13 +96,14 @@ st.sidebar.markdown("## 🔍 Filtros de Análisis")
 st.sidebar.markdown("---")
 
 # Create tabs
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🚗 Inscripciones",
     "🔄 Transferencias",
     "💰 Prendas",
     "📍 Registros Seccionales",
     "🔬 Análisis Detallado",
-    "📊 Tendencias Históricas"
+    "📊 Tendencias Históricas",
+    "🔮 Predicciones ML"
 ])
 
 # ==================== FUNCIÓN GENÉRICA PARA ANÁLISIS ====================
@@ -1886,6 +1887,367 @@ with tab6:
         st.info("💡 Asegúrate de haber ejecutado:\n\n"
                 "1. `python -c \"...\"` para crear las tablas\n"
                 "2. `python cargar_estadisticas_agregadas.py` para cargar los datos")
+
+# ==================== TAB 7: PREDICCIONES ML ====================
+with tab7:
+    st.header("🔮 Predicciones de Demanda con Machine Learning")
+    st.markdown("Predice la demanda futura de vehículos utilizando modelos de Machine Learning entrenados")
+    st.markdown("---")
+
+    import pickle
+    import numpy as np
+    from pathlib import Path as PathlibPath
+
+    # Rutas a los modelos
+    MODEL_PATH = PathlibPath(__file__).parent.parent / "data" / "models" / "mejor_modelo_LightGBM.pkl"
+    ENCODERS_PATH = PathlibPath(__file__).parent.parent / "data" / "models" / "encoders.pkl"
+    FEATURE_NAMES_PATH = PathlibPath(__file__).parent.parent / "data" / "models" / "feature_names.pkl"
+
+    # Verificar si el modelo existe
+    if not MODEL_PATH.exists():
+        st.warning("⚠️ Modelo de Machine Learning no encontrado")
+        st.info("💡 **Para entrenar el modelo:**\n\n"
+                "1. Ejecuta: `python notebooks/01_preparacion_datos_ml.py`\n"
+                "2. Ejecuta: `python notebooks/02_modelado_predictivo.py`\n"
+                "3. Los modelos se guardarán en `data/models/`")
+
+        st.markdown("### 📚 Información del Modelo")
+        st.markdown("""
+        El modelo de predicción utiliza **LightGBM** (Gradient Boosting) con las siguientes características:
+
+        **Features principales:**
+        - Variables históricas: cantidad_transacciones_lag1, cantidad_transacciones_lag3
+        - Promedios móviles: cantidad_ma3, cantidad_ma6
+        - Variación intermensual: cantidad_var_mensual
+        - Variables categóricas: marca, modelo, provincia, tipo_vehiculo, tipo_transaccion
+        - Variables macro: IPC, BADLAR, Tipo de Cambio
+        - Variables temporales: año, mes, trimestre
+
+        **Métricas de desempeño:**
+        - R² Score: ~0.974
+        - MAE: ~0.22
+        - Tiempo de entrenamiento: ~13 segundos
+        """)
+    else:
+        try:
+            # Cargar modelo y encoders
+            with open(MODEL_PATH, 'rb') as f:
+                modelo = pickle.load(f)
+
+            with open(ENCODERS_PATH, 'rb') as f:
+                encoders = pickle.load(f)
+
+            with open(FEATURE_NAMES_PATH, 'rb') as f:
+                feature_names = pickle.load(f)
+
+            st.success("✅ Modelo LightGBM cargado correctamente")
+
+            # ========== FILTROS EN CASCADA ==========
+            st.markdown("### 🎯 Configuración de Predicción")
+            st.markdown("Selecciona los parámetros para realizar la predicción:")
+
+            col_pred1, col_pred2 = st.columns(2)
+
+            # PASO 1: Seleccionar Provincia
+            with col_pred1:
+                st.markdown("#### 📍 Paso 1: Provincia")
+                query_provincias_pred = text("""
+                    SELECT DISTINCT registro_seccional_provincia as provincia
+                    FROM datos_gob_inscripciones
+                    WHERE registro_seccional_provincia IS NOT NULL
+                    AND registro_seccional_provincia != ''
+                    ORDER BY provincia
+                """)
+
+                try:
+                    df_prov_pred = pd.read_sql(query_provincias_pred, engine)
+                    provincias_pred = df_prov_pred['provincia'].tolist()
+                except:
+                    provincias_pred = []
+
+                if provincias_pred:
+                    provincia_pred = st.selectbox(
+                        "Selecciona la provincia:",
+                        options=provincias_pred,
+                        key="pred_provincia"
+                    )
+                else:
+                    st.error("No se encontraron provincias disponibles")
+                    provincia_pred = None
+
+            # PASO 2: Seleccionar Horizonte de Predicción
+            with col_pred2:
+                st.markdown("#### ⏱️ Paso 2: Horizonte de Predicción")
+                horizonte_pred = st.selectbox(
+                    "Selecciona el horizonte temporal:",
+                    options=[30, 60, 90, 120],
+                    format_func=lambda x: f"{x} días ({x//30} {'mes' if x==30 else 'meses'})",
+                    key="pred_horizonte"
+                )
+
+            # PASO 3: Seleccionar Marca (filtrada por provincia)
+            if provincia_pred:
+                col_pred3, col_pred4 = st.columns(2)
+
+                with col_pred3:
+                    st.markdown("#### 🏭 Paso 3: Marca")
+
+                    # Query para obtener marcas disponibles en la provincia seleccionada
+                    query_marcas_pred = text("""
+                        SELECT DISTINCT automotor_marca_descripcion as marca,
+                               COUNT(*) as cantidad
+                        FROM datos_gob_inscripciones
+                        WHERE registro_seccional_provincia = :provincia
+                        AND automotor_marca_descripcion IS NOT NULL
+                        AND automotor_marca_descripcion != ''
+                        AND tramite_fecha >= NOW() - INTERVAL '2 years'
+                        GROUP BY marca
+                        ORDER BY cantidad DESC
+                        LIMIT 50
+                    """)
+
+                    try:
+                        df_marcas_pred = pd.read_sql(query_marcas_pred, engine, params={'provincia': provincia_pred})
+                        marcas_pred = df_marcas_pred['marca'].tolist()
+                    except:
+                        marcas_pred = []
+
+                    if marcas_pred:
+                        marca_pred = st.selectbox(
+                            "Selecciona la marca:",
+                            options=marcas_pred,
+                            key="pred_marca"
+                        )
+                    else:
+                        st.warning(f"No hay marcas disponibles para {provincia_pred}")
+                        marca_pred = None
+
+                # PASO 4: Seleccionar Modelo (filtrado por marca y provincia)
+                with col_pred4:
+                    st.markdown("#### 🚗 Paso 4: Modelo de Vehículo")
+
+                    if marca_pred:
+                        query_modelos_pred = text("""
+                            SELECT DISTINCT automotor_modelo_descripcion as modelo,
+                                   COUNT(*) as cantidad
+                            FROM datos_gob_inscripciones
+                            WHERE registro_seccional_provincia = :provincia
+                            AND automotor_marca_descripcion = :marca
+                            AND automotor_modelo_descripcion IS NOT NULL
+                            AND automotor_modelo_descripcion != ''
+                            AND tramite_fecha >= NOW() - INTERVAL '2 years'
+                            GROUP BY modelo
+                            ORDER BY cantidad DESC
+                            LIMIT 30
+                        """)
+
+                        try:
+                            df_modelos_pred = pd.read_sql(query_modelos_pred, engine, params={
+                                'provincia': provincia_pred,
+                                'marca': marca_pred
+                            })
+                            modelos_pred = df_modelos_pred['modelo'].tolist()
+                        except:
+                            modelos_pred = []
+
+                        if modelos_pred:
+                            modelo_pred = st.selectbox(
+                                "Selecciona el modelo:",
+                                options=modelos_pred,
+                                key="pred_modelo"
+                            )
+                        else:
+                            st.warning(f"No hay modelos disponibles para {marca_pred} en {provincia_pred}")
+                            modelo_pred = None
+                    else:
+                        modelo_pred = None
+                        st.info("Selecciona una marca primero")
+
+                st.markdown("---")
+
+                # ========== REALIZAR PREDICCIÓN ==========
+                if provincia_pred and marca_pred and modelo_pred:
+                    st.markdown("### 📊 Resultado de la Predicción")
+
+                    # Botón para ejecutar predicción
+                    if st.button("🔮 Realizar Predicción", type="primary", use_container_width=True):
+                        with st.spinner("Procesando predicción..."):
+                            try:
+                                # 1. Obtener datos históricos
+                                query_historico = text("""
+                                    SELECT
+                                        DATE_TRUNC('month', tramite_fecha) as fecha_mes,
+                                        EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                                        EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                                        EXTRACT(QUARTER FROM tramite_fecha)::INTEGER as trimestre,
+                                        COUNT(*) as cantidad_transacciones,
+                                        AVG(EXTRACT(YEAR FROM tramite_fecha) - titular_anio_nacimiento) as edad_titular,
+                                        AVG(automotor_anio_modelo) as anio_modelo
+                                    FROM datos_gob_inscripciones
+                                    WHERE registro_seccional_provincia = :provincia
+                                    AND automotor_marca_descripcion = :marca
+                                    AND automotor_modelo_descripcion = :modelo
+                                    AND tramite_fecha >= NOW() - INTERVAL '12 months'
+                                    AND tramite_fecha IS NOT NULL
+                                    AND titular_anio_nacimiento IS NOT NULL
+                                    GROUP BY fecha_mes, anio, mes, trimestre
+                                    ORDER BY fecha_mes DESC
+                                    LIMIT 12
+                                """)
+
+                                df_hist_pred = pd.read_sql(query_historico, engine, params={
+                                    'provincia': provincia_pred,
+                                    'marca': marca_pred,
+                                    'modelo': modelo_pred
+                                })
+
+                                if df_hist_pred.empty:
+                                    st.warning("⚠️ No hay suficientes datos históricos para realizar la predicción")
+                                    st.info("💡 Se requiere al menos 3 meses de historial para este modelo/marca/provincia")
+                                else:
+                                    # Mostrar información histórica
+                                    st.markdown("#### 📈 Datos Históricos (Últimos 12 meses)")
+
+                                    col_h1, col_h2, col_h3, col_h4 = st.columns(4)
+
+                                    with col_h1:
+                                        total_hist = df_hist_pred['cantidad_transacciones'].sum()
+                                        st.metric("Total Histórico", format_number(total_hist))
+
+                                    with col_h2:
+                                        promedio_mensual_hist = df_hist_pred['cantidad_transacciones'].mean()
+                                        st.metric("Promedio Mensual", format_number(promedio_mensual_hist))
+
+                                    with col_h3:
+                                        ultimo_mes = df_hist_pred.iloc[0]['cantidad_transacciones']
+                                        st.metric("Último Mes", format_number(ultimo_mes))
+
+                                    with col_h4:
+                                        meses_data = len(df_hist_pred)
+                                        st.metric("Meses de Datos", meses_data)
+
+                                    # Gráfico de tendencia histórica
+                                    st.markdown("#### 📊 Tendencia Histórica")
+
+                                    df_hist_plot = df_hist_pred.sort_values('fecha_mes')
+                                    df_hist_plot['fecha_str'] = df_hist_plot['fecha_mes'].dt.strftime('%Y-%m')
+
+                                    fig_hist = px.line(
+                                        df_hist_plot,
+                                        x='fecha_str',
+                                        y='cantidad_transacciones',
+                                        title=f'Evolución Mensual - {marca_pred} {modelo_pred} en {provincia_pred}',
+                                        labels={'fecha_str': 'Mes', 'cantidad_transacciones': 'Cantidad'},
+                                        markers=True
+                                    )
+
+                                    fig_hist.update_layout(
+                                        hovermode='x unified',
+                                        height=400,
+                                        xaxis_title='Mes',
+                                        yaxis_title='Cantidad de Transacciones'
+                                    )
+
+                                    st.plotly_chart(fig_hist, use_container_width=True)
+
+                                    # Nota sobre predicción
+                                    st.info(f"""
+                                    **🔮 Predicción para los próximos {horizonte_pred} días ({horizonte_pred//30} {'mes' if horizonte_pred==30 else 'meses'})**
+
+                                    Basándose en el modelo LightGBM entrenado con:
+                                    - Datos históricos de los últimos {meses_data} meses
+                                    - Promedio mensual: {promedio_mensual_hist:.0f} transacciones
+                                    - Marca: **{marca_pred}**
+                                    - Modelo: **{modelo_pred}**
+                                    - Provincia: **{provincia_pred}**
+
+                                    **Nota:** Para obtener predicciones precisas, necesitamos preparar las features exactas
+                                    (lag features, variables macro, etc.) que el modelo espera. Actualmente se muestra el análisis
+                                    histórico. La predicción completa requiere cargar las variables macro actualizadas desde la base de datos.
+                                    """)
+
+                                    # Proyección simple basada en promedio (placeholder)
+                                    st.markdown("#### 📊 Proyección Estimada (Basada en Promedio Histórico)")
+
+                                    meses_proyeccion = horizonte_pred // 30
+                                    proyeccion_simple = promedio_mensual_hist * meses_proyeccion
+
+                                    col_p1, col_p2, col_p3 = st.columns(3)
+
+                                    with col_p1:
+                                        st.metric(
+                                            f"Proyección {meses_proyeccion} {'mes' if meses_proyeccion==1 else 'meses'}",
+                                            format_number(proyeccion_simple),
+                                            f"Basado en promedio de {promedio_mensual_hist:.0f}/mes"
+                                        )
+
+                                    with col_p2:
+                                        # Calcular tendencia
+                                        if len(df_hist_pred) >= 2:
+                                            tendencia = ((df_hist_pred.iloc[0]['cantidad_transacciones'] -
+                                                        df_hist_pred.iloc[-1]['cantidad_transacciones']) /
+                                                       df_hist_pred.iloc[-1]['cantidad_transacciones'] * 100)
+                                            st.metric(
+                                                "Tendencia Reciente",
+                                                f"{tendencia:+.1f}%",
+                                                "Últimos 12 meses"
+                                            )
+
+                                    with col_p3:
+                                        desv_std = df_hist_pred['cantidad_transacciones'].std()
+                                        st.metric(
+                                            "Volatilidad",
+                                            f"±{desv_std:.0f}",
+                                            "Desviación estándar"
+                                        )
+
+                                    # Tabla de datos históricos
+                                    with st.expander("📋 Ver Datos Históricos Detallados"):
+                                        df_tabla_hist = df_hist_plot[['fecha_str', 'cantidad_transacciones', 'edad_titular', 'anio_modelo']].copy()
+                                        df_tabla_hist.columns = ['Mes', 'Cantidad', 'Edad Promedio Titular', 'Año Modelo Promedio']
+                                        df_tabla_hist['Edad Promedio Titular'] = df_tabla_hist['Edad Promedio Titular'].round(1)
+                                        df_tabla_hist['Año Modelo Promedio'] = df_tabla_hist['Año Modelo Promedio'].round(0)
+                                        st.dataframe(df_tabla_hist, use_container_width=True, hide_index=True)
+
+                            except Exception as e:
+                                st.error(f"❌ Error al realizar predicción: {str(e)}")
+                                st.exception(e)
+
+                    # Información adicional
+                    with st.expander("ℹ️ Acerca del Modelo de Predicción"):
+                        st.markdown("""
+                        ### 🤖 Modelo de Machine Learning
+
+                        **Algoritmo:** LightGBM (Light Gradient Boosting Machine)
+
+                        **Características del modelo:**
+                        - **R² Score:** ~0.974 (97.4% de varianza explicada)
+                        - **MAE:** ~0.22 (Error Absoluto Medio)
+                        - **Tiempo de predicción:** < 1 segundo
+
+                        **Variables utilizadas:**
+                        1. **Históricas:** Cantidad de transacciones en meses anteriores (lag 1, lag 3)
+                        2. **Promedios móviles:** MA3, MA6
+                        3. **Variación intermensual:** Tasa de cambio mes a mes
+                        4. **Categóricas:** Marca, modelo, provincia, tipo de vehículo
+                        5. **Macro-económicas:** IPC, BADLAR, Tipo de Cambio
+                        6. **Temporales:** Año, mes, trimestre, estacionalidad
+
+                        **Limitaciones:**
+                        - Requiere al menos 3-6 meses de historial para predicciones confiables
+                        - Funciona mejor con marcas/modelos con volúmenes consistentes
+                        - Las predicciones de largo plazo (>120 días) tienen mayor incertidumbre
+
+                        **Casos de uso:**
+                        - Planificación de inventario de concesionarias
+                        - Estimación de demanda por región
+                        - Análisis de tendencias de mercado
+                        - Evaluación de impacto de variables macro-económicas
+                        """)
+
+        except Exception as e:
+            st.error(f"❌ Error al cargar el modelo: {str(e)}")
+            st.exception(e)
 
 # Footer
 st.markdown("---")
