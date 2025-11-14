@@ -10,24 +10,22 @@ Genera Excel con:
 Uso:
     python backend/scripts/generar_diccionario_standalone.py
 """
-import os
+import sys
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
-from urllib.parse import quote_plus
 from sqlalchemy import create_engine, inspect, text
 from contextlib import contextmanager
 
+# Agregar backend al path
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from backend.config.settings import settings
 
-# Configuración de base de datos desde variables de entorno
-DB_HOST = os.getenv('DB_HOST', 'localhost')
-DB_PORT = os.getenv('DB_PORT', '5432')
-DB_NAME = os.getenv('DB_NAME', 'mercado_automotor')
-DB_USER = os.getenv('DB_USER', 'postgres')
-DB_PASSWORD = os.getenv('DB_PASSWORD', 'postgres')
-
-# Construir URL escapando caracteres especiales en password
-DATABASE_URL = f"postgresql://{quote_plus(DB_USER)}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# Obtener configuración de DB desde settings (maneja caracteres especiales correctamente)
+DATABASE_URL = settings.get_database_url_sync()
+DB_HOST = settings.database_url.host or 'localhost'
+DB_PORT = settings.database_url.port or 5432
+DB_NAME = settings.database_url.path.lstrip('/') if settings.database_url.path else 'mercado_automotor'
 
 
 def log(message):
