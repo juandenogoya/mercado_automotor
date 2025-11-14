@@ -23,9 +23,9 @@ from backend.config.settings import settings
 
 # Obtener configuración de DB desde settings (maneja caracteres especiales correctamente)
 DATABASE_URL = settings.get_database_url_sync()
-DB_HOST = settings.database_url.host or 'localhost'
-DB_PORT = settings.database_url.port or 5432
-DB_NAME = settings.database_url.path.lstrip('/') if settings.database_url.path else 'mercado_automotor'
+
+# Para mostrar info en el resumen (extraído de la URL string)
+url_parts = DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else 'PostgreSQL'
 
 
 def log(message):
@@ -376,7 +376,7 @@ def generar_excel_diccionario(tablas_info, output_file='DICCIONARIO_COMPLETO_DAT
                 {'Métrica': 'Total de Registros', 'Valor': f"{sum(t['registros'] for t in tablas_info):,}"},
                 {'Métrica': 'Fecha de Generación', 'Valor': datetime.now().strftime('%Y-%m-%d %H:%M:%S')},
                 {'Métrica': 'Proyecto', 'Valor': 'Mercado Automotor - Inteligencia Comercial'},
-                {'Métrica': 'Base de Datos', 'Valor': f'PostgreSQL ({DB_HOST}:{DB_PORT}/{DB_NAME})'},
+                {'Métrica': 'Base de Datos', 'Valor': f'PostgreSQL ({url_parts})'},
             ]
 
             df_resumen = pd.DataFrame(resumen_data)
