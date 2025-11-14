@@ -1898,13 +1898,31 @@ with tab7:
     import numpy as np
     from pathlib import Path as PathlibPath
 
-    # Rutas a los modelos
-    MODEL_PATH = PathlibPath(__file__).parent.parent / "data" / "models" / "mejor_modelo_LightGBM.pkl"
-    ENCODERS_PATH = PathlibPath(__file__).parent.parent / "data" / "models" / "encoders.pkl"
-    FEATURE_NAMES_PATH = PathlibPath(__file__).parent.parent / "data" / "models" / "feature_names.pkl"
+    # Rutas a los modelos (intentar múltiples ubicaciones y modelos)
+    BASE_PATH = PathlibPath(__file__).parent.parent
 
-    # Verificar si el modelo existe
-    if not MODEL_PATH.exists():
+    # Intentar cargar modelos en orden de preferencia
+    MODEL_PATHS = [
+        (BASE_PATH / "data" / "models" / "mejor_modelo_LightGBM.pkl", "LightGBM"),
+        (BASE_PATH / "data" / "models" / "mejor_modelo_XGBoost.pkl", "XGBoost"),
+        (BASE_PATH / "models" / "xgboost_optimized_model.pkl", "XGBoost"),
+        (BASE_PATH / "data" / "models" / "todos_modelos_*.pkl", "Ensemble"),
+    ]
+
+    ENCODERS_PATH = BASE_PATH / "data" / "models" / "encoders.pkl"
+    FEATURE_NAMES_PATH = BASE_PATH / "data" / "models" / "feature_names.pkl"
+
+    # Buscar el primer modelo disponible
+    MODEL_PATH = None
+    MODEL_NAME = None
+    for path, name in MODEL_PATHS:
+        if path.exists():
+            MODEL_PATH = path
+            MODEL_NAME = name
+            break
+
+    # Verificar si se encontró algún modelo
+    if MODEL_PATH is None:
         st.warning("⚠️ Modelo de Machine Learning no encontrado")
         st.info("💡 **Para entrenar el modelo:**\n\n"
                 "1. Ejecuta: `python notebooks/01_preparacion_datos_ml.py`\n"
@@ -1940,7 +1958,7 @@ with tab7:
             with open(FEATURE_NAMES_PATH, 'rb') as f:
                 feature_names = pickle.load(f)
 
-            st.success("✅ Modelo LightGBM cargado correctamente")
+            st.success(f"✅ Modelo {MODEL_NAME} cargado correctamente desde: `{MODEL_PATH.name}`")
 
             # ========== FILTROS EN CASCADA ==========
             st.markdown("### 🎯 Configuración de Predicción")
@@ -2215,14 +2233,29 @@ with tab7:
 
                     # Información adicional
                     with st.expander("ℹ️ Acerca del Modelo de Predicción"):
-                        st.markdown("""
+                        modelo_info = {
+                            "LightGBM": {
+                                "nombre": "LightGBM (Light Gradient Boosting Machine)",
+                                "r2": "~0.974",
+                                "mae": "~0.22"
+                            },
+                            "XGBoost": {
+                                "nombre": "XGBoost (Extreme Gradient Boosting)",
+                                "r2": "~0.957",
+                                "mae": "~0.12"
+                            }
+                        }
+
+                        info = modelo_info.get(MODEL_NAME, modelo_info["XGBoost"])
+
+                        st.markdown(f"""
                         ### 🤖 Modelo de Machine Learning
 
-                        **Algoritmo:** LightGBM (Light Gradient Boosting Machine)
+                        **Algoritmo:** {info["nombre"]}
 
                         **Características del modelo:**
-                        - **R² Score:** ~0.974 (97.4% de varianza explicada)
-                        - **MAE:** ~0.22 (Error Absoluto Medio)
+                        - **R² Score:** {info["r2"]} (varianza explicada)
+                        - **MAE:** {info["mae"]} (Error Absoluto Medio)
                         - **Tiempo de predicción:** < 1 segundo
 
                         **Variables utilizadas:**
