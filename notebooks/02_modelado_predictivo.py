@@ -224,6 +224,21 @@ def preparar_features(df, tipos):
                 X[col].fillna(median_val, inplace=True)
                 log(f"  ✓ {col}: {X[col].isnull().sum()} NaN → imputado con mediana ({median_val:.2f})")
 
+    # Reemplazar infinitos con valores finitos
+    log("\n🔧 Reemplazando valores infinitos...")
+    inf_count = np.isinf(X.values).sum()
+    if inf_count > 0:
+        log(f"  ⚠️ Encontrados {inf_count} valores infinitos, reemplazando...")
+        X = X.replace([np.inf, -np.inf], np.nan)
+        # Imputar con mediana después de reemplazar infinitos
+        for col in X.columns:
+            if X[col].isnull().sum() > 0:
+                median_val = X[col].median()
+                X[col].fillna(median_val, inplace=True)
+        log(f"  ✓ Infinitos reemplazados con medianas")
+    else:
+        log(f"  ✓ No hay valores infinitos")
+
     log(f"\n✅ Features preparados:")
     log(f"  Total features: {len(feature_names)}")
     log(f"  - Numéricas: {len(features_numericas)}")
