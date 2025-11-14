@@ -129,14 +129,14 @@ def cargar_variables_macro():
     log("\n💰 Cargando IPC...")
     query_ipc = """
     SELECT
-        indice_tiempo as fecha,
+        fecha,
         nivel_general as ipc_nivel,
         variacion_mensual as ipc_var_mensual,
         variacion_interanual as ipc_var_interanual,
         variacion_acumulada as ipc_var_acumulada
     FROM ipc
-    WHERE indice_tiempo >= '2020-01-01'
-    ORDER BY indice_tiempo
+    WHERE fecha >= '2020-01-01'
+    ORDER BY fecha
     """
     df_ipc = pd.read_sql(query_ipc, engine)
     df_ipc['fecha'] = pd.to_datetime(df_ipc['fecha'])
@@ -149,8 +149,8 @@ def cargar_variables_macro():
     query_badlar = """
     SELECT
         DATE_TRUNC('month', fecha) as fecha_mes,
-        AVG(valor) as badlar_promedio,
-        STDDEV(valor) as badlar_volatilidad
+        AVG(tasa) as badlar_promedio,
+        STDDEV(tasa) as badlar_volatilidad
     FROM badlar
     WHERE fecha >= '2020-01-01'
     GROUP BY DATE_TRUNC('month', fecha)
@@ -164,8 +164,8 @@ def cargar_variables_macro():
     query_tc = """
     SELECT
         DATE_TRUNC('month', fecha) as fecha_mes,
-        AVG(valor) as tc_promedio,
-        STDDEV(valor) as tc_volatilidad
+        AVG(promedio) as tc_promedio,
+        STDDEV(promedio) as tc_volatilidad
     FROM tipo_cambio
     WHERE fecha >= '2020-01-01'
     GROUP BY DATE_TRUNC('month', fecha)
@@ -174,22 +174,29 @@ def cargar_variables_macro():
     df_tc = pd.read_sql(query_tc, engine)
     log(f"  ✓ Tipo Cambio: {len(df_tc)} meses")
 
-    # Indicadores calculados
+    # Indicadores calculados (pivotear de formato largo a ancho)
     log("\n📊 Cargando Indicadores Calculados...")
     query_ind = """
     SELECT
         DATE_TRUNC('month', fecha) as fecha_mes,
-        AVG(tasa_real) as tasa_real_promedio,
-        AVG(tcr) as tcr_promedio,
-        AVG(accesibilidad) as accesibilidad_promedio,
-        AVG(volatilidad) as volatilidad_promedio
+        indicador,
+        AVG(valor) as valor_promedio
     FROM indicadores_calculados
     WHERE fecha >= '2020-01-01'
-    GROUP BY DATE_TRUNC('month', fecha)
-    ORDER BY fecha_mes
+      AND indicador IN ('tasa_real', 'tcr', 'accesibilidad', 'volatilidad')
+    GROUP BY DATE_TRUNC('month', fecha), indicador
+    ORDER BY fecha_mes, indicador
     """
-    df_ind = pd.read_sql(query_ind, engine)
-    log(f"  ✓ Indicadores: {len(df_ind)} meses")
+    df_ind_raw = pd.read_sql(query_ind, engine)
+
+    # Pivotear de largo a ancho
+    if not df_ind_raw.empty:
+        df_ind = df_ind_raw.pivot(index='fecha_mes', columns='indicador', values='valor_promedio').reset_index()
+        df_ind.columns = ['fecha_mes'] + [f'{col}_promedio' for col in df_ind.columns[1:]]
+        log(f"  ✓ Indicadores: {len(df_ind)} meses, {len(df_ind.columns)-1} indicadores")
+    else:
+        log("  ⚠️ No hay indicadores calculados, creando DataFrame vacío")
+        df_ind = pd.DataFrame({'fecha_mes': []})
 
     # Merge de todas las variables macro
     log("\n🔗 Unificando variables macro...")
