@@ -14,8 +14,8 @@ import os
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
+from urllib.parse import quote_plus
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.engine.url import URL
 from contextlib import contextmanager
 
 
@@ -26,15 +26,8 @@ DB_NAME = os.getenv('DB_NAME', 'mercado_automotor')
 DB_USER = os.getenv('DB_USER', 'postgres')
 DB_PASSWORD = os.getenv('DB_PASSWORD', 'postgres')
 
-# Usar URL de SQLAlchemy para manejar correctamente caracteres especiales
-DATABASE_URL = URL.create(
-    drivername="postgresql",
-    username=DB_USER,
-    password=DB_PASSWORD,
-    host=DB_HOST,
-    port=DB_PORT,
-    database=DB_NAME
-)
+# Construir URL escapando caracteres especiales en password
+DATABASE_URL = f"postgresql://{quote_plus(DB_USER)}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 
 def log(message):
