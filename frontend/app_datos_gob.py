@@ -2164,11 +2164,28 @@ with tab7:
                                         df_badlar = pd.read_sql(query_badlar, engine)
                                         df_tc = pd.read_sql(query_tc, engine)
 
+                                        # Calcular valores macro para usar en ambos métodos (ML y estadístico)
+                                        ipc_actual = df_ipc.iloc[0]['ipc_nivel'] if not df_ipc.empty else 100
+                                        badlar_actual = df_badlar.iloc[0]['badlar_promedio'] if not df_badlar.empty else 50
+                                        tc_actual = df_tc.iloc[0]['tc_promedio'] if not df_tc.empty else 1000
+
+                                        # Calcular IPC var mensual
+                                        if len(df_ipc) >= 2:
+                                            ipc_var_mensual = ((df_ipc.iloc[0]['ipc_nivel'] - df_ipc.iloc[1]['ipc_nivel']) /
+                                                              df_ipc.iloc[1]['ipc_nivel'] * 100)
+                                        else:
+                                            ipc_var_mensual = 5.0  # Default
+
                                         # Verificar que tenemos variables macro
                                         tiene_macro = not (df_ipc.empty or df_badlar.empty or df_tc.empty)
                                     except Exception as e:
                                         st.warning(f"⚠️ No se pudieron cargar variables macro: {e}")
                                         tiene_macro = False
+                                        # Valores por defecto si fallan las macros
+                                        ipc_actual = 100
+                                        badlar_actual = 50
+                                        tc_actual = 1000
+                                        ipc_var_mensual = 5.0
 
                                 if not df_hist_pred.empty and tiene_macro:
                                     # Mostrar información histórica
@@ -2231,11 +2248,7 @@ with tab7:
                                         # Preparar datos históricos
                                         df_hist_sorted = df_hist_pred.sort_values('fecha_mes')
 
-                                        # Obtener valores macro
-                                        ipc_actual = df_ipc.iloc[0]['ipc_nivel'] if not df_ipc.empty else 100
-                                        badlar_actual = df_badlar.iloc[0]['badlar_promedio'] if not df_badlar.empty else 50
-                                        tc_actual = df_tc.iloc[0]['tc_promedio'] if not df_tc.empty else 1000
-
+                                        # Usar valores macro ya calculados arriba
                                         meses_proyeccion = horizonte_pred // 30
 
                                         st.success(f"""
@@ -2383,239 +2396,240 @@ with tab7:
 
                                         st.plotly_chart(fig_ml, use_container_width=True)
 
-                                    else:
+                                    # ===== SOLO EJECUTAR PROYECCIÓN ESTADÍSTICA SI ML FALLÓ =====
+                                    if not usar_ml_completo:
                                         # ===== FALLBACK: PROYECCIÓN ESTADÍSTICA =====
                                         st.markdown("---")
                                         st.markdown("#### 📊 Proyección Estadística (Tendencia + Estacionalidad)")
 
-                                    # Calcular base de proyección usando últimos 3 meses (más reciente)
-                                    ultimos_3_meses = df_hist_pred.head(3)['cantidad_transacciones'].mean()
-                                    ultimo_mes = df_hist_pred.iloc[0]['cantidad_transacciones']
+                                        # Calcular base de proyección usando últimos 3 meses (más reciente)
+                                        ultimos_3_meses = df_hist_pred.head(3)['cantidad_transacciones'].mean()
+                                        ultimo_mes = df_hist_pred.iloc[0]['cantidad_transacciones']
 
-                                    # Calcular tendencia lineal (últimos 6 meses)
-                                    if len(df_hist_pred) >= 6:
-                                        df_tendencia = df_hist_pred.head(6).copy()
-                                        df_tendencia['indice'] = range(len(df_tendencia))
-                                        # Regresión lineal simple
-                                        from numpy import polyfit
-                                        pendiente, intercepto = polyfit(df_tendencia['indice'],
-                                                                        df_tendencia['cantidad_transacciones'], 1)
-                                        tendencia_mensual = pendiente
-                                    else:
-                                        tendencia_mensual = 0
-
-                                    # ========== CALCULAR ESTACIONALIDAD DESDE HISTÓRICOS ==========
-                                    # Agrupar por mes del año para detectar patrones estacionales
-                                    estacionalidad_dict = {}
-                                    if len(df_hist_pred) >= 6:
-                                        df_estacional = df_hist_pred.copy()
-                                        # Calcular índice estacional por mes
-                                        promedio_general = df_estacional['cantidad_transacciones'].mean()
-                                        if promedio_general > 0:
-                                            for _, row in df_estacional.iterrows():
-                                                mes_num = int(row['mes'])
-                                                indice = row['cantidad_transacciones'] / promedio_general
-                                                if mes_num not in estacionalidad_dict:
-                                                    estacionalidad_dict[mes_num] = []
-                                                estacionalidad_dict[mes_num].append(indice)
-
-                                            # Promediar índices por mes
-                                            estacionalidad = {mes: np.mean(indices) for mes, indices in estacionalidad_dict.items()}
+                                        # Calcular tendencia lineal (últimos 6 meses)
+                                        if len(df_hist_pred) >= 6:
+                                            df_tendencia = df_hist_pred.head(6).copy()
+                                            df_tendencia['indice'] = range(len(df_tendencia))
+                                            # Regresión lineal simple
+                                            from numpy import polyfit
+                                            pendiente, intercepto = polyfit(df_tendencia['indice'],
+                                                                            df_tendencia['cantidad_transacciones'], 1)
+                                            tendencia_mensual = pendiente
                                         else:
-                                            estacionalidad = {i: 1.0 for i in range(1, 13)}
-                                    else:
-                                        # Estacionalidad genérica del mercado automotor argentino
-                                        estacionalidad = {
-                                            1: 0.85,   # Enero: bajo (post vacaciones)
-                                            2: 0.90,   # Febrero: bajo
-                                            3: 0.95,   # Marzo: medio (inicio escolar)
-                                            4: 1.00,   # Abril: medio
-                                            5: 1.05,   # Mayo: medio-alto
-                                            6: 1.10,   # Junio: alto (medio año)
-                                            7: 0.95,   # Julio: medio (vacaciones)
-                                            8: 1.00,   # Agosto: medio
-                                            9: 1.05,   # Septiembre: medio-alto
-                                            10: 1.10,  # Octubre: alto
-                                            11: 1.15,  # Noviembre: alto (pre-verano)
-                                            12: 1.20   # Diciembre: muy alto (fin de año)
-                                        }
+                                            tendencia_mensual = 0
 
-                                    # Detectar volatilidad alta
-                                    desv_std = df_hist_pred['cantidad_transacciones'].std()
-                                    coef_variacion = (desv_std / promedio_mensual_hist * 100) if promedio_mensual_hist > 0 else 0
+                                        # ========== CALCULAR ESTACIONALIDAD DESDE HISTÓRICOS ==========
+                                        # Agrupar por mes del año para detectar patrones estacionales
+                                        estacionalidad_dict = {}
+                                        if len(df_hist_pred) >= 6:
+                                            df_estacional = df_hist_pred.copy()
+                                            # Calcular índice estacional por mes
+                                            promedio_general = df_estacional['cantidad_transacciones'].mean()
+                                            if promedio_general > 0:
+                                                for _, row in df_estacional.iterrows():
+                                                    mes_num = int(row['mes'])
+                                                    indice = row['cantidad_transacciones'] / promedio_general
+                                                    if mes_num not in estacionalidad_dict:
+                                                        estacionalidad_dict[mes_num] = []
+                                                    estacionalidad_dict[mes_num].append(indice)
 
-                                    # Decidir método de proyección
-                                    if coef_variacion > 50:  # Alta volatilidad
-                                        # Usar último mes como base conservadora
-                                        base_proyeccion = ultimo_mes
-                                        metodo = "Último mes (alta volatilidad detectada)"
-                                        st.warning(f"⚠️ **Alta volatilidad detectada** (CV: {coef_variacion:.1f}%). Usando último mes como base conservadora.")
-                                    elif abs(tendencia_mensual) > promedio_mensual_hist * 0.1:  # Tendencia fuerte
-                                        # Usar últimos 3 meses + tendencia
-                                        base_proyeccion = ultimos_3_meses
-                                        metodo = "Promedio últimos 3 meses con ajuste de tendencia"
-                                        if tendencia_mensual < 0:
-                                            st.info(f"📉 **Tendencia bajista** detectada ({tendencia_mensual:.1f} unidades/mes)")
+                                                # Promediar índices por mes
+                                                estacionalidad = {mes: np.mean(indices) for mes, indices in estacionalidad_dict.items()}
+                                            else:
+                                                estacionalidad = {i: 1.0 for i in range(1, 13)}
                                         else:
-                                            st.info(f"📈 **Tendencia alcista** detectada (+{tendencia_mensual:.1f} unidades/mes)")
-                                    else:
-                                        # Usar promedio de últimos 3 meses
-                                        base_proyeccion = ultimos_3_meses
-                                        metodo = "Promedio de últimos 3 meses"
+                                            # Estacionalidad genérica del mercado automotor argentino
+                                            estacionalidad = {
+                                                1: 0.85,   # Enero: bajo (post vacaciones)
+                                                2: 0.90,   # Febrero: bajo
+                                                3: 0.95,   # Marzo: medio (inicio escolar)
+                                                4: 1.00,   # Abril: medio
+                                                5: 1.05,   # Mayo: medio-alto
+                                                6: 1.10,   # Junio: alto (medio año)
+                                                7: 0.95,   # Julio: medio (vacaciones)
+                                                8: 1.00,   # Agosto: medio
+                                                9: 1.05,   # Septiembre: medio-alto
+                                                10: 1.10,  # Octubre: alto
+                                                11: 1.15,  # Noviembre: alto (pre-verano)
+                                                12: 1.20   # Diciembre: muy alto (fin de año)
+                                            }
 
-                                    # Calcular proyecciones CON ESTACIONALIDAD
-                                    meses_proyeccion = horizonte_pred // 30
-                                    proyecciones = []
-                                    proyecciones_sin_estacional = []
+                                        # Detectar volatilidad alta
+                                        desv_std = df_hist_pred['cantidad_transacciones'].std()
+                                        coef_variacion = (desv_std / promedio_mensual_hist * 100) if promedio_mensual_hist > 0 else 0
 
-                                    # Obtener mes actual y año para proyección
-                                    from datetime import datetime
-                                    fecha_base = df_hist_pred.iloc[0]['fecha_mes']
-                                    mes_base = int(df_hist_pred.iloc[0]['mes'])
-                                    anio_base = int(df_hist_pred.iloc[0]['anio'])
+                                        # Decidir método de proyección
+                                        if coef_variacion > 50:  # Alta volatilidad
+                                            # Usar último mes como base conservadora
+                                            base_proyeccion = ultimo_mes
+                                            metodo = "Último mes (alta volatilidad detectada)"
+                                            st.warning(f"⚠️ **Alta volatilidad detectada** (CV: {coef_variacion:.1f}%). Usando último mes como base conservadora.")
+                                        elif abs(tendencia_mensual) > promedio_mensual_hist * 0.1:  # Tendencia fuerte
+                                            # Usar últimos 3 meses + tendencia
+                                            base_proyeccion = ultimos_3_meses
+                                            metodo = "Promedio últimos 3 meses con ajuste de tendencia"
+                                            if tendencia_mensual < 0:
+                                                st.info(f"📉 **Tendencia bajista** detectada ({tendencia_mensual:.1f} unidades/mes)")
+                                            else:
+                                                st.info(f"📈 **Tendencia alcista** detectada (+{tendencia_mensual:.1f} unidades/mes)")
+                                        else:
+                                            # Usar promedio de últimos 3 meses
+                                            base_proyeccion = ultimos_3_meses
+                                            metodo = "Promedio de últimos 3 meses"
 
-                                    for i in range(1, meses_proyeccion + 1):
-                                        # Calcular proyección base con tendencia
-                                        proyeccion_base_mes = base_proyeccion + (tendencia_mensual * i)
-                                        proyeccion_base_mes = max(0, proyeccion_base_mes)
-                                        proyecciones_sin_estacional.append(proyeccion_base_mes)
+                                        # Calcular proyecciones CON ESTACIONALIDAD
+                                        meses_proyeccion = horizonte_pred // 30
+                                        proyecciones = []
+                                        proyecciones_sin_estacional = []
 
-                                        # Calcular mes futuro
-                                        mes_futuro = ((mes_base + i - 1) % 12) + 1
+                                        # Obtener mes actual y año para proyección
+                                        from datetime import datetime
+                                        fecha_base = df_hist_pred.iloc[0]['fecha_mes']
+                                        mes_base = int(df_hist_pred.iloc[0]['mes'])
+                                        anio_base = int(df_hist_pred.iloc[0]['anio'])
 
-                                        # Aplicar factor estacional
-                                        factor_estacional = estacionalidad.get(mes_futuro, 1.0)
-                                        proyeccion_ajustada = proyeccion_base_mes * factor_estacional
-                                        proyeccion_ajustada = max(0, proyeccion_ajustada)
+                                        for i in range(1, meses_proyeccion + 1):
+                                            # Calcular proyección base con tendencia
+                                            proyeccion_base_mes = base_proyeccion + (tendencia_mensual * i)
+                                            proyeccion_base_mes = max(0, proyeccion_base_mes)
+                                            proyecciones_sin_estacional.append(proyeccion_base_mes)
 
-                                        proyecciones.append({
-                                            'mes_num': i,
-                                            'mes_calendario': mes_futuro,
-                                            'base': proyeccion_base_mes,
-                                            'factor_estacional': factor_estacional,
-                                            'proyeccion': proyeccion_ajustada
-                                        })
+                                            # Calcular mes futuro
+                                            mes_futuro = ((mes_base + i - 1) % 12) + 1
 
-                                    proyeccion_total = sum([p['proyeccion'] for p in proyecciones])
-                                    proyeccion_total_sin_estacional = sum(proyecciones_sin_estacional)
+                                            # Aplicar factor estacional
+                                            factor_estacional = estacionalidad.get(mes_futuro, 1.0)
+                                            proyeccion_ajustada = proyeccion_base_mes * factor_estacional
+                                            proyeccion_ajustada = max(0, proyeccion_ajustada)
 
-                                    # Mostrar métricas
-                                    col_p1, col_p2, col_p3, col_p4 = st.columns(4)
+                                            proyecciones.append({
+                                                'mes_num': i,
+                                                'mes_calendario': mes_futuro,
+                                                'base': proyeccion_base_mes,
+                                                'factor_estacional': factor_estacional,
+                                                'proyeccion': proyeccion_ajustada
+                                            })
 
-                                    with col_p1:
-                                        impacto_estacional = ((proyeccion_total - proyeccion_total_sin_estacional) /
-                                                             proyeccion_total_sin_estacional * 100) if proyeccion_total_sin_estacional > 0 else 0
-                                        st.metric(
-                                            f"Proyección {meses_proyeccion} {'mes' if meses_proyeccion==1 else 'meses'}",
-                                            format_number(proyeccion_total),
-                                            f"Estacional: {impacto_estacional:+.1f}%"
-                                        )
+                                        proyeccion_total = sum([p['proyeccion'] for p in proyecciones])
+                                        proyeccion_total_sin_estacional = sum(proyecciones_sin_estacional)
 
-                                    with col_p2:
-                                        st.metric(
-                                            "Base Mensual",
-                                            format_number(base_proyeccion),
-                                            f"Último: {ultimo_mes:.0f}"
-                                        )
+                                        # Mostrar métricas
+                                        col_p1, col_p2, col_p3, col_p4 = st.columns(4)
 
-                                    with col_p3:
-                                        # Calcular tendencia reciente (último vs hace 3 meses)
-                                        if len(df_hist_pred) >= 4:
-                                            tendencia = ((df_hist_pred.iloc[0]['cantidad_transacciones'] -
-                                                        df_hist_pred.iloc[-1]['cantidad_transacciones']) /
-                                                       df_hist_pred.iloc[-1]['cantidad_transacciones'] * 100)
+                                        with col_p1:
+                                            impacto_estacional = ((proyeccion_total - proyeccion_total_sin_estacional) /
+                                                                 proyeccion_total_sin_estacional * 100) if proyeccion_total_sin_estacional > 0 else 0
                                             st.metric(
-                                                "Tendencia 12 meses",
-                                                f"{tendencia:+.1f}%",
-                                                "Último vs más antiguo"
+                                                f"Proyección {meses_proyeccion} {'mes' if meses_proyeccion==1 else 'meses'}",
+                                                format_number(proyeccion_total),
+                                                f"Estacional: {impacto_estacional:+.1f}%"
                                             )
 
-                                    with col_p4:
-                                        st.metric(
-                                            "Volatilidad",
-                                            f"±{desv_std:.0f}",
-                                            f"CV: {coef_variacion:.1f}%"
-                                        )
-
-                                    # Mostrar desglose mensual de la proyección CON ESTACIONALIDAD
-                                    if meses_proyeccion > 1:
-                                        with st.expander("📅 Ver Proyección Mensual Detallada (con Estacionalidad)"):
-                                            # Nombres de meses
-                                            MESES_NOMBRES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                                                           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-
-                                            df_proyeccion = pd.DataFrame({
-                                                'Mes Futuro': [f"{MESES_NOMBRES[p['mes_calendario']]} ({p['mes_num']})" for p in proyecciones],
-                                                'Base + Tendencia': [f"{p['base']:.0f}" for p in proyecciones],
-                                                'Factor Estacional': [f"{p['factor_estacional']:.2f}x" for p in proyecciones],
-                                                'Proyección Final': [f"{p['proyeccion']:.0f}" for p in proyecciones],
-                                                'Acumulado': [f"{sum([pr['proyeccion'] for pr in proyecciones[:i+1]]):.0f}" for i in range(len(proyecciones))]
-                                            })
-                                            st.dataframe(df_proyeccion, use_container_width=True, hide_index=True)
-
-                                            # Gráfico de comparación
-                                            st.markdown("**Comparación: Con vs Sin Estacionalidad**")
-                                            df_comp = pd.DataFrame({
-                                                'Mes': [f"Mes {i+1}" for i in range(len(proyecciones))],
-                                                'Con Estacionalidad': [p['proyeccion'] for p in proyecciones],
-                                                'Sin Estacionalidad': proyecciones_sin_estacional
-                                            })
-
-                                            fig_comp = go.Figure()
-                                            fig_comp.add_trace(go.Scatter(
-                                                x=df_comp['Mes'],
-                                                y=df_comp['Con Estacionalidad'],
-                                                name='Con Estacionalidad',
-                                                mode='lines+markers',
-                                                line=dict(color='#1f77b4', width=3),
-                                                marker=dict(size=10)
-                                            ))
-                                            fig_comp.add_trace(go.Scatter(
-                                                x=df_comp['Mes'],
-                                                y=df_comp['Sin Estacionalidad'],
-                                                name='Sin Estacionalidad (tendencia lineal)',
-                                                mode='lines+markers',
-                                                line=dict(color='#ff7f0e', width=2, dash='dash'),
-                                                marker=dict(size=8)
-                                            ))
-                                            fig_comp.update_layout(
-                                                title='Impacto de la Estacionalidad en la Proyección',
-                                                xaxis_title='Mes Proyectado',
-                                                yaxis_title='Cantidad Proyectada',
-                                                hovermode='x unified',
-                                                height=400
+                                        with col_p2:
+                                            st.metric(
+                                                "Base Mensual",
+                                                format_number(base_proyeccion),
+                                                f"Último: {ultimo_mes:.0f}"
                                             )
-                                            st.plotly_chart(fig_comp, use_container_width=True)
 
-                                    # Explicación del método
-                                    st.markdown("---")
-                                    st.markdown("##### 📖 Metodología de Proyección")
-                                    st.markdown(f"""
-                                    **Método aplicado:** {metodo} + Ajuste Estacional
+                                        with col_p3:
+                                            # Calcular tendencia reciente (último vs hace 3 meses)
+                                            if len(df_hist_pred) >= 4:
+                                                tendencia = ((df_hist_pred.iloc[0]['cantidad_transacciones'] -
+                                                            df_hist_pred.iloc[-1]['cantidad_transacciones']) /
+                                                           df_hist_pred.iloc[-1]['cantidad_transacciones'] * 100)
+                                                st.metric(
+                                                    "Tendencia 12 meses",
+                                                    f"{tendencia:+.1f}%",
+                                                    "Último vs más antiguo"
+                                                )
 
-                                    **Componentes:**
-                                    1. **Base de cálculo:** {"Último mes" if coef_variacion > 50 else "Promedio últimos 3 meses"} = {base_proyeccion:.0f} unidades/mes
-                                    2. **Tendencia lineal:** {tendencia_mensual:+.2f} unidades/mes (regresión últimos 6 meses)
-                                    3. **Estacionalidad:** Calculada desde históricos (índices por mes del año)
-                                    4. **Volatilidad:** CV = {coef_variacion:.1f}% {"(⚠️ Alta)" if coef_variacion > 50 else "(✓ Moderada)"}
+                                        with col_p4:
+                                            st.metric(
+                                                "Volatilidad",
+                                                f"±{desv_std:.0f}",
+                                                f"CV: {coef_variacion:.1f}%"
+                                            )
 
-                                    **Fórmula:**
-                                    ```
-                                    Proyección(mes_i) = [Base + (Tendencia × i)] × Factor_Estacional(mes)
-                                    ```
+                                        # Mostrar desglose mensual de la proyección CON ESTACIONALIDAD
+                                        if meses_proyeccion > 1:
+                                            with st.expander("📅 Ver Proyección Mensual Detallada (con Estacionalidad)"):
+                                                # Nombres de meses
+                                                MESES_NOMBRES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                                                               'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
-                                    **Interpretación:**
-                                    {"- ⚠️ Debido a la alta volatilidad, se usa el **último mes** como base conservadora" if coef_variacion > 50 else ""}
-                                    {"- 📉 Tendencia bajista detectada: **disminución sostenida** en la demanda" if tendencia_mensual < -promedio_mensual_hist * 0.1 else ""}
-                                    {"- 📈 Tendencia alcista detectada: **crecimiento sostenido** en la demanda" if tendencia_mensual > promedio_mensual_hist * 0.1 else ""}
-                                    {"- ✓ Sin tendencia fuerte, se usa promedio reciente + estacionalidad" if abs(tendencia_mensual) <= promedio_mensual_hist * 0.1 and coef_variacion <= 50 else ""}
-                                    - 📊 **Impacto estacional total:** {impacto_estacional:+.1f}% sobre proyección lineal
+                                                df_proyeccion = pd.DataFrame({
+                                                    'Mes Futuro': [f"{MESES_NOMBRES[p['mes_calendario']]} ({p['mes_num']})" for p in proyecciones],
+                                                    'Base + Tendencia': [f"{p['base']:.0f}" for p in proyecciones],
+                                                    'Factor Estacional': [f"{p['factor_estacional']:.2f}x" for p in proyecciones],
+                                                    'Proyección Final': [f"{p['proyeccion']:.0f}" for p in proyecciones],
+                                                    'Acumulado': [f"{sum([pr['proyeccion'] for pr in proyecciones[:i+1]]):.0f}" for i in range(len(proyecciones))]
+                                                })
+                                                st.dataframe(df_proyeccion, use_container_width=True, hide_index=True)
 
-                                    **Variables macro consideradas:**
-                                    - IPC actual: {ipc_actual:.1f} (var: {ipc_var_mensual:+.1f}%)
-                                    - BADLAR actual: {badlar_actual:.1f}%
-                                    - TC actual: ${tc_actual:.0f}
-                                    """)
+                                                # Gráfico de comparación
+                                                st.markdown("**Comparación: Con vs Sin Estacionalidad**")
+                                                df_comp = pd.DataFrame({
+                                                    'Mes': [f"Mes {i+1}" for i in range(len(proyecciones))],
+                                                    'Con Estacionalidad': [p['proyeccion'] for p in proyecciones],
+                                                    'Sin Estacionalidad': proyecciones_sin_estacional
+                                                })
+
+                                                fig_comp = go.Figure()
+                                                fig_comp.add_trace(go.Scatter(
+                                                    x=df_comp['Mes'],
+                                                    y=df_comp['Con Estacionalidad'],
+                                                    name='Con Estacionalidad',
+                                                    mode='lines+markers',
+                                                    line=dict(color='#1f77b4', width=3),
+                                                    marker=dict(size=10)
+                                                ))
+                                                fig_comp.add_trace(go.Scatter(
+                                                    x=df_comp['Mes'],
+                                                    y=df_comp['Sin Estacionalidad'],
+                                                    name='Sin Estacionalidad (tendencia lineal)',
+                                                    mode='lines+markers',
+                                                    line=dict(color='#ff7f0e', width=2, dash='dash'),
+                                                    marker=dict(size=8)
+                                                ))
+                                                fig_comp.update_layout(
+                                                    title='Impacto de la Estacionalidad en la Proyección',
+                                                    xaxis_title='Mes Proyectado',
+                                                    yaxis_title='Cantidad Proyectada',
+                                                    hovermode='x unified',
+                                                    height=400
+                                                )
+                                                st.plotly_chart(fig_comp, use_container_width=True)
+
+                                        # Explicación del método
+                                        st.markdown("---")
+                                        st.markdown("##### 📖 Metodología de Proyección")
+                                        st.markdown(f"""
+                                        **Método aplicado:** {metodo} + Ajuste Estacional
+
+                                        **Componentes:**
+                                        1. **Base de cálculo:** {"Último mes" if coef_variacion > 50 else "Promedio últimos 3 meses"} = {base_proyeccion:.0f} unidades/mes
+                                        2. **Tendencia lineal:** {tendencia_mensual:+.2f} unidades/mes (regresión últimos 6 meses)
+                                        3. **Estacionalidad:** Calculada desde históricos (índices por mes del año)
+                                        4. **Volatilidad:** CV = {coef_variacion:.1f}% {"(⚠️ Alta)" if coef_variacion > 50 else "(✓ Moderada)"}
+
+                                        **Fórmula:**
+                                        ```
+                                        Proyección(mes_i) = [Base + (Tendencia × i)] × Factor_Estacional(mes)
+                                        ```
+
+                                        **Interpretación:**
+                                        {"- ⚠️ Debido a la alta volatilidad, se usa el **último mes** como base conservadora" if coef_variacion > 50 else ""}
+                                        {"- 📉 Tendencia bajista detectada: **disminución sostenida** en la demanda" if tendencia_mensual < -promedio_mensual_hist * 0.1 else ""}
+                                        {"- 📈 Tendencia alcista detectada: **crecimiento sostenido** en la demanda" if tendencia_mensual > promedio_mensual_hist * 0.1 else ""}
+                                        {"- ✓ Sin tendencia fuerte, se usa promedio reciente + estacionalidad" if abs(tendencia_mensual) <= promedio_mensual_hist * 0.1 and coef_variacion <= 50 else ""}
+                                        - 📊 **Impacto estacional total:** {impacto_estacional:+.1f}% sobre proyección lineal
+
+                                        **Variables macro consideradas:**
+                                        - IPC actual: {ipc_actual:.1f} (var: {ipc_var_mensual:+.1f}%)
+                                        - BADLAR actual: {badlar_actual:.1f}%
+                                        - TC actual: ${tc_actual:.0f}
+                                        """)
 
                                     # Tabla de datos históricos
                                     with st.expander("📋 Ver Datos Históricos Detallados"):
