@@ -2243,7 +2243,7 @@ with tab7:
                                         # Importar helper de predicción ML
                                         import sys
                                         sys.path.insert(0, str(PathlibPath(__file__).parent))
-                                        from prediccion_ml_helper import preparar_features_prediccion, predecir_recursive
+                                        from prediccion_ml_helper import predecir_recursive
 
                                         # Preparar datos históricos
                                         df_hist_sorted = df_hist_pred.sort_values('fecha_mes')
@@ -2256,26 +2256,24 @@ with tab7:
 
                                         - **Horizonte:** {meses_proyeccion} {'mes' if meses_proyeccion == 1 else 'meses'} ({horizonte_pred} días)
                                         - **Variables macro:** IPC={ipc_actual:.1f}, BADLAR={badlar_actual:.1f}%, TC=${tc_actual:.0f}
-                                        - **Método:** Recursive forecasting con todas las features
+                                        - **Método:** Recursive forecasting iterativo (mes a mes)
                                         - **Features:** lag1, lag3, MA3, MA6, variaciones, encodings, temporales
                                         """)
 
-                                        # Preparar features para predicción
-                                        predicciones_features = preparar_features_prediccion(
-                                            df_historico=df_hist_sorted,
-                                            df_macro=df_ipc.merge(df_badlar, on='fecha_mes', how='outer').merge(df_tc, on='fecha_mes', how='outer'),
-                                            provincia=provincia_pred,
-                                            marca=marca_pred,
-                                            modelo=modelo_pred,
-                                            encoders=encoders,
-                                            meses_proyectar=meses_proyeccion
-                                        )
+                                        # Preparar DataFrame macro combinado
+                                        df_macro_combined = df_ipc.merge(df_badlar, on='fecha_mes', how='outer').merge(df_tc, on='fecha_mes', how='outer')
 
-                                        # Realizar predicción recursiva con el modelo
+                                        # Realizar predicción recursiva mes a mes
                                         predicciones_ml = predecir_recursive(
                                             modelo=modelo,
                                             feature_names=feature_names,
-                                            predicciones_features=predicciones_features
+                                            df_historico=df_hist_sorted,
+                                            df_macro=df_macro_combined,
+                                            provincia=provincia_pred,
+                                            marca=marca_pred,
+                                            modelo_vehiculo=modelo_pred,
+                                            encoders=encoders,
+                                            meses_proyectar=meses_proyeccion
                                         )
 
                                         st.info("""
