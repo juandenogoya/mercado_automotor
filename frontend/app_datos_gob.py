@@ -2216,66 +2216,177 @@ with tab7:
 
                                     st.plotly_chart(fig_hist, use_container_width=True)
 
-                                    # ========== PREDICCIÓN ML CON RECURSIVE FORECASTING ==========
-                                    st.markdown("#### 🤖 Predicción Machine Learning (Recursive Forecasting)")
+                                    # ========== PREDICCIÓN ML COMPLETA CON RECURSIVE FORECASTING ==========
+                                    st.markdown("#### 🤖 Predicción Machine Learning (Modelo Completo)")
+
+                                    usar_ml_completo = False
+                                    predicciones_ml = []
 
                                     try:
-                                        # Preparar datos históricos ordenados
+                                        # Importar helper de predicción ML
+                                        import sys
+                                        sys.path.insert(0, str(PathlibPath(__file__).parent))
+                                        from prediccion_ml_helper import preparar_features_prediccion, predecir_recursive
+
+                                        # Preparar datos históricos
                                         df_hist_sorted = df_hist_pred.sort_values('fecha_mes')
 
-                                        # Obtener últimos valores macro
+                                        # Obtener valores macro
                                         ipc_actual = df_ipc.iloc[0]['ipc_nivel'] if not df_ipc.empty else 100
                                         badlar_actual = df_badlar.iloc[0]['badlar_promedio'] if not df_badlar.empty else 50
                                         tc_actual = df_tc.iloc[0]['tc_promedio'] if not df_tc.empty else 1000
 
-                                        # Calcular IPC var mensual
-                                        if len(df_ipc) >= 2:
-                                            ipc_var_mensual = ((df_ipc.iloc[0]['ipc_nivel'] - df_ipc.iloc[1]['ipc_nivel']) /
-                                                              df_ipc.iloc[1]['ipc_nivel'] * 100)
-                                        else:
-                                            ipc_var_mensual = 5.0  # Default
-
-                                        # Preparar serie temporal para predicción
-                                        cantidad_historica = df_hist_sorted['cantidad_transacciones'].tolist()
-
-                                        # Función de predicción recursiva
-                                        from datetime import datetime, timedelta
-                                        import calendar
-
                                         meses_proyeccion = horizonte_pred // 30
-                                        predicciones_ml = []
 
-                                        # Fecha actual
-                                        ultima_fecha = df_hist_sorted.iloc[-1]['fecha_mes']
-
-                                        st.info(f"""
-                                        🔮 **Iniciando predicción ML con {MODEL_NAME}**
+                                        st.success(f"""
+                                        ✅ **Predicción ML con {MODEL_NAME}** - Modelo completo activado
 
                                         - **Horizonte:** {meses_proyeccion} {'mes' if meses_proyeccion == 1 else 'meses'} ({horizonte_pred} días)
                                         - **Variables macro:** IPC={ipc_actual:.1f}, BADLAR={badlar_actual:.1f}%, TC=${tc_actual:.0f}
-                                        - **Método:** Recursive forecasting (cada predicción usa predicciones anteriores)
+                                        - **Método:** Recursive forecasting con todas las features
+                                        - **Features:** lag1, lag3, MA3, MA6, variaciones, encodings, temporales
                                         """)
 
-                                        # Nota: Como no tenemos acceso directo a los feature_names esperados,
-                                        # haremos una proyección simplificada pero mejorada
-                                        st.warning("""
-                                        ⚠️ **Limitación actual:** El modelo ML fue entrenado con 34+ features específicas
-                                        (lags, moving averages, encodings categóricos, etc.). Para hacer predicción completa
-                                        necesitaríamos:
-                                        - Los encoders exactos para marca/modelo/provincia
-                                        - Los nombres exactos de todas las features
-                                        - El orden correcto de las features
+                                        # Preparar features para predicción
+                                        predicciones_features = preparar_features_prediccion(
+                                            df_historico=df_hist_sorted,
+                                            df_macro=df_ipc.merge(df_badlar, on='fecha_mes', how='outer').merge(df_tc, on='fecha_mes', how='outer'),
+                                            provincia=provincia_pred,
+                                            marca=marca_pred,
+                                            modelo=modelo_pred,
+                                            encoders=encoders,
+                                            meses_proyectar=meses_proyeccion
+                                        )
 
-                                        **Solución temporal:** Usamos proyección mejorada con tendencia + estacionalidad
-                                        hasta que preparemos el dataset completo con todas las features del modelo.
+                                        # Realizar predicción recursiva con el modelo
+                                        predicciones_ml = predecir_recursive(
+                                            modelo=modelo,
+                                            feature_names=feature_names,
+                                            predicciones_features=predicciones_features
+                                        )
+
+                                        st.info("""
+                                        ✨ **Predicción completada exitosamente**
+
+                                        El modelo usó:
+                                        - 📊 Lag features (valores de meses anteriores)
+                                        - 📈 Moving averages (promedios móviles 3 y 6 meses)
+                                        - 🔄 Recursive forecasting (cada predicción alimenta la siguiente)
+                                        - 🏷️ Encodings categóricos para marca/modelo/provincia
+                                        - 📅 Variables temporales (mes, trimestre, estacionalidad)
+                                        - 💰 Variables macroeconómicas (IPC, BADLAR, TC)
                                         """)
+
+                                        usar_ml_completo = True
 
                                     except Exception as e_ml:
-                                        st.error(f"Error en preparación ML: {e_ml}")
-                                        tiene_macro = False  # Fallback a método simple
+                                        st.warning(f"⚠️ No se pudo usar modelo ML completo: {e_ml}")
+                                        st.info("Usando proyección estadística con tendencia + estacionalidad como fallback")
+                                        usar_ml_completo = False
 
-                                    # ========== PROYECCIÓN INTELIGENTE CON ESTACIONALIDAD ==========
-                                    st.markdown("#### 📊 Proyección Estimada (Tendencia + Estacionalidad)")
+                                    # ========== MOSTRAR RESULTADOS ==========
+                                    if usar_ml_completo and len(predicciones_ml) > 0:
+                                        # ===== MOSTRAR PREDICCIONES ML =====
+                                        st.markdown("---")
+                                        st.markdown("### 📊 Resultados de Predicción ML")
+
+                                        # Calcular total
+                                        proyeccion_total_ml = sum([p['prediccion'] for p in predicciones_ml])
+
+                                        # Métricas principales
+                                        col_ml1, col_ml2, col_ml3, col_ml4 = st.columns(4)
+
+                                        with col_ml1:
+                                            st.metric(
+                                                f"Proyección ML {meses_proyeccion} {'mes' if meses_proyeccion==1 else 'meses'}",
+                                                format_number(proyeccion_total_ml)
+                                            )
+
+                                        with col_ml2:
+                                            promedio_ml = proyeccion_total_ml / meses_proyeccion
+                                            st.metric(
+                                                "Promedio Mensual ML",
+                                                format_number(promedio_ml)
+                                            )
+
+                                        with col_ml3:
+                                            ultimo_mes_real = df_hist_pred.iloc[0]['cantidad_transacciones']
+                                            cambio_vs_ultimo = ((promedio_ml - ultimo_mes_real) / ultimo_mes_real * 100) if ultimo_mes_real > 0 else 0
+                                            st.metric(
+                                                "Cambio vs Último Mes",
+                                                f"{cambio_vs_ultimo:+.1f}%"
+                                            )
+
+                                        with col_ml4:
+                                            primer_mes_ml = predicciones_ml[0]['prediccion']
+                                            ultimo_mes_ml = predicciones_ml[-1]['prediccion']
+                                            tendencia_ml = ((ultimo_mes_ml - primer_mes_ml) / primer_mes_ml * 100) if primer_mes_ml > 0 else 0
+                                            st.metric(
+                                                "Tendencia Proyectada",
+                                                f"{tendencia_ml:+.1f}%"
+                                            )
+
+                                        # Tabla detallada de predicciones ML
+                                        st.markdown("#### 📅 Proyección Mensual Detallada (Modelo ML)")
+
+                                        MESES_NOMBRES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                                                       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+                                        df_pred_ml = pd.DataFrame({
+                                            'Mes': [f"{MESES_NOMBRES[p['fecha'].month]} {p['fecha'].year}" for p in predicciones_ml],
+                                            'Predicción ML': [f"{p['prediccion']:.0f}" for p in predicciones_ml],
+                                            'Acumulado': [f"{sum([pr['prediccion'] for pr in predicciones_ml[:i+1]]):.0f}" for i in range(len(predicciones_ml))]
+                                        })
+                                        st.dataframe(df_pred_ml, use_container_width=True, hide_index=True)
+
+                                        # Gráfico de predicción ML vs histórico
+                                        st.markdown("#### 📈 Histórico + Proyección ML")
+
+                                        # Preparar datos para gráfico
+                                        df_hist_grafico = df_hist_plot[['fecha_str', 'cantidad_transacciones']].copy()
+                                        df_hist_grafico.columns = ['Mes', 'Cantidad']
+
+                                        df_pred_grafico = pd.DataFrame({
+                                            'Mes': [p['fecha'].strftime('%Y-%m') for p in predicciones_ml],
+                                            'Cantidad': [p['prediccion'] for p in predicciones_ml]
+                                        })
+
+                                        fig_ml = go.Figure()
+
+                                        # Histórico
+                                        fig_ml.add_trace(go.Scatter(
+                                            x=df_hist_grafico['Mes'],
+                                            y=df_hist_grafico['Cantidad'],
+                                            name='Histórico Real',
+                                            mode='lines+markers',
+                                            line=dict(color='#1f77b4', width=2),
+                                            marker=dict(size=6)
+                                        ))
+
+                                        # Predicción ML
+                                        fig_ml.add_trace(go.Scatter(
+                                            x=df_pred_grafico['Mes'],
+                                            y=df_pred_grafico['Cantidad'],
+                                            name=f'Predicción {MODEL_NAME}',
+                                            mode='lines+markers',
+                                            line=dict(color='#ff7f0e', width=3, dash='dash'),
+                                            marker=dict(size=10, symbol='star')
+                                        ))
+
+                                        fig_ml.update_layout(
+                                            title=f'Histórico + Proyección ML - {marca_pred} {modelo_pred} en {provincia_pred}',
+                                            xaxis_title='Mes',
+                                            yaxis_title='Cantidad de Transacciones',
+                                            hovermode='x unified',
+                                            height=500
+                                        )
+
+                                        st.plotly_chart(fig_ml, use_container_width=True)
+
+                                    else:
+                                        # ===== FALLBACK: PROYECCIÓN ESTADÍSTICA =====
+                                        st.markdown("---")
+                                        st.markdown("#### 📊 Proyección Estadística (Tendencia + Estacionalidad)")
 
                                     # Calcular base de proyección usando últimos 3 meses (más reciente)
                                     ultimos_3_meses = df_hist_pred.head(3)['cantidad_transacciones'].mean()
