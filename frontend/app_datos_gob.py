@@ -1876,7 +1876,7 @@ with tab6:
 
                 # ========== TABLA DE DATOS ==========
                 with st.expander("📋 Ver Datos Detallados"):
-                    df_tabla = df_hist.groupby(['anio', 'mes_nombre', 'provincia'])['total'].sum().reset_index()
+                    df_tabla = df_hist.groupby(['anio', 'mes', 'mes_nombre', 'provincia'])['total'].sum().reset_index()
                     df_tabla = df_tabla.sort_values(['anio', 'mes', 'total'], ascending=[False, False, False])
                     df_tabla_display = df_tabla[['anio', 'mes_nombre', 'provincia', 'total']].copy()
                     df_tabla_display.columns = ['Año', 'Mes', 'Provincia', 'Total']
