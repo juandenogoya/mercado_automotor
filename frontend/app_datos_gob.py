@@ -972,11 +972,11 @@ with tab5:
 
         # Obtener provincias disponibles para el filtro global
         query_provincias_global = text(f"""
-            SELECT DISTINCT registro_seccional_provincia as provincia
+            SELECT DISTINCT titular_domicilio_provincia as provincia
             FROM datos_gob_inscripciones
             WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
-            AND registro_seccional_provincia IS NOT NULL
-            AND registro_seccional_provincia != ''
+            AND titular_domicilio_provincia IS NOT NULL
+            AND titular_domicilio_provincia != ''
             ORDER BY provincia
         """)
 
@@ -1003,7 +1003,7 @@ with tab5:
                 SELECT DISTINCT titular_domicilio_localidad as localidad
                 FROM datos_gob_inscripciones
                 WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
-                AND registro_seccional_provincia = ANY(:provincias)
+                AND titular_domicilio_provincia = ANY(:provincias)
                 AND titular_domicilio_localidad IS NOT NULL
                 AND titular_domicilio_localidad != ''
                 ORDER BY localidad
@@ -1070,12 +1070,12 @@ with tab5:
                     automotor_origen as origen,
                     titular_tipo_persona as tipo_persona,
                     titular_genero as genero,
-                    registro_seccional_provincia as provincia,
+                    titular_domicilio_provincia as provincia,
                     COUNT(*) as cantidad
                 FROM datos_gob_inscripciones
                 WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
                 AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
-                AND registro_seccional_provincia = ANY(:provincias)
+                AND titular_domicilio_provincia = ANY(:provincias)
                 {filtro_localidad}
                 AND tramite_fecha IS NOT NULL
                 AND titular_anio_nacimiento IS NOT NULL
@@ -1111,12 +1111,12 @@ with tab5:
                             automotor_origen as origen,
                             titular_tipo_persona as tipo_persona,
                             titular_genero as genero,
-                            registro_seccional_provincia as provincia,
+                            titular_domicilio_provincia as provincia,
                             COUNT(*) as cantidad_prendas
                         FROM datos_gob_prendas
                         WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
                         AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
-                        AND registro_seccional_provincia = ANY(:provincias)
+                        AND titular_domicilio_provincia = ANY(:provincias)
                         {filtro_localidad}
                         AND tramite_fecha IS NOT NULL
                         AND titular_anio_nacimiento IS NOT NULL
