@@ -100,7 +100,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🚗 Inscripciones",
     "🔄 Transferencias",
     "💰 Prendas",
-    "📍 Registros Seccionales",
+    "📍 Registro por Localidad",
     "🔬 Análisis Detallado",
     "📊 Tendencias Históricas",
     "🔮 Predicciones ML"
@@ -708,133 +708,195 @@ with tab2:
 with tab3:
     analizar_tramites('datos_gob_prendas', 'Prendas sobre Vehículos', '💰')
 
-# ==================== TAB 4: REGISTROS SECCIONALES ====================
+# ==================== TAB 4: REGISTRO POR LOCALIDAD ====================
 with tab4:
-    st.header("📍 Catálogo de Registros Seccionales")
+    st.header("📍 Registro por Localidad - Inscripciones de Vehículos")
+    st.markdown("Análisis de inscripciones agrupadas por provincia y localidad del titular")
 
-    query_seccionales = text("""
+    query_localidades = text("""
         SELECT
-            codigo,
-            denominacion,
-            provincia_nombre,
-            localidad,
-            domicilio,
-            telefono,
-            horario_atencion,
-            encargado
-        FROM datos_gob_registros_seccionales
-        ORDER BY provincia_nombre, denominacion
+            titular_domicilio_provincia as provincia,
+            titular_domicilio_localidad as localidad,
+            COUNT(*) as total_inscripciones,
+            COUNT(DISTINCT automotor_origen) as origenes,
+            COUNT(DISTINCT EXTRACT(YEAR FROM tramite_fecha)) as anios_activos
+        FROM datos_gob_inscripciones
+        WHERE titular_domicilio_provincia IS NOT NULL
+        AND titular_domicilio_provincia != ''
+        AND titular_domicilio_localidad IS NOT NULL
+        AND titular_domicilio_localidad != ''
+        GROUP BY titular_domicilio_provincia, titular_domicilio_localidad
+        ORDER BY total_inscripciones DESC
     """)
 
     try:
-        df_seccionales = pd.read_sql(query_seccionales, engine)
+        df_localidades = pd.read_sql(query_localidades, engine)
 
-        if not df_seccionales.empty:
-            st.success(f"✅ {len(df_seccionales)} registros seccionales encontrados")
+        if not df_localidades.empty:
+            st.success(f"✅ {len(df_localidades):,} localidades con inscripciones registradas")
 
             # Filtros
             col_f1, col_f2 = st.columns(2)
 
             with col_f1:
-                provincias_seccionales = sorted(df_seccionales['provincia_nombre'].unique())
+                provincias_disponibles = sorted(df_localidades['provincia'].unique())
                 provincia_filtro = st.multiselect(
-                    "Filtrar por provincia:",
-                    options=provincias_seccionales,
-                    default=provincias_seccionales[:5] if len(provincias_seccionales) >= 5 else provincias_seccionales,
-                    key="seccionales_provincia"
+                    "🏙️ Filtrar por provincia:",
+                    options=provincias_disponibles,
+                    default=provincias_disponibles[:5] if len(provincias_disponibles) >= 5 else provincias_disponibles,
+                    key="localidad_provincia"
                 )
 
             with col_f2:
-                buscar_texto = st.text_input("🔍 Buscar por denominación o localidad:", "")
+                buscar_localidad = st.text_input("🔍 Buscar localidad:", "")
 
             # Aplicar filtros
-            df_filtrado = df_seccionales.copy()
+            df_filtrado = df_localidades.copy()
 
             if provincia_filtro:
-                df_filtrado = df_filtrado[df_filtrado['provincia_nombre'].isin(provincia_filtro)]
+                df_filtrado = df_filtrado[df_filtrado['provincia'].isin(provincia_filtro)]
 
-            if buscar_texto:
-                mask = (
-                    df_filtrado['denominacion'].str.contains(buscar_texto, case=False, na=False) |
-                    df_filtrado['localidad'].str.contains(buscar_texto, case=False, na=False)
-                )
-                df_filtrado = df_filtrado[mask]
+            if buscar_localidad:
+                df_filtrado = df_filtrado[
+                    df_filtrado['localidad'].str.contains(buscar_localidad, case=False, na=False)
+                ]
 
             st.markdown("---")
 
             # Métricas
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                st.metric("Registros Seccionales", len(df_filtrado))
+                st.metric("Total Localidades", f"{len(df_filtrado):,}")
 
             with col2:
-                st.metric("Provincias", df_filtrado['provincia_nombre'].nunique())
+                st.metric("Total Provincias", df_filtrado['provincia'].nunique())
 
             with col3:
-                st.metric("Localidades", df_filtrado['localidad'].nunique())
+                total_insc = df_filtrado['total_inscripciones'].sum()
+                st.metric("Total Inscripciones", f"{int(total_insc):,}")
+
+            with col4:
+                prom_insc = df_filtrado['total_inscripciones'].mean()
+                st.metric("Promedio por Localidad", f"{int(prom_insc):,}")
+
+            st.markdown("---")
+
+            # Top 20 Localidades
+            st.markdown("### 🏆 Top 20 Localidades por Inscripciones")
+
+            df_top20 = df_filtrado.nlargest(20, 'total_inscripciones').copy()
+
+            col_top1, col_top2 = st.columns([3, 2])
+
+            with col_top1:
+                fig_top = px.bar(
+                    df_top20,
+                    y='localidad',
+                    x='total_inscripciones',
+                    color='provincia',
+                    orientation='h',
+                    title='Top 20 Localidades con más Inscripciones',
+                    labels={'localidad': 'Localidad', 'total_inscripciones': 'Inscripciones', 'provincia': 'Provincia'},
+                    text='total_inscripciones',
+                    hover_data=['provincia', 'localidad', 'total_inscripciones']
+                )
+                fig_top.update_traces(textposition='outside')
+                fig_top.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=True, height=600)
+                st.plotly_chart(fig_top, use_container_width=True)
+
+            with col_top2:
+                # Mostrar tabla de top 10
+                st.markdown("#### 📊 Top 10 Detalle")
+                df_top10_display = df_top20.head(10)[['localidad', 'provincia', 'total_inscripciones']].copy()
+                df_top10_display.columns = ['Localidad', 'Provincia', 'Inscripciones']
+                df_top10_display.index = range(1, len(df_top10_display) + 1)
+                st.dataframe(df_top10_display, use_container_width=True)
 
             st.markdown("---")
 
             # Distribución por provincia
             st.markdown("### 🗺️ Distribución por Provincia")
 
-            df_prov_count = df_filtrado['provincia_nombre'].value_counts().reset_index()
-            df_prov_count.columns = ['provincia', 'cantidad']
+            df_prov_stats = df_filtrado.groupby('provincia').agg({
+                'localidad': 'count',
+                'total_inscripciones': 'sum'
+            }).reset_index()
+            df_prov_stats.columns = ['provincia', 'cantidad_localidades', 'total_inscripciones']
+            df_prov_stats = df_prov_stats.sort_values('total_inscripciones', ascending=False)
 
-            col_dist1, col_dist2 = st.columns([2, 1])
+            col_prov1, col_prov2 = st.columns(2)
 
-            with col_dist1:
-                fig_dist = px.bar(
-                    df_prov_count,
-                    x='cantidad',
+            with col_prov1:
+                fig_prov_insc = px.bar(
+                    df_prov_stats.head(15),
+                    x='total_inscripciones',
                     y='provincia',
                     orientation='h',
-                    title='Registros Seccionales por Provincia',
-                    labels={'provincia': 'Provincia', 'cantidad': 'Cantidad'},
-                    text='cantidad',
-                    color='cantidad',
+                    title='Top 15 Provincias - Total Inscripciones',
+                    labels={'provincia': 'Provincia', 'total_inscripciones': 'Inscripciones'},
+                    text='total_inscripciones',
+                    color='total_inscripciones',
+                    color_continuous_scale='Viridis'
+                )
+                fig_prov_insc.update_traces(textposition='outside')
+                fig_prov_insc.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
+                st.plotly_chart(fig_prov_insc, use_container_width=True)
+
+            with col_prov2:
+                fig_prov_loc = px.bar(
+                    df_prov_stats.head(15),
+                    x='cantidad_localidades',
+                    y='provincia',
+                    orientation='h',
+                    title='Top 15 Provincias - Cantidad de Localidades',
+                    labels={'provincia': 'Provincia', 'cantidad_localidades': 'Localidades'},
+                    text='cantidad_localidades',
+                    color='cantidad_localidades',
                     color_continuous_scale='Teal'
                 )
-                fig_dist.update_traces(textposition='outside')
-                fig_dist.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
-                st.plotly_chart(fig_dist, use_container_width=True)
-
-            with col_dist2:
-                fig_pie_sec = px.pie(
-                    df_prov_count.head(10),
-                    values='cantidad',
-                    names='provincia',
-                    title='Top 10 Provincias'
-                )
-                st.plotly_chart(fig_pie_sec, use_container_width=True)
+                fig_prov_loc.update_traces(textposition='outside')
+                fig_prov_loc.update_layout(yaxis={'categoryorder':'total ascending'}, showlegend=False)
+                st.plotly_chart(fig_prov_loc, use_container_width=True)
 
             st.markdown("---")
 
-            # Tabla de registros
-            st.markdown("### 📋 Listado de Registros Seccionales")
+            # Tabla completa de localidades
+            st.markdown("### 📋 Tabla Completa de Localidades")
 
-            # Formatear columnas para mostrar
+            # Formatear para visualización
             df_display = df_filtrado.copy()
-            df_display.columns = ['Código', 'Denominación', 'Provincia', 'Localidad',
-                                 'Domicilio', 'Teléfono', 'Horario', 'Encargado']
+            df_display['total_inscripciones'] = df_display['total_inscripciones'].apply(lambda x: f"{int(x):,}")
+            df_display.columns = ['Provincia', 'Localidad', 'Total Inscripciones', 'Orígenes', 'Años Activos']
 
-            st.dataframe(df_display, use_container_width=True, hide_index=True, height=400)
+            st.dataframe(
+                df_display,
+                use_container_width=True,
+                hide_index=True,
+                height=400,
+                column_config={
+                    "Total Inscripciones": st.column_config.TextColumn("Total Inscripciones", width="medium"),
+                    "Localidad": st.column_config.TextColumn("Localidad", width="large"),
+                }
+            )
 
             # Botón de descarga
             csv = df_display.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📥 Descargar registros (CSV)",
+                label="📥 Descargar datos por localidad (CSV)",
                 data=csv,
-                file_name=f"registros_seccionales_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                file_name=f"inscripciones_por_localidad_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv"
             )
         else:
-            st.warning("⚠️ No hay datos de registros seccionales")
-            st.info("💡 Para cargar el catálogo de registros seccionales, ejecuta el script de carga correspondiente.")
+            st.warning("⚠️ No hay datos de inscripciones por localidad")
+            st.info("💡 Para cargar datos:\n\n"
+                    "1. Descarga datos CSV desde datos.gob.ar\n"
+                    "2. Coloca los archivos en `INPUT/INSCRIPCIONES/`\n"
+                    "3. Ejecuta el script de carga")
 
     except Exception as e:
-        st.error(f"❌ Error al cargar registros seccionales: {str(e)}")
+        st.error(f"❌ Error al cargar datos de localidades: {str(e)}")
         st.exception(e)
 
 # ==================== TAB 5: ANÁLISIS DETALLADO ====================
@@ -933,6 +995,39 @@ with tab5:
             key="provincias_global"
         )
 
+        # Filtro de localidades (basado en provincias seleccionadas)
+        st.markdown("#### 📍 Localidades")
+
+        if provincias_seleccionadas:
+            query_localidades_global = text("""
+                SELECT DISTINCT titular_domicilio_localidad as localidad
+                FROM datos_gob_inscripciones
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
+                AND titular_domicilio_provincia = ANY(:provincias)
+                AND titular_domicilio_localidad IS NOT NULL
+                AND titular_domicilio_localidad != ''
+                ORDER BY localidad
+            """)
+
+            try:
+                df_localidades_global = pd.read_sql(
+                    query_localidades_global,
+                    engine,
+                    params={'anio': anio_seleccionado, 'provincias': provincias_seleccionadas}
+                )
+                localidades_disponibles_global = df_localidades_global['localidad'].tolist()
+            except:
+                localidades_disponibles_global = []
+
+            localidades_seleccionadas = st.multiselect(
+                "Selecciona localidades (opcional - si no seleccionas ninguna, se mostrarán todas):",
+                options=localidades_disponibles_global,
+                default=[],  # Por defecto ninguna seleccionada = todas
+                key="localidades_global"
+            )
+        else:
+            localidades_seleccionadas = []
+
         if not meses_seleccionados_detalle:
             st.warning("⚠️ Selecciona al menos un mes")
         elif not provincias_seleccionadas:
@@ -963,6 +1058,10 @@ with tab5:
             if genero_seleccionado != "Todos":
                 filtro_genero = f"AND titular_genero = '{genero_seleccionado}'"
 
+            filtro_localidad = ""
+            if localidades_seleccionadas:
+                filtro_localidad = "AND titular_domicilio_localidad = ANY(:localidades)"
+
             query_inscripciones_edad = text(f"""
                 SELECT
                     EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento as edad,
@@ -977,6 +1076,7 @@ with tab5:
                 WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
                 AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
                 AND registro_seccional_provincia = ANY(:provincias)
+                {filtro_localidad}
                 AND tramite_fecha IS NOT NULL
                 AND titular_anio_nacimiento IS NOT NULL
                 AND titular_anio_nacimiento > 0
@@ -989,11 +1089,15 @@ with tab5:
             """)
 
             try:
-                df_inscripciones = pd.read_sql(query_inscripciones_edad, engine, params={
+                params_inscripciones = {
                     'anio': anio_seleccionado,
                     'meses': meses_numeros_detalle,
                     'provincias': provincias_seleccionadas
-                })
+                }
+                if localidades_seleccionadas:
+                    params_inscripciones['localidades'] = localidades_seleccionadas
+
+                df_inscripciones = pd.read_sql(query_inscripciones_edad, engine, params=params_inscripciones)
 
                 if df_inscripciones.empty:
                     st.warning("⚠️ No se encontraron inscripciones con los filtros seleccionados")
@@ -1013,6 +1117,7 @@ with tab5:
                         WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
                         AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
                         AND registro_seccional_provincia = ANY(:provincias)
+                        {filtro_localidad}
                         AND tramite_fecha IS NOT NULL
                         AND titular_anio_nacimiento IS NOT NULL
                         AND titular_anio_nacimiento > 0
@@ -1024,11 +1129,15 @@ with tab5:
                         ORDER BY edad
                     """)
 
-                    df_prendas = pd.read_sql(query_prendas_edad, engine, params={
+                    params_prendas = {
                         'anio': anio_seleccionado,
                         'meses': meses_numeros_detalle,
                         'provincias': provincias_seleccionadas
-                    })
+                    }
+                    if localidades_seleccionadas:
+                        params_prendas['localidades'] = localidades_seleccionadas
+
+                    df_prendas = pd.read_sql(query_prendas_edad, engine, params=params_prendas)
 
                     # 5. KPIs PRINCIPALES
                     st.markdown("### 📊 Métricas Principales")
