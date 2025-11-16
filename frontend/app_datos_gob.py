@@ -1003,7 +1003,7 @@ with tab5:
                 SELECT DISTINCT titular_domicilio_localidad as localidad
                 FROM datos_gob_inscripciones
                 WHERE EXTRACT(YEAR FROM tramite_fecha) = :anio
-                AND titular_domicilio_provincia = ANY(:provincias)
+                AND registro_seccional_provincia = ANY(:provincias)
                 AND titular_domicilio_localidad IS NOT NULL
                 AND titular_domicilio_localidad != ''
                 ORDER BY localidad
