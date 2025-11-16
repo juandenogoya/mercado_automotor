@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.config.settings import settings
-from backend.models import Patentamiento, Produccion, BCRAIndicador, MercadoLibreListing, IndicadorCalculado
+from backend.models import Patentamiento, Produccion, BCRAIndicador, IndicadorCalculado
 
 # Page config
 st.set_page_config(
@@ -89,16 +89,6 @@ def load_bcra_indicadores(fecha_desde, fecha_hasta):
     return df
 
 
-@st.cache_data(ttl=3600)
-def load_mercadolibre(fecha_snapshot):
-    """Load MercadoLibre listings."""
-    query = db.query(MercadoLibreListing).filter(
-        MercadoLibreListing.fecha_snapshot == fecha_snapshot
-    )
-    df = pd.read_sql(query.statement, db.bind)
-    return df
-
-
 # Sidebar
 st.sidebar.markdown("## 🚗 Mercado Automotor")
 st.sidebar.markdown("### Sistema de Inteligencia Comercial")
@@ -128,7 +118,6 @@ page = st.sidebar.selectbox(
         "📈 Patentamientos",
         "🏭 Producción",
         "💰 Indicadores BCRA",
-        "🛒 MercadoLibre",
         "🎯 Indicadores Calculados"
     ]
 )
@@ -248,7 +237,7 @@ if page == "🏠 Resumen Ejecutivo":
 
     with tab3:
         st.markdown("### Índice de Accesibilidad de Compra")
-        st.info("Relaciona precios (MercadoLibre), salarios (INDEC) y financiamiento (BCRA)")
+        st.info("Relaciona datos de mercado, salarios (INDEC) y financiamiento (BCRA)")
         st.markdown("**Status:** En construcción - Datos insuficientes")
 
     with tab4:
@@ -344,51 +333,6 @@ elif page == "💰 Indicadores BCRA":
 
         else:
             st.warning("No hay datos de BCRA para el período seleccionado")
-
-    except Exception as e:
-        st.error(f"Error cargando datos: {e}")
-
-
-elif page == "🛒 MercadoLibre":
-    st.markdown('<p class="main-header">Análisis de Mercado - MercadoLibre</p>', unsafe_allow_html=True)
-
-    fecha_snapshot = st.date_input("Fecha del snapshot", value=date.today())
-
-    try:
-        df_meli = load_mercadolibre(fecha_snapshot)
-
-        if not df_meli.empty:
-            st.success(f"✓ Cargados {len(df_meli)} listados de MercadoLibre")
-
-            # Stats
-            col1, col2, col3 = st.columns(3)
-
-            with col1:
-                st.metric("Total Listados", len(df_meli))
-
-            with col2:
-                precio_prom = df_meli['precio'].mean()
-                st.metric("Precio Promedio", f"${precio_prom:,.0f}")
-
-            with col3:
-                marcas_unicas = df_meli['marca'].nunique()
-                st.metric("Marcas Únicas", marcas_unicas)
-
-            # Charts
-            st.subheader("Distribución de Precios")
-            fig = px.histogram(df_meli, x='precio', nbins=50, title='Distribución de Precios')
-            st.plotly_chart(fig, use_container_width=True)
-
-            # Top brands
-            st.subheader("Top Marcas por Cantidad de Listados")
-            df_top_marcas = df_meli['marca'].value_counts().head(10).reset_index()
-            df_top_marcas.columns = ['marca', 'cantidad']
-
-            fig = px.bar(df_top_marcas, x='marca', y='cantidad')
-            st.plotly_chart(fig, use_container_width=True)
-
-        else:
-            st.warning(f"No hay datos de MercadoLibre para {fecha_snapshot}")
 
     except Exception as e:
         st.error(f"Error cargando datos: {e}")

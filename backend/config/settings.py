@@ -35,45 +35,12 @@ class Settings(BaseSettings):
     )
     redis_cache_ttl: int = Field(default=3600, alias="REDIS_CACHE_TTL")
 
-    # MercadoLibre API
-    mercadolibre_client_id: Optional[str] = Field(default=None, alias="MERCADOLIBRE_CLIENT_ID")
-    mercadolibre_client_secret: Optional[str] = Field(default=None, alias="MERCADOLIBRE_CLIENT_SECRET")
-    mercadolibre_rate_limit: int = Field(default=100, alias="MERCADOLIBRE_RATE_LIMIT")
-
     # BCRA API
     bcra_api_base_url: str = Field(
         default="https://api.bcra.gob.ar",
         alias="BCRA_API_BASE_URL"
     )
     bcra_timeout: int = Field(default=30, alias="BCRA_TIMEOUT")
-
-    # Scraping Configuration
-    scraping_user_agent: str = Field(
-        default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        alias="SCRAPING_USER_AGENT"
-    )
-    scraping_delay_min: int = Field(default=3, alias="SCRAPING_DELAY_MIN")
-    scraping_delay_max: int = Field(default=7, alias="SCRAPING_DELAY_MAX")
-    scraping_timeout: int = Field(default=30, alias="SCRAPING_TIMEOUT")
-    scraping_max_retries: int = Field(default=3, alias="SCRAPING_MAX_RETRIES")
-
-    # URLs de fuentes
-    acara_base_url: str = Field(
-        default="https://www.acara.org.ar",
-        alias="ACARA_BASE_URL"
-    )
-    faccara_base_url: str = Field(
-        default="https://www.faccara.org.ar",
-        alias="FACCARA_BASE_URL"
-    )
-    adefa_base_url: str = Field(
-        default="https://www.adefa.org.ar",
-        alias="ADEFA_BASE_URL"
-    )
-
-    # Selenium/Chrome
-    chrome_driver_path: str = Field(default="auto", alias="CHROME_DRIVER_PATH")
-    headless_browser: bool = Field(default=True, alias="HEADLESS_BROWSER")
 
     # Logging
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")

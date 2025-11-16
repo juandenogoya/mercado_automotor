@@ -51,50 +51,20 @@ def drop_db():
         sys.exit(1)
 
 
-def run_scrapers(source: str = "all"):
-    """Ejecuta scrapers."""
-    from backend.scrapers import AcaraScraper, AdefaScraper
-    from backend.api_clients import BCRAClient, MercadoLibreClient
+def run_sync_bcra():
+    """Sincroniza datos del BCRA."""
+    from backend.api_clients import BCRAClient
 
-    logger.info(f"Ejecutando scrapers: {source}")
+    logger.info("Ejecutando sincronización BCRA...")
 
-    if source in ["all", "acara"]:
-        logger.info("Ejecutando ACARA scraper...")
-        try:
-            with AcaraScraper() as scraper:
-                result = scraper.scrape()
-                logger.info(f"ACARA result: {result}")
-        except Exception as e:
-            logger.error(f"ACARA error: {e}")
-
-    if source in ["all", "adefa"]:
-        logger.info("Ejecutando ADEFA scraper...")
-        try:
-            with AdefaScraper() as scraper:
-                result = scraper.scrape()
-                logger.info(f"ADEFA result: {result}")
-        except Exception as e:
-            logger.error(f"ADEFA error: {e}")
-
-    if source in ["all", "bcra"]:
-        logger.info("Ejecutando BCRA sync...")
-        try:
-            client = BCRAClient()
-            result = client.sync_all_indicators()
-            logger.info(f"BCRA result: {result}")
-        except Exception as e:
-            logger.error(f"BCRA error: {e}")
-
-    if source in ["all", "mercadolibre", "meli"]:
-        logger.info("Ejecutando MercadoLibre scraper...")
-        try:
-            client = MercadoLibreClient()
-            result = client.scrape_market_snapshot()
-            logger.info(f"MercadoLibre result: {result}")
-        except Exception as e:
-            logger.error(f"MercadoLibre error: {e}")
-
-    logger.success("✓ Scrapers ejecutados")
+    try:
+        client = BCRAClient()
+        result = client.sync_all_indicators()
+        logger.info(f"BCRA result: {result}")
+        logger.success("✓ Sincronización BCRA completada")
+    except Exception as e:
+        logger.error(f"BCRA error: {e}")
+        sys.exit(1)
 
 
 def run_api():
@@ -126,7 +96,7 @@ def run_dashboard():
 def show_stats():
     """Muestra estadísticas de la base de datos."""
     from backend.utils.database import get_db
-    from backend.models import Patentamiento, Produccion, BCRAIndicador, MercadoLibreListing
+    from backend.models import Patentamiento, Produccion, BCRAIndicador
 
     logger.info("Obteniendo estadísticas de la base de datos...")
 
@@ -135,7 +105,6 @@ def show_stats():
             "Patentamientos": db.query(Patentamiento).count(),
             "Producción": db.query(Produccion).count(),
             "BCRA Indicadores": db.query(BCRAIndicador).count(),
-            "MercadoLibre Listings": db.query(MercadoLibreListing).count(),
         }
 
     logger.info("📊 Estadísticas de la base de datos:")
@@ -157,14 +126,8 @@ def main():
     # drop-db
     subparsers.add_parser("drop-db", help="Eliminar todas las tablas (solo dev)")
 
-    # run-scrapers
-    parser_scrapers = subparsers.add_parser("run-scrapers", help="Ejecutar scrapers")
-    parser_scrapers.add_argument(
-        "--source",
-        choices=["all", "acara", "adefa", "bcra", "mercadolibre", "meli"],
-        default="all",
-        help="Fuente a scrapear"
-    )
+    # sync-bcra
+    subparsers.add_parser("sync-bcra", help="Sincronizar datos del BCRA")
 
     # run-api
     subparsers.add_parser("run-api", help="Ejecutar API FastAPI")
@@ -181,8 +144,8 @@ def main():
         init_db()
     elif args.command == "drop-db":
         drop_db()
-    elif args.command == "run-scrapers":
-        run_scrapers(args.source)
+    elif args.command == "sync-bcra":
+        run_sync_bcra()
     elif args.command == "run-api":
         run_api()
     elif args.command == "run-dashboard":

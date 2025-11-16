@@ -11,7 +11,7 @@ from loguru import logger
 from backend.config.settings import settings
 from backend.config.logger import setup_logger
 from backend.utils.database import get_db_session, init_db
-from backend.models import Patentamiento, Produccion, BCRAIndicador, MercadoLibreListing, IndicadorCalculado
+from backend.models import Patentamiento, Produccion, BCRAIndicador, IndicadorCalculado
 
 # Initialize logger
 setup_logger()
@@ -246,49 +246,6 @@ async def get_bcra_indicadores(
                 "unidad": i.unidad
             }
             for i in results
-        ]
-    }
-
-
-# ==================== MERCADOLIBRE ====================
-
-@app.get("/api/mercadolibre/listings")
-async def get_meli_listings(
-    fecha_snapshot: Optional[date] = None,
-    marca: Optional[str] = None,
-    condicion: Optional[str] = None,
-    limit: int = 100,
-    db: Session = Depends(get_db_session)
-):
-    """Obtiene listados de MercadoLibre."""
-    query = db.query(MercadoLibreListing)
-
-    if fecha_snapshot:
-        query = query.filter(MercadoLibreListing.fecha_snapshot == fecha_snapshot)
-    if marca:
-        query = query.filter(MercadoLibreListing.marca.ilike(f"%{marca}%"))
-    if condicion:
-        query = query.filter(MercadoLibreListing.condicion == condicion)
-
-    query = query.order_by(MercadoLibreListing.fecha_snapshot.desc()).limit(limit)
-
-    results = query.all()
-
-    return {
-        "count": len(results),
-        "data": [
-            {
-                "meli_id": l.meli_id,
-                "fecha_snapshot": l.fecha_snapshot,
-                "marca": l.marca,
-                "modelo": l.modelo,
-                "anio": l.anio,
-                "precio": float(l.precio),
-                "moneda": l.moneda,
-                "condicion": l.condicion,
-                "url": l.url
-            }
-            for l in results
         ]
     }
 

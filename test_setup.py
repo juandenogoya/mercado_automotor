@@ -19,8 +19,7 @@ try:
     import pandas as pd
     import numpy as np
     import requests
-    from bs4 import BeautifulSoup
-    print("   ✅ Pandas, NumPy, Requests, BeautifulSoup OK")
+    print("   ✅ Pandas, NumPy, Requests OK")
 except ImportError as e:
     print(f"   ❌ Error: {e}")
     sys.exit(1)
@@ -64,34 +63,13 @@ except Exception as e:
     print(f"   ❌ Error: {e}")
     sys.exit(1)
 
-# Test 6: Cliente MercadoLibre (sin conexión real)
-print("\n6️⃣  Probando cliente MercadoLibre...")
-try:
-    from backend.api_clients.mercadolibre_client import MercadoLibreClient
-    client = MercadoLibreClient()
-    print(f"   ✅ Cliente MercadoLibre inicializado (Base URL: {client.base_url})")
-except Exception as e:
-    print(f"   ❌ Error: {e}")
-    sys.exit(1)
-
-# Test 7: Scrapers (sin ejecutar)
-print("\n7️⃣  Probando scrapers...")
-try:
-    from backend.scrapers.acara_scraper import AcaraScraper
-    from backend.scrapers.adefa_scraper import AdefaScraper
-    print("   ✅ Scrapers ACARA y ADEFA importados correctamente")
-except Exception as e:
-    print(f"   ❌ Error: {e}")
-    sys.exit(1)
-
-# Test 8: Modelos de BD (sin conectar)
-print("\n8️⃣  Probando modelos de base de datos...")
+# Test 6: Modelos de BD (sin conectar)
+print("\n6️⃣  Probando modelos de base de datos...")
 try:
     from backend.models import (
         Patentamiento,
         Produccion,
         BCRAIndicador,
-        MercadoLibreListing,
         IndicadorCalculado
     )
     print("   ✅ Modelos de base de datos importados correctamente")
@@ -99,8 +77,8 @@ except Exception as e:
     print(f"   ❌ Error: {e}")
     sys.exit(1)
 
-# Test 9: Prueba API BCRA (conexión real)
-print("\n9️⃣  Probando conexión real a API BCRA...")
+# Test 7: Prueba API BCRA (conexión real)
+print("\n7️⃣  Probando conexión real a API BCRA...")
 try:
     from backend.api_clients.bcra_client import BCRAClient
 
@@ -120,27 +98,6 @@ except Exception as e:
     print(f"   ⚠️  No se pudo conectar a BCRA API: {e}")
     print("   (Esto es normal si no hay conexión a internet)")
 
-# Test 10: Prueba búsqueda MercadoLibre (conexión real)
-print("\n🔟 Probando conexión real a API MercadoLibre...")
-try:
-    from backend.api_clients.mercadolibre_client import MercadoLibreClient
-
-    client = MercadoLibreClient()
-    result = client.search_vehicles(marca="Toyota", limit=5)
-
-    if result['status'] == 'success':
-        print(f"   ✅ API MercadoLibre respondió correctamente")
-        print(f"   📊 Total de Toyota encontrados: {result['total']:,}")
-        print(f"   📋 Primeros resultados:")
-        for item in result['results'][:2]:
-            print(f"      - {item.get('title', 'N/A')[:60]}...")
-    else:
-        print(f"   ⚠️  API MercadoLibre respondió con error")
-
-except Exception as e:
-    print(f"   ⚠️  No se pudo conectar a MercadoLibre API: {e}")
-    print("   (Esto es normal si no hay conexión a internet)")
-
 # Resumen
 print()
 print("=" * 60)
@@ -152,7 +109,7 @@ print()
 print("📝 Próximos pasos:")
 print("   1. Para iniciar el dashboard: python manage.py run-dashboard")
 print("   2. Para iniciar la API: python manage.py run-api")
-print("   3. Para ejecutar scrapers: python manage.py run-scrapers --source bcra")
+print("   3. Para sincronizar BCRA: python manage.py sync-bcra")
 print("   4. Para ver estadísticas de BD: python manage.py stats")
 print()
 print("⚠️  NOTA: Las pruebas con base de datos requieren PostgreSQL instalado")
