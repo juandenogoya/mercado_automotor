@@ -95,7 +95,7 @@ timeout /t 2 /nobreak >nul
 echo [3/5] Abriendo terminal para Streamlit...
 
 REM Terminal 1: Streamlit
-start "STREAMLIT - Dashboard Mercado Automotor" powershell -NoExit -Command "cd '%PROJECT_DIR%'; Write-Host ''; Write-Host '====================================================================' -ForegroundColor Cyan; Write-Host '  STREAMLIT - DASHBOARD MERCADO AUTOMOTOR' -ForegroundColor Cyan; Write-Host '====================================================================' -ForegroundColor Cyan; Write-Host ''; Write-Host 'Directorio: %PROJECT_DIR%' -ForegroundColor Gray; Write-Host ''; Write-Host '[+] Activando entorno virtual...' -ForegroundColor Green; if (Test-Path 'venv\Scripts\Activate.ps1') { .\venv\Scripts\Activate.ps1; Write-Host '[OK] Entorno virtual activado' -ForegroundColor Green } else { Write-Host '[INFO] Usando Python del sistema' -ForegroundColor Yellow }; Write-Host ''; Write-Host '[+] Iniciando Streamlit...' -ForegroundColor Green; Write-Host ''; streamlit run frontend/app_datos_gob.py"
+start "STREAMLIT - Dashboard Mercado Automotor" powershell -NoExit -Command "cd '%PROJECT_DIR%'; Write-Host ''; Write-Host '====================================================================' -ForegroundColor Cyan; Write-Host '  STREAMLIT - DASHBOARD MERCADO AUTOMOTOR' -ForegroundColor Cyan; Write-Host '====================================================================' -ForegroundColor Cyan; Write-Host ''; Write-Host 'Directorio: %PROJECT_DIR%' -ForegroundColor Gray; Write-Host ''; Write-Host '[+] Activando entorno virtual...' -ForegroundColor Green; if (Test-Path 'venv\Scripts\Activate.ps1') { .\venv\Scripts\Activate.ps1; Write-Host '[OK] Entorno virtual activado' -ForegroundColor Green } else { Write-Host '[INFO] Usando Python del sistema' -ForegroundColor Yellow }; Write-Host ''; Write-Host '[+] Iniciando Streamlit en puerto 8502...' -ForegroundColor Green; Write-Host ''; streamlit run frontend/app_datos_gob.py --server.port=8502"
 
 REM Esperar 5 segundos para que Streamlit inicie
 timeout /t 5 /nobreak >nul
@@ -103,7 +103,7 @@ timeout /t 5 /nobreak >nul
 echo [4/5] Abriendo terminal para ngrok...
 
 REM Terminal 2: ngrok
-start "NGROK - Tunel Publico" powershell -NoExit -Command "Write-Host ''; Write-Host '====================================================================' -ForegroundColor Yellow; Write-Host '  NGROK - TUNEL PUBLICO' -ForegroundColor Yellow; Write-Host '====================================================================' -ForegroundColor Yellow; Write-Host ''; Write-Host '[+] Iniciando ngrok...' -ForegroundColor Green; Write-Host ''; Write-Host 'IMPORTANTE: Copia la URL que aparece en FORWARDING' -ForegroundColor Cyan; Write-Host 'Ejemplo: https://xxxx-xx-xx.ngrok-free.app' -ForegroundColor Cyan; Write-Host ''; Write-Host 'Nota: Si ngrok no funciona, instalalo con: choco install ngrok' -ForegroundColor Gray; Write-Host '      o descargalo desde: https://ngrok.com/download' -ForegroundColor Gray; Write-Host ''; ngrok http 8501"
+start "NGROK - Tunel Publico" powershell -NoExit -Command "Write-Host ''; Write-Host '====================================================================' -ForegroundColor Yellow; Write-Host '  NGROK - TUNEL PUBLICO' -ForegroundColor Yellow; Write-Host '====================================================================' -ForegroundColor Yellow; Write-Host ''; Write-Host '[+] Iniciando ngrok en puerto 8502...' -ForegroundColor Green; Write-Host ''; Write-Host 'IMPORTANTE: Copia la URL que aparece en FORWARDING' -ForegroundColor Cyan; Write-Host 'Ejemplo: https://xxxx-xx-xx.ngrok-free.app' -ForegroundColor Cyan; Write-Host ''; Write-Host 'Nota: Si ngrok no funciona, instalalo con: choco install ngrok' -ForegroundColor Gray; Write-Host '      o descargalo desde: https://ngrok.com/download' -ForegroundColor Gray; Write-Host ''; ngrok http 8502"
 
 echo [5/5] Terminales abiertas exitosamente!
 echo.
@@ -114,7 +114,7 @@ echo.
 echo 1. Terminal STREAMLIT: Espera a ver "You can now view your Streamlit app"
 echo 2. Terminal NGROK: Copia la URL en "Forwarding" (https://xxxx.ngrok-free.app)
 echo 3. Abre tu navegador:
-echo    - Local: http://localhost:8501
+echo    - Local: http://localhost:8502
 echo    - Publico: La URL de ngrok
 echo.
 echo Para DETENER:
