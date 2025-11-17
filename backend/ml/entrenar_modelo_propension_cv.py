@@ -184,15 +184,17 @@ def entrenar_modelo_final(model, X_train, y_train, X_test, y_test, encoders):
     y_pred = model.predict(X_test)
     y_pred_proba = model.predict_proba(X_test)
 
-    all_labels = np.arange(len(encoders['target'].classes_))
+    # Usar las clases que el modelo realmente conoce (las que vio en train)
+    # model.classes_ contiene solo las clases presentes en el training set
+    model_labels = model.classes_
 
     metricas_test = {
         'accuracy': accuracy_score(y_test, y_pred),
         'precision': precision_score(y_test, y_pred, average='weighted', zero_division=0),
         'recall': recall_score(y_test, y_pred, average='weighted', zero_division=0),
         'f1': f1_score(y_test, y_pred, average='weighted', zero_division=0),
-        'top3_accuracy': top_k_accuracy_score(y_test, y_pred_proba, k=3, labels=all_labels),
-        'top5_accuracy': top_k_accuracy_score(y_test, y_pred_proba, k=5, labels=all_labels)
+        'top3_accuracy': top_k_accuracy_score(y_test, y_pred_proba, k=3, labels=model_labels),
+        'top5_accuracy': top_k_accuracy_score(y_test, y_pred_proba, k=5, labels=model_labels)
     }
 
     print(f"   ✅ Modelo entrenado en {duracion:.2f}s")
