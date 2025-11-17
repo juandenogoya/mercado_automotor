@@ -182,19 +182,32 @@ def entrenar_modelo_final(model, X_train, y_train, X_test, y_test, encoders):
 
     # Evaluar en test set
     y_pred = model.predict(X_test)
-    y_pred_proba = model.predict_proba(X_test)
+    y_pred_proba_raw = model.predict_proba(X_test)
 
-    # Usar las clases que el modelo realmente conoce (las que vio en train)
-    # model.classes_ contiene solo las clases presentes en el training set
-    model_labels = model.classes_
+    # El modelo solo predice para las clases que vio en entrenamiento (ej. 96 de 100)
+    # Necesitamos expandir y_pred_proba para incluir TODAS las clases posibles
+    # Pondremos probabilidad 0 para las clases que el modelo nunca vio
+
+    n_samples = X_test.shape[0]
+    n_all_classes = len(encoders['target'].classes_)
+
+    # Crear array de probabilidades con todas las clases (inicializado en 0)
+    y_pred_proba_full = np.zeros((n_samples, n_all_classes))
+
+    # Llenar las probabilidades para las clases que el modelo conoce
+    for i, class_label in enumerate(model.classes_):
+        y_pred_proba_full[:, class_label] = y_pred_proba_raw[:, i]
+
+    # Ahora podemos usar todas las clases del encoder
+    all_labels = np.arange(n_all_classes)
 
     metricas_test = {
         'accuracy': accuracy_score(y_test, y_pred),
         'precision': precision_score(y_test, y_pred, average='weighted', zero_division=0),
         'recall': recall_score(y_test, y_pred, average='weighted', zero_division=0),
         'f1': f1_score(y_test, y_pred, average='weighted', zero_division=0),
-        'top3_accuracy': top_k_accuracy_score(y_test, y_pred_proba, k=3, labels=model_labels),
-        'top5_accuracy': top_k_accuracy_score(y_test, y_pred_proba, k=5, labels=model_labels)
+        'top3_accuracy': top_k_accuracy_score(y_test, y_pred_proba_full, k=3, labels=all_labels),
+        'top5_accuracy': top_k_accuracy_score(y_test, y_pred_proba_full, k=5, labels=all_labels)
     }
 
     print(f"   ✅ Modelo entrenado en {duracion:.2f}s")
