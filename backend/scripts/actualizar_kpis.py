@@ -332,12 +332,24 @@ def main():
     # Crear engine
     engine = crear_engine()
 
+    # Extraer información de la URL de base de datos
+    db_url = str(settings.database_url)
+    # Parsear URL para extraer host y base de datos
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(db_url)
+        db_name = parsed.path.lstrip('/')
+        db_host = f"{parsed.hostname}:{parsed.port}" if parsed.port else parsed.hostname
+    except:
+        db_name = "PostgreSQL"
+        db_host = "localhost"
+
     print("\n" + "="*60)
     print("🚀 GESTOR DE KPIs MATERIALIZADOS - MERCADO AUTOMOTOR")
     print("="*60)
     print(f"📅 Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"🔗 Base de datos: {settings.POSTGRES_DB}")
-    print(f"🖥️  Host: {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}")
+    print(f"🔗 Base de datos: {db_name}")
+    print(f"🖥️  Host: {db_host}")
 
     # Ejecutar acciones
     if args.limpiar:
