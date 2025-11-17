@@ -255,7 +255,9 @@ def preparar_para_entrenamiento(df, target_column='marca', test_size=0.2, random
     for col in categorical_features:
         if col in df_prep.columns and col != target_column:
             le = LabelEncoder()
-            df_prep[col] = le.fit_transform(df_prep[col].fillna('UNKNOWN'))
+            # Convertir a string para manejar categorías y NaN
+            df_prep[col] = df_prep[col].astype(str).fillna('UNKNOWN')
+            df_prep[col] = le.fit_transform(df_prep[col])
             encoders[col] = le
 
     # Target encoding
