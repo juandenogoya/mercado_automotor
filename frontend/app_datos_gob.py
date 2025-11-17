@@ -96,14 +96,15 @@ st.sidebar.markdown("## 🔍 Filtros de Análisis")
 st.sidebar.markdown("---")
 
 # Create tabs
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🚗 Inscripciones",
     "🔄 Transferencias",
     "💰 Prendas",
     "📍 Registro por Localidad",
     "🔬 Análisis Detallado",
     "📊 Tendencias Históricas",
-    "🔮 Predicciones ML"
+    "🔮 Predicciones ML",
+    "📈 KPIs de Mercado"
 ])
 
 # ==================== FUNCIÓN GENÉRICA PARA ANÁLISIS ====================
@@ -2799,6 +2800,921 @@ with tab7:
 
         except Exception as e:
             st.error(f"❌ Error al cargar el modelo: {str(e)}")
+            st.exception(e)
+
+# ==================== TAB 8: KPIs DE MERCADO ====================
+with tab8:
+    st.header("📈 KPIs de Mercado Automotor")
+    st.markdown("Indicadores clave de rendimiento del mercado automotor con filtros avanzados y análisis comparativo")
+    st.markdown("---")
+
+    # ========== FILTROS GLOBALES ==========
+    st.markdown("## 🔍 Filtros de Análisis")
+
+    # Fila 1: Años y Meses
+    col_f1, col_f2 = st.columns(2)
+
+    with col_f1:
+        st.markdown("#### 📅 Período Temporal")
+
+        # Obtener años disponibles
+        query_anios_kpi = text("""
+            SELECT DISTINCT EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio
+            FROM datos_gob_inscripciones
+            WHERE tramite_fecha IS NOT NULL
+            ORDER BY anio DESC
+        """)
+
+        try:
+            df_anios_kpi = pd.read_sql(query_anios_kpi, engine)
+            anios_disponibles_kpi = df_anios_kpi['anio'].tolist()
+        except:
+            anios_disponibles_kpi = []
+
+        anios_seleccionados_kpi = st.multiselect(
+            "Selecciona uno o más años (para comparación YoY):",
+            options=anios_disponibles_kpi,
+            default=[anios_disponibles_kpi[0]] if anios_disponibles_kpi else [],
+            key="kpi_anios"
+        )
+
+        meses_seleccionados_kpi = st.multiselect(
+            "Selecciona uno o más meses (para comparación MoM):",
+            options=list(MESES_ES.values()),
+            default=list(MESES_ES.values()),
+            key="kpi_meses"
+        )
+
+    with col_f2:
+        st.markdown("#### 🎯 Segmentación")
+
+        # Obtener marcas disponibles
+        query_marcas_kpi = text("""
+            SELECT DISTINCT automotor_marca_descripcion as marca
+            FROM datos_gob_inscripciones
+            WHERE automotor_marca_descripcion IS NOT NULL
+            AND automotor_marca_descripcion != ''
+            ORDER BY marca
+        """)
+
+        try:
+            df_marcas_kpi = pd.read_sql(query_marcas_kpi, engine)
+            marcas_disponibles_kpi = df_marcas_kpi['marca'].tolist()
+        except:
+            marcas_disponibles_kpi = []
+
+        marcas_seleccionadas_kpi = st.multiselect(
+            "Marcas (opcional - dejar vacío para todas):",
+            options=marcas_disponibles_kpi,
+            default=[],
+            key="kpi_marcas"
+        )
+
+        tipo_persona_kpi = st.selectbox(
+            "Tipo de Persona:",
+            options=["Ambos", "Física", "Jurídica"],
+            index=0,
+            key="kpi_tipo_persona"
+        )
+
+    # Fila 2: Geografía
+    st.markdown("#### 🗺️ Filtros Geográficos")
+    col_geo1, col_geo2 = st.columns(2)
+
+    with col_geo1:
+        # Obtener provincias disponibles
+        if anios_seleccionados_kpi:
+            query_prov_kpi = text("""
+                SELECT DISTINCT titular_domicilio_provincia as provincia
+                FROM datos_gob_inscripciones
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND titular_domicilio_provincia IS NOT NULL
+                AND titular_domicilio_provincia != ''
+                ORDER BY provincia
+            """)
+
+            try:
+                df_prov_kpi = pd.read_sql(query_prov_kpi, engine, params={'anios': anios_seleccionados_kpi})
+                provincias_disponibles_kpi = df_prov_kpi['provincia'].tolist()
+            except:
+                provincias_disponibles_kpi = []
+        else:
+            provincias_disponibles_kpi = []
+
+        provincias_seleccionadas_kpi = st.multiselect(
+            "Provincias (opcional - dejar vacío para todas):",
+            options=provincias_disponibles_kpi,
+            default=[],
+            key="kpi_provincias"
+        )
+
+    with col_geo2:
+        # Filtro de localidades (cascading)
+        if provincias_seleccionadas_kpi and anios_seleccionados_kpi:
+            query_loc_kpi = text("""
+                SELECT DISTINCT titular_domicilio_localidad as localidad
+                FROM datos_gob_inscripciones
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND titular_domicilio_provincia = ANY(:provincias)
+                AND titular_domicilio_localidad IS NOT NULL
+                AND titular_domicilio_localidad != ''
+                ORDER BY localidad
+            """)
+
+            try:
+                df_loc_kpi = pd.read_sql(
+                    query_loc_kpi,
+                    engine,
+                    params={'anios': anios_seleccionados_kpi, 'provincias': provincias_seleccionadas_kpi}
+                )
+                localidades_disponibles_kpi = df_loc_kpi['localidad'].tolist()
+            except:
+                localidades_disponibles_kpi = []
+        else:
+            localidades_disponibles_kpi = []
+
+        localidades_seleccionadas_kpi = st.multiselect(
+            "Localidades (opcional - dejar vacío para todas):",
+            options=localidades_disponibles_kpi,
+            default=[],
+            key="kpi_localidades"
+        )
+
+    # Fila 3: Otros filtros
+    col_otros1, col_otros2, col_otros3 = st.columns(3)
+
+    with col_otros1:
+        genero_kpi = st.selectbox(
+            "Género:",
+            options=["Todos", "Masculino", "Femenino"],
+            index=0,
+            key="kpi_genero"
+        )
+
+    with col_otros2:
+        origen_kpi = st.selectbox(
+            "Origen del Vehículo:",
+            options=["Ambos", "Nacional", "Importado"],
+            index=0,
+            key="kpi_origen"
+        )
+
+    with col_otros3:
+        # Obtener tipos de vehículo
+        query_tipos_kpi = text("""
+            SELECT DISTINCT automotor_tipo_descripcion as tipo
+            FROM datos_gob_inscripciones
+            WHERE automotor_tipo_descripcion IS NOT NULL
+            AND automotor_tipo_descripcion != ''
+            ORDER BY tipo
+        """)
+
+        try:
+            df_tipos_kpi = pd.read_sql(query_tipos_kpi, engine)
+            tipos_disponibles_kpi = ['Todos'] + df_tipos_kpi['tipo'].tolist()
+        except:
+            tipos_disponibles_kpi = ['Todos']
+
+        tipo_vehiculo_kpi = st.selectbox(
+            "Tipo de Vehículo:",
+            options=tipos_disponibles_kpi,
+            index=0,
+            key="kpi_tipo_vehiculo"
+        )
+
+    st.markdown("---")
+
+    # Validar filtros
+    if not anios_seleccionados_kpi:
+        st.warning("⚠️ Selecciona al menos un año para comenzar el análisis")
+    elif not meses_seleccionados_kpi:
+        st.warning("⚠️ Selecciona al menos un mes")
+    else:
+        # Convertir meses a números
+        meses_numeros_kpi = [list(MESES_ES.keys())[list(MESES_ES.values()).index(mes)] for mes in meses_seleccionados_kpi]
+
+        # Construir filtros WHERE dinámicos
+        filtro_marca_kpi = ""
+        if marcas_seleccionadas_kpi:
+            filtro_marca_kpi = "AND automotor_marca_descripcion = ANY(:marcas)"
+
+        filtro_tipo_persona_kpi = ""
+        if tipo_persona_kpi == "Física":
+            filtro_tipo_persona_kpi = "AND titular_tipo_persona = 'Física'"
+        elif tipo_persona_kpi == "Jurídica":
+            filtro_tipo_persona_kpi = "AND titular_tipo_persona = 'Jurídica'"
+
+        filtro_provincia_kpi = ""
+        if provincias_seleccionadas_kpi:
+            filtro_provincia_kpi = "AND titular_domicilio_provincia = ANY(:provincias)"
+
+        filtro_localidad_kpi = ""
+        if localidades_seleccionadas_kpi:
+            filtro_localidad_kpi = "AND titular_domicilio_localidad = ANY(:localidades)"
+
+        filtro_genero_kpi = ""
+        if genero_kpi != "Todos":
+            filtro_genero_kpi = f"AND titular_genero = '{genero_kpi}'"
+
+        filtro_origen_kpi = ""
+        if origen_kpi != "Ambos":
+            filtro_origen_kpi = f"AND UPPER(automotor_origen) = '{origen_kpi.upper()}'"
+
+        filtro_tipo_vehiculo_kpi = ""
+        if tipo_vehiculo_kpi != "Todos":
+            filtro_tipo_vehiculo_kpi = f"AND automotor_tipo_descripcion = '{tipo_vehiculo_kpi}'"
+
+        # Construir params dict
+        params_kpi = {
+            'anios': anios_seleccionados_kpi,
+            'meses': meses_numeros_kpi
+        }
+        if marcas_seleccionadas_kpi:
+            params_kpi['marcas'] = marcas_seleccionadas_kpi
+        if provincias_seleccionadas_kpi:
+            params_kpi['provincias'] = provincias_seleccionadas_kpi
+        if localidades_seleccionadas_kpi:
+            params_kpi['localidades'] = localidades_seleccionadas_kpi
+
+        # ========== SECCIÓN 1: MERCADO DE USADOS ==========
+        st.markdown("## 🚙 Mercado de Usados")
+
+        try:
+            # KPI: EVT - Edad del Vehículo al Transferirse
+            st.markdown("### 📅 EVT: Edad del Vehículo al Transferirse")
+            st.markdown("_Antigüedad promedio de los vehículos que cambian de manos_")
+
+            query_evt = text(f"""
+                SELECT
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                    EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER - automotor_anio_modelo as edad_vehiculo,
+                    COUNT(*) as cantidad
+                FROM datos_gob_transferencias
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND automotor_anio_modelo IS NOT NULL
+                AND automotor_anio_modelo > 1900
+                AND tramite_fecha IS NOT NULL
+                {filtro_marca_kpi}
+                {filtro_tipo_persona_kpi}
+                {filtro_provincia_kpi}
+                {filtro_localidad_kpi}
+                {filtro_genero_kpi}
+                {filtro_origen_kpi}
+                {filtro_tipo_vehiculo_kpi}
+                GROUP BY anio, mes, edad_vehiculo
+                HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - automotor_anio_modelo >= 0
+                AND EXTRACT(YEAR FROM tramite_fecha)::INTEGER - automotor_anio_modelo <= 50
+                ORDER BY anio, mes, edad_vehiculo
+            """)
+
+            df_evt = pd.read_sql(query_evt, engine, params=params_kpi)
+
+            if not df_evt.empty:
+                # Calcular EVT promedio por año y mes
+                df_evt['mes_nombre'] = df_evt['mes'].map(MESES_ES)
+                df_evt_agg = df_evt.groupby(['anio', 'mes', 'mes_nombre']).apply(
+                    lambda x: (x['edad_vehiculo'] * x['cantidad']).sum() / x['cantidad'].sum()
+                ).reset_index(name='evt_promedio')
+
+                # Métricas generales
+                col_evt1, col_evt2, col_evt3, col_evt4 = st.columns(4)
+
+                total_transferencias = df_evt['cantidad'].sum()
+                evt_general = (df_evt['edad_vehiculo'] * df_evt['cantidad']).sum() / total_transferencias
+                edad_min = df_evt['edad_vehiculo'].min()
+                edad_max = df_evt['edad_vehiculo'].max()
+
+                with col_evt1:
+                    st.metric("EVT Promedio", f"{evt_general:.1f} años")
+                with col_evt2:
+                    st.metric("Total Transferencias", format_number(total_transferencias))
+                with col_evt3:
+                    st.metric("Edad Mínima", f"{edad_min} años")
+                with col_evt4:
+                    st.metric("Edad Máxima", f"{edad_max} años")
+
+                # Gráfico de tendencia temporal
+                if len(anios_seleccionados_kpi) > 1:
+                    # Comparación YoY
+                    fig_evt = px.line(
+                        df_evt_agg,
+                        x='mes',
+                        y='evt_promedio',
+                        color='anio',
+                        title='Evolución de la Edad Promedio de Vehículos Transferidos (Comparación YoY)',
+                        labels={'evt_promedio': 'Edad Promedio (años)', 'mes': 'Mes', 'anio': 'Año'},
+                        markers=True
+                    )
+                    fig_evt.update_xaxis(tickmode='array', tickvals=list(range(1, 13)), ticktext=list(MESES_ES.values()))
+                else:
+                    # Tendencia mensual
+                    fig_evt = px.bar(
+                        df_evt_agg,
+                        x='mes_nombre',
+                        y='evt_promedio',
+                        title=f'Edad Promedio de Vehículos Transferidos - Año {anios_seleccionados_kpi[0]}',
+                        labels={'evt_promedio': 'Edad Promedio (años)', 'mes_nombre': 'Mes'},
+                        text='evt_promedio',
+                        color='evt_promedio',
+                        color_continuous_scale='Blues'
+                    )
+                    fig_evt.update_traces(texttemplate='%{text:.1f}', textposition='outside')
+
+                st.plotly_chart(fig_evt, use_container_width=True)
+
+                # Distribución de edades
+                st.markdown("#### 📊 Distribución de Edades")
+                df_dist_edad = df_evt.groupby('edad_vehiculo')['cantidad'].sum().reset_index()
+
+                fig_dist = px.bar(
+                    df_dist_edad,
+                    x='edad_vehiculo',
+                    y='cantidad',
+                    title='Distribución de Transferencias por Edad del Vehículo',
+                    labels={'edad_vehiculo': 'Edad del Vehículo (años)', 'cantidad': 'Cantidad de Transferencias'},
+                    color='cantidad',
+                    color_continuous_scale='Viridis'
+                )
+                st.plotly_chart(fig_dist, use_container_width=True)
+
+            else:
+                st.warning("⚠️ No se encontraron datos de transferencias con los filtros seleccionados")
+
+            st.markdown("---")
+
+            # KPI: IAM - Índice de Antigüedad del Mercado
+            st.markdown("### 📊 IAM: Índice de Antigüedad del Mercado")
+            st.markdown("_Antigüedad promedio de todos los vehículos en transacción_")
+
+            query_iam = text(f"""
+                SELECT
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                    EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                    'Inscripciones' as tipo_transaccion,
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER - automotor_anio_modelo as edad_vehiculo,
+                    COUNT(*) as cantidad
+                FROM datos_gob_inscripciones
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND automotor_anio_modelo IS NOT NULL
+                AND automotor_anio_modelo > 1900
+                AND tramite_fecha IS NOT NULL
+                {filtro_marca_kpi}
+                {filtro_tipo_persona_kpi}
+                {filtro_provincia_kpi}
+                {filtro_localidad_kpi}
+                {filtro_genero_kpi}
+                {filtro_origen_kpi}
+                {filtro_tipo_vehiculo_kpi}
+                GROUP BY anio, mes, edad_vehiculo
+                HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - automotor_anio_modelo >= 0
+
+                UNION ALL
+
+                SELECT
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                    EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                    'Transferencias' as tipo_transaccion,
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER - automotor_anio_modelo as edad_vehiculo,
+                    COUNT(*) as cantidad
+                FROM datos_gob_transferencias
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND automotor_anio_modelo IS NOT NULL
+                AND automotor_anio_modelo > 1900
+                AND tramite_fecha IS NOT NULL
+                {filtro_marca_kpi}
+                {filtro_tipo_persona_kpi}
+                {filtro_provincia_kpi}
+                {filtro_localidad_kpi}
+                {filtro_genero_kpi}
+                {filtro_origen_kpi}
+                {filtro_tipo_vehiculo_kpi}
+                GROUP BY anio, mes, edad_vehiculo
+                HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - automotor_anio_modelo >= 0
+
+                ORDER BY anio, mes, tipo_transaccion, edad_vehiculo
+            """)
+
+            df_iam = pd.read_sql(query_iam, engine, params=params_kpi)
+
+            if not df_iam.empty:
+                # Calcular IAM por tipo de transacción
+                df_iam['mes_nombre'] = df_iam['mes'].map(MESES_ES)
+                df_iam_agg = df_iam.groupby(['anio', 'mes', 'mes_nombre', 'tipo_transaccion']).apply(
+                    lambda x: (x['edad_vehiculo'] * x['cantidad']).sum() / x['cantidad'].sum()
+                ).reset_index(name='iam_promedio')
+
+                # Métricas comparativas
+                col_iam1, col_iam2, col_iam3 = st.columns(3)
+
+                df_insc = df_iam[df_iam['tipo_transaccion'] == 'Inscripciones']
+                df_trans = df_iam[df_iam['tipo_transaccion'] == 'Transferencias']
+
+                iam_insc = (df_insc['edad_vehiculo'] * df_insc['cantidad']).sum() / df_insc['cantidad'].sum() if not df_insc.empty else 0
+                iam_trans = (df_trans['edad_vehiculo'] * df_trans['cantidad']).sum() / df_trans['cantidad'].sum() if not df_trans.empty else 0
+                iam_general = (df_iam['edad_vehiculo'] * df_iam['cantidad']).sum() / df_iam['cantidad'].sum()
+
+                with col_iam1:
+                    st.metric("IAM Inscripciones", f"{iam_insc:.1f} años", help="0km + usados nuevos")
+                with col_iam2:
+                    st.metric("IAM Transferencias", f"{iam_trans:.1f} años", help="Mercado de usados")
+                with col_iam3:
+                    delta_iam = iam_trans - iam_insc
+                    st.metric("Diferencia", f"{delta_iam:.1f} años", delta=f"{delta_iam:+.1f}")
+
+                # Gráfico comparativo
+                fig_iam = px.line(
+                    df_iam_agg,
+                    x='mes',
+                    y='iam_promedio',
+                    color='tipo_transaccion',
+                    facet_col='anio' if len(anios_seleccionados_kpi) > 1 else None,
+                    title='Índice de Antigüedad del Mercado por Tipo de Transacción',
+                    labels={'iam_promedio': 'Edad Promedio (años)', 'mes': 'Mes', 'tipo_transaccion': 'Tipo'},
+                    markers=True
+                )
+                fig_iam.update_xaxis(tickmode='array', tickvals=list(range(1, 13)), ticktext=list(MESES_ES.values()))
+                st.plotly_chart(fig_iam, use_container_width=True)
+
+            else:
+                st.warning("⚠️ No se encontraron datos con los filtros seleccionados")
+
+            st.markdown("---")
+
+            # KPI: IDA - Índice de Demanda Activa
+            st.markdown("### 🔄 IDA: Índice de Demanda Activa")
+            st.markdown("_Ratio de transferencias sobre inscripciones - indica dinamismo del mercado de usados_")
+
+            query_ida = text(f"""
+                SELECT
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                    EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                    COUNT(*) as inscripciones
+                FROM datos_gob_inscripciones
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND tramite_fecha IS NOT NULL
+                {filtro_marca_kpi}
+                {filtro_tipo_persona_kpi}
+                {filtro_provincia_kpi}
+                {filtro_localidad_kpi}
+                {filtro_genero_kpi}
+                {filtro_origen_kpi}
+                {filtro_tipo_vehiculo_kpi}
+                GROUP BY anio, mes
+                ORDER BY anio, mes
+            """)
+
+            query_ida_trans = text(f"""
+                SELECT
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                    EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                    COUNT(*) as transferencias
+                FROM datos_gob_transferencias
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND tramite_fecha IS NOT NULL
+                {filtro_marca_kpi}
+                {filtro_tipo_persona_kpi}
+                {filtro_provincia_kpi}
+                {filtro_localidad_kpi}
+                {filtro_genero_kpi}
+                {filtro_origen_kpi}
+                {filtro_tipo_vehiculo_kpi}
+                GROUP BY anio, mes
+                ORDER BY anio, mes
+            """)
+
+            df_ida_insc = pd.read_sql(query_ida, engine, params=params_kpi)
+            df_ida_trans = pd.read_sql(query_ida_trans, engine, params=params_kpi)
+
+            if not df_ida_insc.empty and not df_ida_trans.empty:
+                # Merge
+                df_ida = df_ida_insc.merge(df_ida_trans, on=['anio', 'mes'], how='outer').fillna(0)
+                df_ida['ida'] = (df_ida['transferencias'] / df_ida['inscripciones'] * 100).fillna(0)
+                df_ida['mes_nombre'] = df_ida['mes'].map(MESES_ES)
+
+                # Métricas
+                col_ida1, col_ida2, col_ida3, col_ida4 = st.columns(4)
+
+                total_insc = df_ida['inscripciones'].sum()
+                total_trans = df_ida['transferencias'].sum()
+                ida_general = (total_trans / total_insc * 100) if total_insc > 0 else 0
+
+                with col_ida1:
+                    st.metric("IDA Promedio", f"{ida_general:.1f}%")
+                with col_ida2:
+                    st.metric("Total Inscripciones", format_number(int(total_insc)))
+                with col_ida3:
+                    st.metric("Total Transferencias", format_number(int(total_trans)))
+                with col_ida4:
+                    ratio_text = "Usados > 0km" if ida_general > 100 else "0km > Usados"
+                    st.metric("Mercado Dominante", ratio_text)
+
+                # Gráfico
+                if len(anios_seleccionados_kpi) > 1:
+                    fig_ida = px.line(
+                        df_ida,
+                        x='mes',
+                        y='ida',
+                        color='anio',
+                        title='Índice de Demanda Activa - Comparación YoY',
+                        labels={'ida': 'IDA (%)', 'mes': 'Mes', 'anio': 'Año'},
+                        markers=True
+                    )
+                    fig_ida.update_xaxis(tickmode='array', tickvals=list(range(1, 13)), ticktext=list(MESES_ES.values()))
+                    fig_ida.add_hline(y=100, line_dash="dash", line_color="red", annotation_text="Equilibrio (100%)")
+                else:
+                    fig_ida = px.bar(
+                        df_ida,
+                        x='mes_nombre',
+                        y='ida',
+                        title=f'Índice de Demanda Activa - Año {anios_seleccionados_kpi[0]}',
+                        labels={'ida': 'IDA (%)', 'mes_nombre': 'Mes'},
+                        text='ida',
+                        color='ida',
+                        color_continuous_scale='RdYlGn'
+                    )
+                    fig_ida.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                    fig_ida.add_hline(y=100, line_dash="dash", line_color="red", annotation_text="Equilibrio")
+
+                st.plotly_chart(fig_ida, use_container_width=True)
+
+                st.info("""
+                **💡 Interpretación del IDA:**
+                - **IDA > 100%**: El mercado de usados es más activo que el de 0km
+                - **IDA = 100%**: Equilibrio entre ambos mercados
+                - **IDA < 100%**: El mercado de 0km es más activo
+                """)
+
+            else:
+                st.warning("⚠️ No se encontraron datos suficientes para calcular el IDA")
+
+        except Exception as e:
+            st.error(f"❌ Error al calcular KPIs de Mercado de Usados: {str(e)}")
+            st.exception(e)
+
+        st.markdown("---")
+
+        # ========== SECCIÓN 2: FINANCIAMIENTO ==========
+        st.markdown("## 💳 Financiamiento")
+
+        try:
+            # KPI: IF - Índice de Financiamiento
+            st.markdown("### 💰 IF: Índice de Financiamiento")
+            st.markdown("_Porcentaje de vehículos que se compran con financiamiento_")
+
+            query_if_prendas = text(f"""
+                SELECT
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                    EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                    COUNT(*) as prendas
+                FROM datos_gob_prendas
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND tramite_fecha IS NOT NULL
+                {filtro_marca_kpi}
+                {filtro_tipo_persona_kpi}
+                {filtro_provincia_kpi}
+                {filtro_localidad_kpi}
+                {filtro_genero_kpi}
+                {filtro_origen_kpi}
+                {filtro_tipo_vehiculo_kpi}
+                GROUP BY anio, mes
+                ORDER BY anio, mes
+            """)
+
+            df_if_prendas = pd.read_sql(query_if_prendas, engine, params=params_kpi)
+            df_if_insc = pd.read_sql(query_ida, engine, params=params_kpi)
+
+            if not df_if_insc.empty and not df_if_prendas.empty:
+                # Merge
+                df_if = df_if_insc.merge(df_if_prendas, on=['anio', 'mes'], how='left').fillna(0)
+                df_if['if_porcentaje'] = (df_if['prendas'] / df_if['inscripciones'] * 100).fillna(0)
+                df_if['mes_nombre'] = df_if['mes'].map(MESES_ES)
+
+                # Métricas
+                col_if1, col_if2, col_if3 = st.columns(3)
+
+                total_prendas_if = df_if['prendas'].sum()
+                total_insc_if = df_if['inscripciones'].sum()
+                if_general = (total_prendas_if / total_insc_if * 100) if total_insc_if > 0 else 0
+
+                with col_if1:
+                    st.metric("IF Promedio", f"{if_general:.1f}%")
+                with col_if2:
+                    st.metric("Total Prendas", format_number(int(total_prendas_if)))
+                with col_if3:
+                    st.metric("Total Inscripciones", format_number(int(total_insc_if)))
+
+                # Gráfico
+                if len(anios_seleccionados_kpi) > 1:
+                    fig_if = px.line(
+                        df_if,
+                        x='mes',
+                        y='if_porcentaje',
+                        color='anio',
+                        title='Índice de Financiamiento - Comparación YoY',
+                        labels={'if_porcentaje': 'IF (%)', 'mes': 'Mes', 'anio': 'Año'},
+                        markers=True
+                    )
+                    fig_if.update_xaxis(tickmode='array', tickvals=list(range(1, 13)), ticktext=list(MESES_ES.values()))
+                else:
+                    fig_if = px.bar(
+                        df_if,
+                        x='mes_nombre',
+                        y='if_porcentaje',
+                        title=f'Índice de Financiamiento - Año {anios_seleccionados_kpi[0]}',
+                        labels={'if_porcentaje': 'IF (%)', 'mes_nombre': 'Mes'},
+                        text='if_porcentaje',
+                        color='if_porcentaje',
+                        color_continuous_scale='Blues'
+                    )
+                    fig_if.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+
+                st.plotly_chart(fig_if, use_container_width=True)
+
+                # Análisis por segmento
+                st.markdown("#### 📊 Financiamiento por Segmento")
+
+                col_seg1, col_seg2 = st.columns(2)
+
+                with col_seg1:
+                    # Por género
+                    if genero_kpi == "Todos":
+                        query_if_genero = text(f"""
+                            SELECT
+                                titular_genero as genero,
+                                COUNT(*) as prendas
+                            FROM datos_gob_prendas
+                            WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                            AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                            AND titular_genero IS NOT NULL
+                            AND titular_genero != ''
+                            {filtro_marca_kpi}
+                            {filtro_tipo_persona_kpi}
+                            {filtro_provincia_kpi}
+                            {filtro_localidad_kpi}
+                            {filtro_origen_kpi}
+                            {filtro_tipo_vehiculo_kpi}
+                            GROUP BY genero
+                        """)
+
+                        query_if_genero_insc = text(f"""
+                            SELECT
+                                titular_genero as genero,
+                                COUNT(*) as inscripciones
+                            FROM datos_gob_inscripciones
+                            WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                            AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                            AND titular_genero IS NOT NULL
+                            AND titular_genero != ''
+                            {filtro_marca_kpi}
+                            {filtro_tipo_persona_kpi}
+                            {filtro_provincia_kpi}
+                            {filtro_localidad_kpi}
+                            {filtro_origen_kpi}
+                            {filtro_tipo_vehiculo_kpi}
+                            GROUP BY genero
+                        """)
+
+                        df_if_gen_p = pd.read_sql(query_if_genero, engine, params=params_kpi)
+                        df_if_gen_i = pd.read_sql(query_if_genero_insc, engine, params=params_kpi)
+
+                        if not df_if_gen_p.empty and not df_if_gen_i.empty:
+                            df_if_gen = df_if_gen_i.merge(df_if_gen_p, on='genero', how='left').fillna(0)
+                            df_if_gen['if_pct'] = (df_if_gen['prendas'] / df_if_gen['inscripciones'] * 100).fillna(0)
+
+                            fig_gen = px.bar(
+                                df_if_gen,
+                                x='genero',
+                                y='if_pct',
+                                title='IF por Género',
+                                labels={'if_pct': 'IF (%)', 'genero': 'Género'},
+                                text='if_pct',
+                                color='genero'
+                            )
+                            fig_gen.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                            st.plotly_chart(fig_gen, use_container_width=True)
+
+                with col_seg2:
+                    # Por origen
+                    if origen_kpi == "Ambos":
+                        query_if_origen = text(f"""
+                            SELECT
+                                automotor_origen as origen,
+                                COUNT(*) as prendas
+                            FROM datos_gob_prendas
+                            WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                            AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                            AND automotor_origen IS NOT NULL
+                            AND automotor_origen != ''
+                            {filtro_marca_kpi}
+                            {filtro_tipo_persona_kpi}
+                            {filtro_provincia_kpi}
+                            {filtro_localidad_kpi}
+                            {filtro_genero_kpi}
+                            {filtro_tipo_vehiculo_kpi}
+                            GROUP BY origen
+                        """)
+
+                        query_if_origen_insc = text(f"""
+                            SELECT
+                                automotor_origen as origen,
+                                COUNT(*) as inscripciones
+                            FROM datos_gob_inscripciones
+                            WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                            AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                            AND automotor_origen IS NOT NULL
+                            AND automotor_origen != ''
+                            {filtro_marca_kpi}
+                            {filtro_tipo_persona_kpi}
+                            {filtro_provincia_kpi}
+                            {filtro_localidad_kpi}
+                            {filtro_genero_kpi}
+                            {filtro_tipo_vehiculo_kpi}
+                            GROUP BY origen
+                        """)
+
+                        df_if_ori_p = pd.read_sql(query_if_origen, engine, params=params_kpi)
+                        df_if_ori_i = pd.read_sql(query_if_origen_insc, engine, params=params_kpi)
+
+                        if not df_if_ori_p.empty and not df_if_ori_i.empty:
+                            df_if_ori = df_if_ori_i.merge(df_if_ori_p, on='origen', how='left').fillna(0)
+                            df_if_ori['if_pct'] = (df_if_ori['prendas'] / df_if_ori['inscripciones'] * 100).fillna(0)
+
+                            fig_ori = px.bar(
+                                df_if_ori,
+                                x='origen',
+                                y='if_pct',
+                                title='IF por Origen',
+                                labels={'if_pct': 'IF (%)', 'origen': 'Origen'},
+                                text='if_pct',
+                                color='origen'
+                            )
+                            fig_ori.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                            st.plotly_chart(fig_ori, use_container_width=True)
+
+            else:
+                st.warning("⚠️ No se encontraron datos suficientes para calcular el IF")
+
+        except Exception as e:
+            st.error(f"❌ Error al calcular KPIs de Financiamiento: {str(e)}")
+            st.exception(e)
+
+        st.markdown("---")
+
+        # ========== SECCIÓN 3: PERFIL DEMOGRÁFICO ==========
+        st.markdown("## 👥 Distribución Demográfica de Compradores")
+
+        try:
+            # KPI: DDC - Distribución Demográfica formalizada
+            st.markdown("### 📈 DDC: Perfil del Comprador")
+            st.markdown("_Análisis demográfico detallado de compradores de vehículos_")
+
+            query_ddc = text(f"""
+                SELECT
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento as edad,
+                    titular_genero as genero,
+                    titular_tipo_persona as tipo_persona,
+                    COUNT(*) as cantidad
+                FROM datos_gob_inscripciones
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND titular_anio_nacimiento IS NOT NULL
+                AND titular_anio_nacimiento > 0
+                AND tramite_fecha IS NOT NULL
+                {filtro_marca_kpi}
+                {filtro_tipo_persona_kpi}
+                {filtro_provincia_kpi}
+                {filtro_localidad_kpi}
+                {filtro_genero_kpi}
+                {filtro_origen_kpi}
+                {filtro_tipo_vehiculo_kpi}
+                GROUP BY anio, edad, genero, tipo_persona
+                HAVING EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento BETWEEN 18 AND 100
+                ORDER BY anio, edad
+            """)
+
+            df_ddc = pd.read_sql(query_ddc, engine, params=params_kpi)
+
+            if not df_ddc.empty:
+                # Métricas generales
+                total_compradores = df_ddc['cantidad'].sum()
+                edad_promedio = (df_ddc['edad'] * df_ddc['cantidad']).sum() / total_compradores
+                edad_moda = df_ddc.groupby('edad')['cantidad'].sum().idxmax()
+                edad_mediana = df_ddc.loc[df_ddc.index.repeat(df_ddc['cantidad'])]['edad'].median()
+
+                col_ddc1, col_ddc2, col_ddc3, col_ddc4 = st.columns(4)
+
+                with col_ddc1:
+                    st.metric("Edad Promedio", f"{edad_promedio:.0f} años")
+                with col_ddc2:
+                    st.metric("Edad Moda", f"{edad_moda:.0f} años", help="Edad más frecuente")
+                with col_ddc3:
+                    st.metric("Edad Mediana", f"{edad_mediana:.0f} años")
+                with col_ddc4:
+                    st.metric("Total Compradores", format_number(total_compradores))
+
+                # Distribución de edades
+                df_edad_dist = df_ddc.groupby('edad')['cantidad'].sum().reset_index()
+
+                fig_edad = px.area(
+                    df_edad_dist,
+                    x='edad',
+                    y='cantidad',
+                    title='Distribución de Edades de Compradores',
+                    labels={'edad': 'Edad (años)', 'cantidad': 'Cantidad de Compradores'},
+                    color_discrete_sequence=['#636EFA']
+                )
+                st.plotly_chart(fig_edad, use_container_width=True)
+
+                # Análisis por género
+                col_gen1, col_gen2 = st.columns(2)
+
+                with col_gen1:
+                    df_genero = df_ddc.groupby('genero')['cantidad'].sum().reset_index()
+                    df_genero = df_genero[df_genero['genero'].isin(['Masculino', 'Femenino'])]
+
+                    if not df_genero.empty:
+                        fig_gen_pie = px.pie(
+                            df_genero,
+                            values='cantidad',
+                            names='genero',
+                            title='Distribución por Género',
+                            color='genero',
+                            color_discrete_map={'Masculino': '#636EFA', 'Femenino': '#EF553B'}
+                        )
+                        st.plotly_chart(fig_gen_pie, use_container_width=True)
+
+                with col_gen2:
+                    # Edad promedio por género
+                    df_edad_gen = df_ddc[df_ddc['genero'].isin(['Masculino', 'Femenino'])].groupby('genero').apply(
+                        lambda x: (x['edad'] * x['cantidad']).sum() / x['cantidad'].sum()
+                    ).reset_index(name='edad_promedio')
+
+                    if not df_edad_gen.empty:
+                        fig_edad_gen = px.bar(
+                            df_edad_gen,
+                            x='genero',
+                            y='edad_promedio',
+                            title='Edad Promedio por Género',
+                            labels={'edad_promedio': 'Edad Promedio (años)', 'genero': 'Género'},
+                            text='edad_promedio',
+                            color='genero',
+                            color_discrete_map={'Masculino': '#636EFA', 'Femenino': '#EF553B'}
+                        )
+                        fig_edad_gen.update_traces(texttemplate='%{text:.0f}', textposition='outside')
+                        st.plotly_chart(fig_edad_gen, use_container_width=True)
+
+                # Segmentación por rangos de edad
+                st.markdown("#### 📊 Segmentación por Rangos de Edad")
+
+                def categorizar_edad(edad):
+                    if edad < 25:
+                        return '18-24'
+                    elif edad < 35:
+                        return '25-34'
+                    elif edad < 45:
+                        return '35-44'
+                    elif edad < 55:
+                        return '45-54'
+                    elif edad < 65:
+                        return '55-64'
+                    else:
+                        return '65+'
+
+                df_ddc['rango_edad'] = df_ddc['edad'].apply(categorizar_edad)
+                df_rangos = df_ddc.groupby('rango_edad')['cantidad'].sum().reset_index()
+                df_rangos['porcentaje'] = (df_rangos['cantidad'] / df_rangos['cantidad'].sum() * 100).round(1)
+
+                # Ordenar rangos
+                orden_rangos = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+']
+                df_rangos['rango_edad'] = pd.Categorical(df_rangos['rango_edad'], categories=orden_rangos, ordered=True)
+                df_rangos = df_rangos.sort_values('rango_edad')
+
+                fig_rangos = px.bar(
+                    df_rangos,
+                    x='rango_edad',
+                    y='cantidad',
+                    title='Compradores por Rango de Edad',
+                    labels={'rango_edad': 'Rango de Edad', 'cantidad': 'Cantidad'},
+                    text='porcentaje',
+                    color='cantidad',
+                    color_continuous_scale='Viridis'
+                )
+                fig_rangos.update_traces(texttemplate='%{text}%', textposition='outside')
+                st.plotly_chart(fig_rangos, use_container_width=True)
+
+            else:
+                st.warning("⚠️ No se encontraron datos demográficos con los filtros seleccionados")
+
+        except Exception as e:
+            st.error(f"❌ Error al calcular Distribución Demográfica: {str(e)}")
             st.exception(e)
 
 # Footer
