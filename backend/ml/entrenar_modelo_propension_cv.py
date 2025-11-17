@@ -85,62 +85,22 @@ def cargar_datasets(input_dir):
     return X_train, X_test, y_train, y_test, encoders, feature_names, metadata
 
 
-def top_k_accuracy_safe(y_true, y_pred_proba, k=3, estimator=None):
-    """
-    Wrapper seguro para top_k_accuracy_score que maneja clases faltantes.
-
-    El estimator tiene las clases que vio durante fit (ej. 94 clases).
-    Pero y_true puede contener cualquiera de las 100 clases originales.
-    Necesitamos expandir y_pred_proba para incluir todas.
-    """
-    if estimator is None:
-        # Si no tenemos estimator, intentar sin labels
-        return top_k_accuracy_score(y_true, y_pred_proba, k=k)
-
-    # Obtener clases que el modelo conoce
-    model_classes = estimator.classes_
-    n_samples = y_pred_proba.shape[0]
-
-    # Determinar el número total de clases posibles
-    max_class = max(max(y_true), max(model_classes))
-    n_all_classes = max_class + 1
-
-    # Si y_pred_proba ya tiene el tamaño correcto, usarlo directamente
-    if y_pred_proba.shape[1] == n_all_classes:
-        all_labels = np.arange(n_all_classes)
-        return top_k_accuracy_score(y_true, y_pred_proba, k=k, labels=all_labels)
-
-    # Expandir y_pred_proba para incluir todas las clases
-    y_pred_proba_full = np.zeros((n_samples, n_all_classes))
-
-    for i, class_label in enumerate(model_classes):
-        y_pred_proba_full[:, class_label] = y_pred_proba[:, i]
-
-    all_labels = np.arange(n_all_classes)
-    return top_k_accuracy_score(y_true, y_pred_proba_full, k=k, labels=all_labels)
-
-
 def crear_scoring_dict(encoders):
     """
     Crea diccionario de scorers para cross-validation.
 
-    Usamos scorers custom para top_k que manejan clases faltantes automáticamente.
+    NOTA: No incluimos top_k_accuracy en CV porque:
+    1. Cada fold puede tener diferentes clases presentes (ej. fold 1: 94 clases, fold 2: 91 clases)
+    2. sklearn no pasa el estimator a los scorers, imposibilitando expandir probabilidades
+    3. Top-K se calcula correctamente en la evaluación final del test set
+
+    Métricas principales (accuracy, f1) son suficientes para comparar modelos en CV.
     """
     scoring = {
         'accuracy': 'accuracy',
         'precision_weighted': make_scorer(precision_score, average='weighted', zero_division=0),
         'recall_weighted': make_scorer(recall_score, average='weighted', zero_division=0),
-        'f1_weighted': make_scorer(f1_score, average='weighted', zero_division=0),
-        'top3_accuracy': make_scorer(
-            lambda y_true, y_pred_proba, estimator: top_k_accuracy_safe(y_true, y_pred_proba, k=3, estimator=estimator),
-            needs_proba=True,
-            needs_threshold=False
-        ),
-        'top5_accuracy': make_scorer(
-            lambda y_true, y_pred_proba, estimator: top_k_accuracy_safe(y_true, y_pred_proba, k=5, estimator=estimator),
-            needs_proba=True,
-            needs_threshold=False
-        )
+        'f1_weighted': make_scorer(f1_score, average='weighted', zero_division=0)
     }
 
     return scoring
@@ -366,7 +326,7 @@ def comparar_modelos(resultados_cv):
     print("\n📋 Test Set Performance (Cross-Validation):")
     print("="*80)
 
-    metricas_principales = ['accuracy', 'f1_weighted', 'top3_accuracy', 'top5_accuracy']
+    metricas_principales = ['accuracy', 'f1_weighted', 'precision_weighted', 'recall_weighted']
 
     for metric in metricas_principales:
         if f"{metric}_mean" in df_comp.columns:
@@ -378,7 +338,7 @@ def comparar_modelos(resultados_cv):
 
     # Determinar mejor modelo
     print("\n" + "="*60)
-    print("🏆 MEJOR MODELO")
+    print("🏆 MEJOR MODELO (Cross-Validation)")
     print("="*60)
 
     mejor_idx = df_comp['f1_weighted_mean'].idxmax()
@@ -389,8 +349,9 @@ def comparar_modelos(resultados_cv):
     print(f"\n🥇 {mejor_modelo}")
     print(f"   F1-Score: {mejor_f1:.4f} ± {mejor_f1_std:.4f}")
     print(f"   Accuracy: {df_comp.loc[mejor_idx, 'accuracy_mean']:.4f} ± {df_comp.loc[mejor_idx, 'accuracy_std']:.4f}")
-    print(f"   Top-3 Acc: {df_comp.loc[mejor_idx, 'top3_accuracy_mean']:.4f} ± {df_comp.loc[mejor_idx, 'top3_accuracy_std']:.4f}")
-    print(f"   Top-5 Acc: {df_comp.loc[mejor_idx, 'top5_accuracy_mean']:.4f} ± {df_comp.loc[mejor_idx, 'top5_accuracy_std']:.4f}")
+    print(f"   Precision: {df_comp.loc[mejor_idx, 'precision_weighted_mean']:.4f} ± {df_comp.loc[mejor_idx, 'precision_weighted_std']:.4f}")
+    print(f"   Recall: {df_comp.loc[mejor_idx, 'recall_weighted_mean']:.4f} ± {df_comp.loc[mejor_idx, 'recall_weighted_std']:.4f}")
+    print(f"\n💡 Top-K accuracy se calcula en la evaluación final del test set (mostrado arriba)")
 
     return df_comp, mejor_modelo
 
