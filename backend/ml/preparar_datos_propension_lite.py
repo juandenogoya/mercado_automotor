@@ -61,6 +61,7 @@ def extraer_features_desde_vistas_lite(engine, anios=None, min_inscripciones=10)
         filtro_anios = f"AND seg.anio IN ({anios_str})"
 
     # Query que combina las 4 vistas LITE con JOINs
+    # Nota: kpi_antiguedad_vehiculos_lite tiene tipo_transaccion, así que hacemos 2 JOINs
     query = text(f"""
         SELECT
             seg.provincia,
@@ -76,8 +77,10 @@ def extraer_features_desde_vistas_lite(engine, anios=None, min_inscripciones=10)
             COALESCE(fin.indice_financiamiento, 0) as indice_financiamiento,
 
             -- Features de antigüedad de vehículos
-            COALESCE(ant.evt_promedio, 0) as evt_promedio,
-            COALESCE(ant.iam_promedio, 0) as iam_promedio,
+            -- EVT = Edad promedio de transferencias
+            COALESCE(ant_transf.edad_promedio, 0) as evt_promedio,
+            -- IAM = Edad promedio de inscripciones
+            COALESCE(ant_insc.edad_promedio, 0) as iam_promedio,
 
             -- Features de demanda activa
             COALESCE(dem.total_transferencias, 0) as total_transferencias,
@@ -91,11 +94,21 @@ def extraer_features_desde_vistas_lite(engine, anios=None, min_inscripciones=10)
             AND seg.anio = fin.anio
             AND seg.mes = fin.mes
 
-        LEFT JOIN kpi_antiguedad_vehiculos_lite ant
-            ON seg.provincia = ant.provincia
-            AND seg.marca = ant.marca
-            AND seg.anio = ant.anio
-            AND seg.mes = ant.mes
+        -- JOIN para EVT (transferencias)
+        LEFT JOIN kpi_antiguedad_vehiculos_lite ant_transf
+            ON seg.provincia = ant_transf.provincia
+            AND seg.marca = ant_transf.marca
+            AND seg.anio = ant_transf.anio
+            AND seg.mes = ant_transf.mes
+            AND ant_transf.tipo_transaccion = 'transferencia'
+
+        -- JOIN para IAM (inscripciones)
+        LEFT JOIN kpi_antiguedad_vehiculos_lite ant_insc
+            ON seg.provincia = ant_insc.provincia
+            AND seg.marca = ant_insc.marca
+            AND seg.anio = ant_insc.anio
+            AND seg.mes = ant_insc.mes
+            AND ant_insc.tipo_transaccion = 'inscripcion'
 
         LEFT JOIN kpi_demanda_activa_lite dem
             ON seg.provincia = dem.provincia
