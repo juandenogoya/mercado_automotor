@@ -18,17 +18,17 @@ DROP MATERIALIZED VIEW IF EXISTS kpi_demanda_activa_lite CASCADE;
 CREATE MATERIALIZED VIEW kpi_segmentacion_demografica_lite AS
 SELECT
     titular_domicilio_provincia as provincia,
-    automotor_marca as marca,
+    automotor_marca_descripcion as marca,
     EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
     EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
     COUNT(*) as total_inscripciones,
     AVG(EXTRACT(YEAR FROM tramite_fecha)::INTEGER - titular_anio_nacimiento) as edad_promedio,
-    COUNT(DISTINCT automotor_modelo) as modelos_distintos
+    COUNT(DISTINCT automotor_modelo_descripcion) as modelos_distintos
 FROM datos_gob_inscripciones
 WHERE titular_domicilio_provincia IS NOT NULL
 AND titular_domicilio_provincia != ''
-AND automotor_marca IS NOT NULL
-AND automotor_marca != ''
+AND automotor_marca_descripcion IS NOT NULL
+AND automotor_marca_descripcion != ''
 AND titular_anio_nacimiento IS NOT NULL
 GROUP BY provincia, marca, anio, mes;
 
@@ -49,29 +49,29 @@ CREATE MATERIALIZED VIEW kpi_financiamiento_lite AS
 WITH inscripciones_base AS (
     SELECT
         titular_domicilio_provincia as provincia,
-        automotor_marca as marca,
+        automotor_marca_descripcion as marca,
         EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
         EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
         COUNT(*) as total_inscripciones
     FROM datos_gob_inscripciones
     WHERE titular_domicilio_provincia IS NOT NULL
     AND titular_domicilio_provincia != ''
-    AND automotor_marca IS NOT NULL
-    AND automotor_marca != ''
+    AND automotor_marca_descripcion IS NOT NULL
+    AND automotor_marca_descripcion != ''
     GROUP BY provincia, marca, anio, mes
 ),
 prendas_base AS (
     SELECT
         titular_domicilio_provincia as provincia,
-        automotor_marca as marca,
+        automotor_marca_descripcion as marca,
         EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
         EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
         COUNT(*) as total_prendas
     FROM datos_gob_prendas
     WHERE titular_domicilio_provincia IS NOT NULL
     AND titular_domicilio_provincia != ''
-    AND automotor_marca IS NOT NULL
-    AND automotor_marca != ''
+    AND automotor_marca_descripcion IS NOT NULL
+    AND automotor_marca_descripcion != ''
     GROUP BY provincia, marca, anio, mes
 )
 SELECT
@@ -108,7 +108,7 @@ CREATE MATERIALIZED VIEW kpi_antiguedad_vehiculos_lite AS
 WITH evt_data AS (
     SELECT
         titular_domicilio_provincia as provincia,
-        automotor_marca as marca,
+        automotor_marca_descripcion as marca,
         EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
         EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
         'transferencia' as tipo_transaccion,
@@ -117,8 +117,8 @@ WITH evt_data AS (
     FROM datos_gob_transferencias
     WHERE titular_domicilio_provincia IS NOT NULL
     AND titular_domicilio_provincia != ''
-    AND automotor_marca IS NOT NULL
-    AND automotor_marca != ''
+    AND automotor_marca_descripcion IS NOT NULL
+    AND automotor_marca_descripcion != ''
     AND automotor_anio_modelo IS NOT NULL
     AND EXTRACT(YEAR FROM tramite_fecha)::INTEGER - automotor_anio_modelo >= 0
     AND EXTRACT(YEAR FROM tramite_fecha)::INTEGER - automotor_anio_modelo <= 50
@@ -128,7 +128,7 @@ WITH evt_data AS (
 
     SELECT
         titular_domicilio_provincia as provincia,
-        automotor_marca as marca,
+        automotor_marca_descripcion as marca,
         EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
         EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
         'inscripcion' as tipo_transaccion,
@@ -137,8 +137,8 @@ WITH evt_data AS (
     FROM datos_gob_inscripciones
     WHERE titular_domicilio_provincia IS NOT NULL
     AND titular_domicilio_provincia != ''
-    AND automotor_marca IS NOT NULL
-    AND automotor_marca != ''
+    AND automotor_marca_descripcion IS NOT NULL
+    AND automotor_marca_descripcion != ''
     AND automotor_anio_modelo IS NOT NULL
     AND EXTRACT(YEAR FROM tramite_fecha)::INTEGER - automotor_anio_modelo >= 0
     AND EXTRACT(YEAR FROM tramite_fecha)::INTEGER - automotor_anio_modelo <= 50
@@ -172,29 +172,29 @@ CREATE MATERIALIZED VIEW kpi_demanda_activa_lite AS
 WITH inscripciones_mes AS (
     SELECT
         titular_domicilio_provincia as provincia,
-        automotor_marca as marca,
+        automotor_marca_descripcion as marca,
         EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
         EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
         COUNT(*) as total_inscripciones
     FROM datos_gob_inscripciones
     WHERE titular_domicilio_provincia IS NOT NULL
     AND titular_domicilio_provincia != ''
-    AND automotor_marca IS NOT NULL
-    AND automotor_marca != ''
+    AND automotor_marca_descripcion IS NOT NULL
+    AND automotor_marca_descripcion != ''
     GROUP BY provincia, marca, anio, mes
 ),
 transferencias_mes AS (
     SELECT
         titular_domicilio_provincia as provincia,
-        automotor_marca as marca,
+        automotor_marca_descripcion as marca,
         EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
         EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
         COUNT(*) as total_transferencias
     FROM datos_gob_transferencias
     WHERE titular_domicilio_provincia IS NOT NULL
     AND titular_domicilio_provincia != ''
-    AND automotor_marca IS NOT NULL
-    AND automotor_marca != ''
+    AND automotor_marca_descripcion IS NOT NULL
+    AND automotor_marca_descripcion != ''
     GROUP BY provincia, marca, anio, mes
 )
 SELECT
