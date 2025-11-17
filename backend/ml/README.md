@@ -100,15 +100,25 @@ python backend/scripts/actualizar_kpis.py --stats
 Extrae features desde PostgreSQL y realiza feature engineering:
 
 ```bash
-# Preparar datos de 2023 y 2024
-python backend/ml/preparar_datos_propension.py --anios 2023,2024 --output data/ml/
+# RECOMENDADO: Usar TODOS los años disponibles (omitir --anios)
+python backend/ml/preparar_datos_propension.py --output data/ml/
+
+# Alternativamente, especificar años concretos
+python backend/ml/preparar_datos_propension.py --anios 2020,2021,2022,2023,2024 --output data/ml/
 
 # Opciones:
-#   --anios: Años a incluir (ej: 2023,2024)
+#   --anios: Años a incluir (ej: 2020,2021,2022,2023,2024). Si se omite, usa TODOS los años (RECOMENDADO)
 #   --min-inscripciones: Mínimo de inscripciones para incluir registro (default: 10)
 #   --output: Directorio de salida (default: data/ml/propension_compra/)
 #   --test-size: % de test set (default: 0.2)
 ```
+
+**💡 Recomendación:** Omite el parámetro `--anios` para usar todos los años disponibles en la base de datos.
+**Beneficios de usar más años:**
+- ✅ Mayor precisión y generalización del modelo
+- ✅ Captura tendencias de largo plazo y ciclos económicos
+- ✅ Detecta patrones estacionales multianuales
+- ✅ Reduce overfitting al tener más ejemplos de entrenamiento
 
 **Salida:**
 ```
@@ -284,8 +294,8 @@ python backend/scripts/cargar_estadisticas_agregadas.py --archivo nuevos_datos.c
 # 2. Actualizar KPIs materializados
 python backend/scripts/actualizar_kpis.py --refresh --concurrent
 
-# 3. Re-preparar datos con datos actualizados
-python backend/ml/preparar_datos_propension.py --anios 2023,2024 --output data/ml/
+# 3. Re-preparar datos con datos actualizados (usar todos los años disponibles)
+python backend/ml/preparar_datos_propension.py --output data/ml/
 
 # 4. Re-entrenar modelo
 python backend/ml/entrenar_modelo_propension.py --input data/ml/
@@ -300,7 +310,7 @@ python backend/ml/predecir_propension.py --provincia "CABA" --localidad "PALERMO
 # Actualizar modelo semanalmente (domingos a las 3 AM)
 0 3 * * 0 cd /ruta/proyecto && \
     python backend/scripts/actualizar_kpis.py --refresh --concurrent && \
-    python backend/ml/preparar_datos_propension.py --anios 2023,2024 && \
+    python backend/ml/preparar_datos_propension.py --output data/ml/ && \
     python backend/ml/entrenar_modelo_propension.py --input data/ml/ --only-rf \
     >> logs/ml_update.log 2>&1
 ```
@@ -487,8 +497,8 @@ def recomendar_marcas():
 # Verificar que el modelo fue entrenado
 ls -l data/ml/modelos/modelo_propension_compra.pkl
 
-# Si no existe, entrenar:
-python backend/ml/preparar_datos_propension.py --anios 2023,2024
+# Si no existe, entrenar (usar todos los años disponibles):
+python backend/ml/preparar_datos_propension.py --output data/ml/
 python backend/ml/entrenar_modelo_propension.py --input data/ml/
 ```
 
@@ -508,9 +518,11 @@ python backend/scripts/actualizar_kpis.py --refresh
 python backend/scripts/actualizar_kpis.py --stats
 ```
 
-2. Re-entrenar con más años:
+2. Re-entrenar con todos los años disponibles:
 ```bash
-python backend/ml/preparar_datos_propension.py --anios 2022,2023,2024
+# Usar todos los años disponibles (RECOMENDADO)
+python backend/ml/preparar_datos_propension.py --output data/ml/
+python backend/ml/entrenar_modelo_propension.py --input data/ml/
 ```
 
 3. Aumentar complejidad del modelo:

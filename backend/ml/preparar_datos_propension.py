@@ -10,7 +10,11 @@ Este script:
 - Genera datasets de train/test
 
 Uso:
-    python backend/ml/preparar_datos_propension.py --anios 2023,2024 --output data/ml/
+    # RECOMENDADO: Usar todos los años disponibles (omitir --anios)
+    python backend/ml/preparar_datos_propension.py --output data/ml/
+
+    # Alternativamente, especificar años concretos
+    python backend/ml/preparar_datos_propension.py --anios 2020,2021,2022,2023,2024 --output data/ml/
 """
 
 import sys
