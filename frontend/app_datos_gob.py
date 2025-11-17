@@ -3783,6 +3783,221 @@ with tab8:
             st.error(f"❌ Error al calcular Distribución Demográfica: {str(e)}")
             st.exception(e)
 
+        st.markdown("---")
+
+        # ========== SECCIÓN 4: PREDICCIÓN ML - PROPENSIÓN DE COMPRA ==========
+        st.markdown("## 🔮 Predicción de Propensión de Compra (ML)")
+        st.markdown("_Modelo de Machine Learning para predecir marcas con mayor probabilidad de compra según perfil del usuario_")
+
+        try:
+            # Verificar si existe el modelo
+            modelo_path = Path("data/ml/modelos/modelo_propension_compra.pkl")
+
+            if modelo_path.exists():
+                col_form, col_result = st.columns([1, 1])
+
+                with col_form:
+                    st.markdown("### 📋 Perfil del Comprador")
+
+                    # Formulario de entrada
+                    with st.form("form_prediccion_ml"):
+                        # Provincia
+                        prov_ml = st.selectbox(
+                            "Provincia",
+                            options=provincias_kpi,
+                            key="prov_ml"
+                        )
+
+                        # Localidad (filtrada por provincia)
+                        if prov_ml != "Todas":
+                            query_loc_ml = text("""
+                                SELECT DISTINCT titular_domicilio_localidad as localidad
+                                FROM datos_gob_inscripciones
+                                WHERE titular_domicilio_provincia = :provincia
+                                AND titular_domicilio_localidad IS NOT NULL
+                                AND titular_domicilio_localidad != ''
+                                ORDER BY localidad
+                            """)
+                            df_loc_ml = pd.read_sql(query_loc_ml, engine, params={'provincia': prov_ml})
+                            localidades_ml = ['Todas'] + df_loc_ml['localidad'].tolist()
+                        else:
+                            localidades_ml = ['Todas']
+
+                        loc_ml = st.selectbox(
+                            "Localidad",
+                            options=localidades_ml,
+                            key="loc_ml"
+                        )
+
+                        # Edad
+                        edad_ml = st.number_input(
+                            "Edad",
+                            min_value=18,
+                            max_value=100,
+                            value=35,
+                            step=1,
+                            key="edad_ml"
+                        )
+
+                        # Género
+                        genero_ml = st.selectbox(
+                            "Género",
+                            options=["M", "F", "OTRO"],
+                            format_func=lambda x: {"M": "Masculino", "F": "Femenino", "OTRO": "Otro"}[x],
+                            key="genero_ml"
+                        )
+
+                        # Tipo de Persona
+                        tipo_pers_ml = st.selectbox(
+                            "Tipo de Persona",
+                            options=["FISICA", "JURIDICA"],
+                            format_func=lambda x: {"FISICA": "Física", "JURIDICA": "Jurídica"}[x],
+                            key="tipo_pers_ml"
+                        )
+
+                        # Tipo de Vehículo
+                        tipo_veh_ml = st.selectbox(
+                            "Tipo de Vehículo",
+                            options=["AUTOMOVIL", "MOTOVEHICULO", "CAMION", "UTILITARIO"],
+                            key="tipo_veh_ml"
+                        )
+
+                        # Origen
+                        origen_ml = st.selectbox(
+                            "Origen",
+                            options=["NACIONAL", "IMPORTADO"],
+                            key="origen_ml"
+                        )
+
+                        # Top N
+                        top_n_ml = st.slider(
+                            "Top N marcas",
+                            min_value=3,
+                            max_value=10,
+                            value=5,
+                            step=1,
+                            key="top_n_ml"
+                        )
+
+                        # Botón de predicción
+                        submitted = st.form_submit_button("🔮 Predecir Propensión", use_container_width=True)
+
+                with col_result:
+                    st.markdown("### 📊 Resultados de Predicción")
+
+                    if submitted and prov_ml != "Todas" and loc_ml != "Todas":
+                        with st.spinner("Calculando propensión de compra..."):
+                            try:
+                                # Importar función de predicción
+                                from backend.ml.predecir_propension import predecir_propension_compra
+
+                                # Realizar predicción
+                                resultados = predecir_propension_compra(
+                                    provincia=prov_ml,
+                                    localidad=loc_ml,
+                                    edad=edad_ml,
+                                    genero=genero_ml,
+                                    tipo_persona=tipo_pers_ml,
+                                    tipo_vehiculo=tipo_veh_ml,
+                                    origen=origen_ml,
+                                    top_n=top_n_ml,
+                                    modelo_dir="data/ml/modelos"
+                                )
+
+                                # Mostrar resultados
+                                if resultados:
+                                    st.success(f"✅ Predicción completada para {prov_ml} - {loc_ml}")
+
+                                    # Crear DataFrame para visualización
+                                    df_pred = pd.DataFrame(
+                                        [(marca, prob * 100) for marca, prob in resultados],
+                                        columns=['Marca', 'Probabilidad']
+                                    )
+
+                                    # Gráfico de barras horizontales
+                                    fig_pred = px.bar(
+                                        df_pred,
+                                        x='Probabilidad',
+                                        y='Marca',
+                                        orientation='h',
+                                        title=f'Top {top_n_ml} Marcas con Mayor Propensión',
+                                        labels={'Probabilidad': 'Probabilidad (%)', 'Marca': 'Marca'},
+                                        text='Probabilidad',
+                                        color='Probabilidad',
+                                        color_continuous_scale='Viridis'
+                                    )
+                                    fig_pred.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
+                                    fig_pred.update_layout(
+                                        yaxis={'categoryorder': 'total ascending'},
+                                        showlegend=False,
+                                        height=400
+                                    )
+                                    st.plotly_chart(fig_pred, use_container_width=True)
+
+                                    # Tabla con detalles
+                                    st.markdown("#### 📋 Detalle de Probabilidades")
+                                    df_pred['Ranking'] = range(1, len(df_pred) + 1)
+                                    df_pred = df_pred[['Ranking', 'Marca', 'Probabilidad']]
+                                    df_pred['Probabilidad'] = df_pred['Probabilidad'].apply(lambda x: f"{x:.2f}%")
+                                    st.dataframe(df_pred, use_container_width=True, hide_index=True)
+
+                                    # Métricas
+                                    st.markdown("#### 📈 Métricas del Perfil")
+                                    met1, met2, met3 = st.columns(3)
+
+                                    with met1:
+                                        st.metric(
+                                            "1ª Marca",
+                                            resultados[0][0],
+                                            f"{resultados[0][1]*100:.1f}%"
+                                        )
+
+                                    with met2:
+                                        if len(resultados) > 1:
+                                            st.metric(
+                                                "2ª Marca",
+                                                resultados[1][0],
+                                                f"{resultados[1][1]*100:.1f}%"
+                                            )
+
+                                    with met3:
+                                        if len(resultados) > 2:
+                                            st.metric(
+                                                "3ª Marca",
+                                                resultados[2][0],
+                                                f"{resultados[2][1]*100:.1f}%"
+                                            )
+
+                                else:
+                                    st.warning("⚠️ No se pudieron obtener predicciones")
+
+                            except ImportError:
+                                st.error("❌ Módulo de predicción no disponible. Verifica la instalación.")
+                            except FileNotFoundError as e:
+                                st.error(f"❌ Modelo no encontrado: {str(e)}")
+                            except Exception as e:
+                                st.error(f"❌ Error al realizar predicción: {str(e)}")
+                                st.exception(e)
+
+                    elif submitted:
+                        st.warning("⚠️ Por favor selecciona una Provincia y Localidad específicas")
+                    else:
+                        st.info("👆 Completa el formulario y presiona 'Predecir Propensión' para ver resultados")
+
+            else:
+                st.info("ℹ️ El modelo de ML aún no ha sido entrenado. Ejecuta los scripts de preparación y entrenamiento primero:")
+                st.code("""
+# 1. Preparar datos
+python backend/ml/preparar_datos_propension.py --anios 2023,2024 --output data/ml/
+
+# 2. Entrenar modelo
+python backend/ml/entrenar_modelo_propension.py --input data/ml/
+                """, language="bash")
+
+        except Exception as e:
+            st.error(f"❌ Error al cargar módulo de predicción ML: {str(e)}")
+            st.exception(e)
+
 # Footer
 st.markdown("---")
 col_footer1, col_footer2, col_footer3 = st.columns(3)
