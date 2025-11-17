@@ -3236,7 +3236,7 @@ with tab8:
                     labels={'iam_promedio': 'Edad Promedio (años)', 'mes': 'Mes', 'tipo_transaccion': 'Tipo'},
                     markers=True
                 )
-                fig_iam.update_xaxis(tickmode='array', tickvals=list(range(1, 13)), ticktext=list(MESES_ES.values()))
+                fig_iam.update_xaxes(tickmode='array', tickvals=list(range(1, 13)), ticktext=list(MESES_ES.values()))
                 st.plotly_chart(fig_iam, use_container_width=True)
 
             else:
@@ -3367,6 +3367,26 @@ with tab8:
             st.markdown("### 💰 IF: Índice de Financiamiento")
             st.markdown("_Porcentaje de vehículos que se compran con financiamiento_")
 
+            query_if_insc = text(f"""
+                SELECT
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                    EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                    COUNT(*) as inscripciones
+                FROM datos_gob_inscripciones
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND tramite_fecha IS NOT NULL
+                {filtro_marca_kpi}
+                {filtro_tipo_persona_kpi}
+                {filtro_provincia_kpi}
+                {filtro_localidad_kpi}
+                {filtro_genero_kpi}
+                {filtro_origen_kpi}
+                {filtro_tipo_vehiculo_kpi}
+                GROUP BY anio, mes
+                ORDER BY anio, mes
+            """)
+
             query_if_prendas = text(f"""
                 SELECT
                     EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
@@ -3387,8 +3407,8 @@ with tab8:
                 ORDER BY anio, mes
             """)
 
+            df_if_insc = pd.read_sql(query_if_insc, engine, params=params_kpi)
             df_if_prendas = pd.read_sql(query_if_prendas, engine, params=params_kpi)
-            df_if_insc = pd.read_sql(query_ida, engine, params=params_kpi)
 
             if not df_if_insc.empty and not df_if_prendas.empty:
                 # Merge
