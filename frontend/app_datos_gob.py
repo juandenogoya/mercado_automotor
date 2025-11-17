@@ -159,10 +159,10 @@ def analizar_tramites(tabla_nombre, titulo, icono):
 
     # Obtener provincias disponibles
     query_provincias = text(f"""
-        SELECT DISTINCT registro_seccional_provincia as provincia
+        SELECT DISTINCT titular_domicilio_provincia as provincia
         FROM {tabla_nombre}
-        WHERE registro_seccional_provincia IS NOT NULL
-        AND registro_seccional_provincia != ''
+        WHERE titular_domicilio_provincia IS NOT NULL
+        AND titular_domicilio_provincia != ''
         ORDER BY provincia
     """)
 
@@ -178,6 +178,40 @@ def analizar_tramites(tabla_nombre, titulo, icono):
             options=provincias_disponibles,
             default=provincias_disponibles[:3] if len(provincias_disponibles) >= 3 else provincias_disponibles,
             key=f"{tabla_nombre}_provincias"
+        )
+
+    # Filtro de localidades (cascading)
+    if provincias_seleccionadas and anios_seleccionados:
+        query_localidades = text(f"""
+            SELECT DISTINCT titular_domicilio_localidad as localidad
+            FROM {tabla_nombre}
+            WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+            AND titular_domicilio_provincia = ANY(:provincias)
+            AND titular_domicilio_localidad IS NOT NULL
+            AND titular_domicilio_localidad != ''
+            ORDER BY localidad
+        """)
+
+        try:
+            df_localidades = pd.read_sql(
+                query_localidades,
+                engine,
+                params={'anios': anios_seleccionados, 'provincias': provincias_seleccionadas}
+            )
+            localidades_disponibles = df_localidades['localidad'].tolist()
+        except:
+            localidades_disponibles = []
+    else:
+        localidades_disponibles = []
+
+    col_loc1, col_loc2 = st.columns([1, 1])
+    with col_loc1:
+        localidades_seleccionadas = st.multiselect(
+            "🏘️ Localidades (opcional)",
+            options=localidades_disponibles,
+            default=[],
+            key=f"{tabla_nombre}_localidades",
+            help="Filtra por localidades específicas. Dejar vacío para incluir todas."
         )
 
     # Filtro de género
@@ -200,18 +234,24 @@ def analizar_tramites(tabla_nombre, titulo, icono):
 
     st.markdown("---")
 
-    # 3. Consulta principal con filtro de género
+    # 3. Consulta principal con filtros
     # Construir condición de género
     if genero_seleccionado == 'Todos':
         filtro_genero = ""  # Todos los géneros
     else:
         filtro_genero = f"AND titular_genero = '{genero_seleccionado}'"
 
+    # Construir condición de localidad
+    filtro_localidad = ""
+    if localidades_seleccionadas:
+        filtro_localidad = "AND titular_domicilio_localidad = ANY(:localidades)"
+
     query = text(f"""
         SELECT
             EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
             EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
-            registro_seccional_provincia as provincia,
+            titular_domicilio_provincia as provincia,
+            titular_domicilio_localidad as localidad,
             automotor_marca_descripcion as marca,
             automotor_tipo_descripcion as tipo_vehiculo,
             titular_genero as genero,
@@ -220,20 +260,25 @@ def analizar_tramites(tabla_nombre, titulo, icono):
         FROM {tabla_nombre}
         WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
         AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
-        AND registro_seccional_provincia = ANY(:provincias)
+        AND titular_domicilio_provincia = ANY(:provincias)
+        {filtro_localidad}
         AND tramite_fecha IS NOT NULL
         AND titular_anio_nacimiento IS NOT NULL
         {filtro_genero}
-        GROUP BY anio, mes, provincia, marca, tipo_vehiculo, genero
-        ORDER BY anio, mes, provincia
+        GROUP BY anio, mes, provincia, localidad, marca, tipo_vehiculo, genero
+        ORDER BY anio, mes, provincia, localidad
     """)
 
     try:
-        df = pd.read_sql(query, engine, params={
+        params_query = {
             'anios': anios_seleccionados,
             'meses': meses_numeros,
             'provincias': provincias_seleccionadas
-        })
+        }
+        if localidades_seleccionadas:
+            params_query['localidades'] = localidades_seleccionadas
+
+        df = pd.read_sql(query, engine, params=params_query)
 
         if df.empty:
             st.warning("⚠️ No se encontraron datos con los filtros seleccionados")
@@ -546,7 +591,8 @@ def analizar_tramites(tabla_nombre, titulo, icono):
                 FROM {tabla_nombre}
                 WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
                 AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
-                AND registro_seccional_provincia = ANY(:provincias)
+                AND titular_domicilio_provincia = ANY(:provincias)
+                {filtro_localidad}
                 AND automotor_marca_descripcion = :marca
                 AND automotor_modelo_descripcion IS NOT NULL
                 AND automotor_modelo_descripcion != ''
@@ -1641,28 +1687,28 @@ with tab6:
                 # Para automóviles usamos tablas detalladas
                 if tipo_tramite_hist == "Inscripciones":
                     query_provincias_hist = text("""
-                        SELECT DISTINCT registro_seccional_provincia as provincia
+                        SELECT DISTINCT titular_domicilio_provincia as provincia
                         FROM datos_gob_inscripciones
-                        WHERE registro_seccional_provincia IS NOT NULL
+                        WHERE titular_domicilio_provincia IS NOT NULL
                         ORDER BY provincia
                     """)
                 elif tipo_tramite_hist == "Transferencias":
                     query_provincias_hist = text("""
-                        SELECT DISTINCT registro_seccional_provincia as provincia
+                        SELECT DISTINCT titular_domicilio_provincia as provincia
                         FROM datos_gob_transferencias
-                        WHERE registro_seccional_provincia IS NOT NULL
+                        WHERE titular_domicilio_provincia IS NOT NULL
                         ORDER BY provincia
                     """)
                 else:  # Inscripciones + Transferencias
                     query_provincias_hist = text("""
                         SELECT DISTINCT provincia FROM (
-                            SELECT registro_seccional_provincia as provincia
+                            SELECT titular_domicilio_provincia as provincia
                             FROM datos_gob_inscripciones
-                            WHERE registro_seccional_provincia IS NOT NULL
+                            WHERE titular_domicilio_provincia IS NOT NULL
                             UNION
-                            SELECT registro_seccional_provincia as provincia
+                            SELECT titular_domicilio_provincia as provincia
                             FROM datos_gob_transferencias
-                            WHERE registro_seccional_provincia IS NOT NULL
+                            WHERE titular_domicilio_provincia IS NOT NULL
                         ) AS combined
                         ORDER BY provincia
                     """)
@@ -1699,7 +1745,7 @@ with tab6:
             if provincias_seleccionadas_hist:
                 provincias_str = "', '".join(provincias_seleccionadas_hist)
                 filtro_provincias_hist = f"AND provincia IN ('{provincias_str}')"
-                filtro_provincias_detallado = f"AND registro_seccional_provincia IN ('{provincias_str}')"
+                filtro_provincias_detallado = f"AND titular_domicilio_provincia IN ('{provincias_str}')"
 
             # Construir consulta según tipo de vehículo
             if tipo_vehiculo_hist == "Automóviles":
@@ -1716,11 +1762,11 @@ with tab6:
                             SELECT
                                 EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
                                 EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
-                                registro_seccional_provincia as provincia,
+                                titular_domicilio_provincia as provincia,
                                 COUNT(*) as total
                             FROM datos_gob_inscripciones
                             WHERE tramite_fecha IS NOT NULL
-                            AND registro_seccional_provincia IS NOT NULL
+                            AND titular_domicilio_provincia IS NOT NULL
                             AND EXTRACT(YEAR FROM tramite_fecha) BETWEEN :anio_desde AND :anio_hasta
                             {filtro_provincias_detallado}
                             GROUP BY anio, mes, provincia
@@ -1730,11 +1776,11 @@ with tab6:
                             SELECT
                                 EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
                                 EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
-                                registro_seccional_provincia as provincia,
+                                titular_domicilio_provincia as provincia,
                                 COUNT(*) as total
                             FROM datos_gob_transferencias
                             WHERE tramite_fecha IS NOT NULL
-                            AND registro_seccional_provincia IS NOT NULL
+                            AND titular_domicilio_provincia IS NOT NULL
                             AND EXTRACT(YEAR FROM tramite_fecha) BETWEEN :anio_desde AND :anio_hasta
                             {filtro_provincias_detallado}
                             GROUP BY anio, mes, provincia
@@ -1747,11 +1793,11 @@ with tab6:
                         SELECT
                             EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
                             EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
-                            registro_seccional_provincia as provincia,
+                            titular_domicilio_provincia as provincia,
                             COUNT(*) as total
                         FROM datos_gob_inscripciones
                         WHERE tramite_fecha IS NOT NULL
-                        AND registro_seccional_provincia IS NOT NULL
+                        AND titular_domicilio_provincia IS NOT NULL
                         AND EXTRACT(YEAR FROM tramite_fecha) BETWEEN :anio_desde AND :anio_hasta
                         {filtro_provincias_detallado}
                         GROUP BY anio, mes, provincia
@@ -1762,11 +1808,11 @@ with tab6:
                         SELECT
                             EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
                             EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
-                            registro_seccional_provincia as provincia,
+                            titular_domicilio_provincia as provincia,
                             COUNT(*) as total
                         FROM datos_gob_transferencias
                         WHERE tramite_fecha IS NOT NULL
-                        AND registro_seccional_provincia IS NOT NULL
+                        AND titular_domicilio_provincia IS NOT NULL
                         AND EXTRACT(YEAR FROM tramite_fecha) BETWEEN :anio_desde AND :anio_hasta
                         {filtro_provincias_detallado}
                         GROUP BY anio, mes, provincia
@@ -2080,10 +2126,10 @@ with tab7:
             with col_pred1:
                 st.markdown("#### 📍 Paso 1: Provincia")
                 query_provincias_pred = text("""
-                    SELECT DISTINCT registro_seccional_provincia as provincia
+                    SELECT DISTINCT titular_domicilio_provincia as provincia
                     FROM datos_gob_inscripciones
-                    WHERE registro_seccional_provincia IS NOT NULL
-                    AND registro_seccional_provincia != ''
+                    WHERE titular_domicilio_provincia IS NOT NULL
+                    AND titular_domicilio_provincia != ''
                     ORDER BY provincia
                 """)
 
@@ -2125,7 +2171,7 @@ with tab7:
                         SELECT DISTINCT automotor_marca_descripcion as marca,
                                COUNT(*) as cantidad
                         FROM datos_gob_inscripciones
-                        WHERE registro_seccional_provincia = :provincia
+                        WHERE titular_domicilio_provincia = :provincia
                         AND automotor_marca_descripcion IS NOT NULL
                         AND automotor_marca_descripcion != ''
                         AND tramite_fecha >= NOW() - INTERVAL '2 years'
@@ -2159,7 +2205,7 @@ with tab7:
                             SELECT DISTINCT automotor_modelo_descripcion as modelo,
                                    COUNT(*) as cantidad
                             FROM datos_gob_inscripciones
-                            WHERE registro_seccional_provincia = :provincia
+                            WHERE titular_domicilio_provincia = :provincia
                             AND automotor_marca_descripcion = :marca
                             AND automotor_modelo_descripcion IS NOT NULL
                             AND automotor_modelo_descripcion != ''
@@ -2212,7 +2258,7 @@ with tab7:
                                         AVG(EXTRACT(YEAR FROM tramite_fecha) - titular_anio_nacimiento) as edad_titular,
                                         AVG(automotor_anio_modelo) as anio_modelo
                                     FROM datos_gob_inscripciones
-                                    WHERE registro_seccional_provincia = :provincia
+                                    WHERE titular_domicilio_provincia = :provincia
                                     AND automotor_marca_descripcion = :marca
                                     AND automotor_modelo_descripcion = :modelo
                                     AND tramite_fecha >= NOW() - INTERVAL '12 months'
