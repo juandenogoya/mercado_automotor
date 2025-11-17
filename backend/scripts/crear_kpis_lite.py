@@ -72,23 +72,43 @@ def crear_kpis_lite():
         sql_content = f.read()
 
     # Dividir en bloques para mostrar progreso
+    # Manejar funciones con delimitadores $$ correctamente
     bloques = []
     bloque_actual = []
+    dentro_funcion = False
+    contador_dollars = 0
 
     for linea in sql_content.split('\n'):
         bloque_actual.append(linea)
 
-        # Detectar fin de bloque
+        # Contar delimitadores $$ en la línea
+        contador_dollars += linea.count('$$')
+
+        # Si hay número impar de $$, estamos dentro/saliendo de función
+        if contador_dollars % 2 == 1:
+            dentro_funcion = True
+        else:
+            dentro_funcion = False
+
+        # No cortar bloques si estamos dentro de una función
+        if dentro_funcion:
+            continue
+
+        # Detectar fin de bloque (solo si NO estamos en función)
+        bloque_texto = '\n'.join(bloque_actual).upper()
+
         if any([
-            'DROP MATERIALIZED VIEW IF EXISTS' in linea.upper(),
-            linea.strip().endswith(';') and 'CREATE MATERIALIZED VIEW' in '\n'.join(bloque_actual).upper(),
-            linea.strip().endswith(';') and 'CREATE UNIQUE INDEX' in '\n'.join(bloque_actual).upper(),
-            linea.strip().endswith(';') and 'CREATE INDEX' in '\n'.join(bloque_actual).upper(),
-            linea.strip().endswith('$$;') and 'CREATE OR REPLACE FUNCTION' in '\n'.join(bloque_actual).upper(),
+            'DROP MATERIALIZED VIEW IF EXISTS' in linea.upper() and linea.strip().endswith(';'),
+            linea.strip().endswith(';') and 'CREATE MATERIALIZED VIEW' in bloque_texto and 'AS SELECT' in bloque_texto,
+            linea.strip().endswith(';') and 'CREATE UNIQUE INDEX' in bloque_texto,
+            linea.strip().endswith(';') and 'CREATE INDEX' in bloque_texto and 'CREATE UNIQUE INDEX' not in bloque_texto,
+            linea.strip().endswith('$$;') and 'CREATE OR REPLACE FUNCTION' in bloque_texto,
+            linea.strip().endswith('$$;') and 'CREATE FUNCTION' in bloque_texto,
         ]):
             if bloque_actual:
                 bloques.append('\n'.join(bloque_actual))
                 bloque_actual = []
+                contador_dollars = 0  # Reset contador
 
     if bloque_actual:
         bloques.append('\n'.join(bloque_actual))

@@ -50,26 +50,48 @@ def ejecutar_sql_file(engine, sql_file_path):
         with open(sql_file_path, 'r', encoding='utf-8') as f:
             sql_content = f.read()
 
-        # Dividir el SQL en bloques (separados por comentarios de sección)
-        # Los bloques importantes son: DROP, CREATE MATERIALIZED VIEW, CREATE TABLE, CREATE FUNCTION
+        # Dividir el SQL en bloques de forma más inteligente
+        # Manejar funciones con delimitadores $$ correctamente
         bloques = []
         bloque_actual = []
+        dentro_funcion = False  # Flag para saber si estamos dentro de una función $$...$$
+        contador_dollars = 0  # Contar delimitadores $$
 
         for linea in sql_content.split('\n'):
             bloque_actual.append(linea)
 
-            # Detectar fin de bloque importante
+            # Contar delimitadores $$ en la línea
+            contador_dollars += linea.count('$$')
+
+            # Si hay número impar de $$, estamos dentro/saliendo de función
+            if contador_dollars % 2 == 1:
+                dentro_funcion = True
+            else:
+                dentro_funcion = False
+
+            # No cortar bloques si estamos dentro de una función
+            if dentro_funcion:
+                continue
+
+            # Detectar fin de bloque importante (solo si NO estamos en función)
+            bloque_texto = '\n'.join(bloque_actual).upper()
+
             if any([
-                'DROP MATERIALIZED VIEW IF EXISTS' in linea.upper(),
-                'DROP TABLE IF EXISTS' in linea.upper(),
-                linea.strip().endswith(';') and 'CREATE MATERIALIZED VIEW' in '\n'.join(bloque_actual).upper(),
-                linea.strip().endswith(';') and 'CREATE TABLE' in '\n'.join(bloque_actual).upper() and 'AS SELECT' in '\n'.join(bloque_actual).upper(),
-                linea.strip().endswith(';') and 'CREATE UNIQUE INDEX' in '\n'.join(bloque_actual).upper(),
-                linea.strip().endswith('$$;') and 'CREATE OR REPLACE FUNCTION' in '\n'.join(bloque_actual).upper(),
+                'DROP MATERIALIZED VIEW IF EXISTS' in linea.upper() and linea.strip().endswith(';'),
+                'DROP TABLE IF EXISTS' in linea.upper() and linea.strip().endswith(';'),
+                'DROP VIEW IF EXISTS' in linea.upper() and linea.strip().endswith(';'),
+                'DROP FUNCTION IF EXISTS' in linea.upper() and linea.strip().endswith(';'),
+                linea.strip().endswith(';') and 'CREATE MATERIALIZED VIEW' in bloque_texto and 'AS SELECT' in bloque_texto,
+                linea.strip().endswith(';') and 'CREATE UNIQUE INDEX' in bloque_texto,
+                linea.strip().endswith(';') and 'CREATE INDEX' in bloque_texto and 'CREATE UNIQUE INDEX' not in bloque_texto,
+                linea.strip().endswith('$$;') and 'CREATE OR REPLACE FUNCTION' in bloque_texto,
+                linea.strip().endswith('$$;') and 'CREATE FUNCTION' in bloque_texto,
+                linea.strip().endswith(';') and 'CREATE TABLE' in bloque_texto and 'AS SELECT' in bloque_texto and not dentro_funcion,
             ]):
                 if bloque_actual:
                     bloques.append('\n'.join(bloque_actual))
                     bloque_actual = []
+                    contador_dollars = 0  # Reset contador
 
         # Agregar último bloque si existe
         if bloque_actual:
