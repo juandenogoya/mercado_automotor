@@ -196,8 +196,10 @@ def evaluar_modelo(model, X_test, y_test, model_name, encoders):
     f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0)
 
     # Top-K accuracy (para propensión es útil)
-    top3_acc = top_k_accuracy_score(y_test, y_pred_proba, k=3)
-    top5_acc = top_k_accuracy_score(y_test, y_pred_proba, k=5)
+    # Obtener todas las clases posibles del encoder
+    all_labels = np.arange(len(encoders['target'].classes_))
+    top3_acc = top_k_accuracy_score(y_test, y_pred_proba, k=3, labels=all_labels)
+    top5_acc = top_k_accuracy_score(y_test, y_pred_proba, k=5, labels=all_labels)
 
     metricas = {
         'accuracy': accuracy,
