@@ -31,10 +31,7 @@ from backend.config.settings import settings
 
 def crear_engine():
     """Crea conexión a PostgreSQL"""
-    connection_string = (
-        f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@"
-        f"{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
-    )
+    connection_string = settings.get_database_url_sync()
     return create_engine(connection_string)
 
 
