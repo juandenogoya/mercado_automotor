@@ -40,7 +40,7 @@ def crear_engine():
 
 def ejecutar_sql_file(engine, sql_file_path):
     """
-    Ejecuta un archivo SQL completo
+    Ejecuta un archivo SQL completo dividiéndolo en bloques para mostrar progreso
     """
     print(f"\n{'='*60}")
     print(f"📄 Ejecutando: {sql_file_path.name}")
@@ -50,16 +50,76 @@ def ejecutar_sql_file(engine, sql_file_path):
         with open(sql_file_path, 'r', encoding='utf-8') as f:
             sql_content = f.read()
 
-        with engine.connect() as conn:
-            # Ejecutar el SQL completo
-            conn.execute(text(sql_content))
-            conn.commit()
+        # Dividir el SQL en bloques (separados por comentarios de sección)
+        # Los bloques importantes son: DROP, CREATE MATERIALIZED VIEW, CREATE TABLE, CREATE FUNCTION
+        bloques = []
+        bloque_actual = []
 
-        print(f"✅ Archivo ejecutado exitosamente")
+        for linea in sql_content.split('\n'):
+            bloque_actual.append(linea)
+
+            # Detectar fin de bloque importante
+            if any([
+                'DROP MATERIALIZED VIEW IF EXISTS' in linea.upper(),
+                'DROP TABLE IF EXISTS' in linea.upper(),
+                linea.strip().endswith(';') and 'CREATE MATERIALIZED VIEW' in '\n'.join(bloque_actual).upper(),
+                linea.strip().endswith(';') and 'CREATE TABLE' in '\n'.join(bloque_actual).upper() and 'AS SELECT' in '\n'.join(bloque_actual).upper(),
+                linea.strip().endswith(';') and 'CREATE UNIQUE INDEX' in '\n'.join(bloque_actual).upper(),
+                linea.strip().endswith('$$;') and 'CREATE OR REPLACE FUNCTION' in '\n'.join(bloque_actual).upper(),
+            ]):
+                if bloque_actual:
+                    bloques.append('\n'.join(bloque_actual))
+                    bloque_actual = []
+
+        # Agregar último bloque si existe
+        if bloque_actual:
+            bloques.append('\n'.join(bloque_actual))
+
+        print(f"\n⏳ Procesando {len(bloques)} bloques SQL...")
+        print(f"⚠️  Esto puede tardar 10-30 minutos con 13 millones de registros")
+        print(f"⚠️  Por favor, espera sin interrumpir el proceso\n")
+
+        with engine.connect() as conn:
+            for i, bloque in enumerate(bloques, 1):
+                bloque_limpio = bloque.strip()
+                if not bloque_limpio or bloque_limpio.startswith('--'):
+                    continue
+
+                # Identificar qué se está ejecutando
+                if 'CREATE MATERIALIZED VIEW kpi_segmentacion_demografica' in bloque_limpio:
+                    print(f"[{i}/{len(bloques)}] 📊 Creando vista: kpi_segmentacion_demografica...")
+                elif 'CREATE MATERIALIZED VIEW kpi_financiamiento_segmento' in bloque_limpio:
+                    print(f"[{i}/{len(bloques)}] 💰 Creando vista: kpi_financiamiento_segmento...")
+                elif 'CREATE MATERIALIZED VIEW kpi_antiguedad_vehiculos' in bloque_limpio:
+                    print(f"[{i}/{len(bloques)}] 🚗 Creando vista: kpi_antiguedad_vehiculos...")
+                elif 'CREATE MATERIALIZED VIEW kpi_demanda_activa' in bloque_limpio:
+                    print(f"[{i}/{len(bloques)}] 📈 Creando vista: kpi_demanda_activa...")
+                elif 'CREATE TABLE ml_features_propension_compra' in bloque_limpio:
+                    print(f"[{i}/{len(bloques)}] 🤖 Creando tabla ML: ml_features_propension_compra...")
+                elif 'CREATE OR REPLACE FUNCTION refresh_kpis_materializados' in bloque_limpio:
+                    print(f"[{i}/{len(bloques)}] 🔧 Creando función: refresh_kpis_materializados()...")
+                elif 'CREATE UNIQUE INDEX' in bloque_limpio.upper():
+                    print(f"[{i}/{len(bloques)}] 🔑 Creando índices...")
+                elif 'DROP' in bloque_limpio.upper():
+                    print(f"[{i}/{len(bloques)}] 🗑️  Limpiando objetos existentes...")
+                else:
+                    print(f"[{i}/{len(bloques)}] ⚙️  Ejecutando bloque SQL...")
+
+                inicio_bloque = time.time()
+                conn.execute(text(bloque_limpio))
+                conn.commit()
+                duracion_bloque = time.time() - inicio_bloque
+
+                if duracion_bloque > 1:  # Solo mostrar si tardó más de 1 segundo
+                    print(f"     ✓ Completado en {duracion_bloque:.1f}s")
+
+        print(f"\n✅ Archivo ejecutado exitosamente")
         return True
 
     except Exception as e:
-        print(f"❌ Error al ejecutar {sql_file_path.name}: {e}")
+        print(f"\n❌ Error al ejecutar {sql_file_path.name}: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
