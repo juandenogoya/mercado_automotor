@@ -102,7 +102,7 @@ def crear_kpis_lite():
     inicio_total = time.time()
 
     try:
-        with engine.connect() as conn:
+        with engine.begin() as conn:  # Usar begin() para commit automático
             for i, bloque in enumerate(bloques, 1):
                 bloque_limpio = bloque.strip()
                 if not bloque_limpio or bloque_limpio.startswith('--'):
@@ -138,7 +138,7 @@ def crear_kpis_lite():
 
                 inicio_bloque = time.time()
                 conn.execute(text(bloque_limpio))
-                conn.commit()
+                # No necesita commit explícito con begin()
                 duracion_bloque = time.time() - inicio_bloque
 
                 if duracion_bloque > 1:

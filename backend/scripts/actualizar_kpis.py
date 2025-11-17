@@ -79,7 +79,7 @@ def ejecutar_sql_file(engine, sql_file_path):
         print(f"⚠️  Esto puede tardar 10-30 minutos con 13 millones de registros")
         print(f"⚠️  Por favor, espera sin interrumpir el proceso\n")
 
-        with engine.connect() as conn:
+        with engine.begin() as conn:  # Usar begin() para commit automático
             for i, bloque in enumerate(bloques, 1):
                 bloque_limpio = bloque.strip()
                 if not bloque_limpio or bloque_limpio.startswith('--'):
@@ -107,7 +107,7 @@ def ejecutar_sql_file(engine, sql_file_path):
 
                 inicio_bloque = time.time()
                 conn.execute(text(bloque_limpio))
-                conn.commit()
+                # No necesita commit explícito con begin()
                 duracion_bloque = time.time() - inicio_bloque
 
                 if duracion_bloque > 1:  # Solo mostrar si tardó más de 1 segundo
