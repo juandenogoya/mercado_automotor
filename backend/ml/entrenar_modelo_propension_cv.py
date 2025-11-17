@@ -85,20 +85,62 @@ def cargar_datasets(input_dir):
     return X_train, X_test, y_train, y_test, encoders, feature_names, metadata
 
 
+def top_k_accuracy_safe(y_true, y_pred_proba, k=3, estimator=None):
+    """
+    Wrapper seguro para top_k_accuracy_score que maneja clases faltantes.
+
+    El estimator tiene las clases que vio durante fit (ej. 94 clases).
+    Pero y_true puede contener cualquiera de las 100 clases originales.
+    Necesitamos expandir y_pred_proba para incluir todas.
+    """
+    if estimator is None:
+        # Si no tenemos estimator, intentar sin labels
+        return top_k_accuracy_score(y_true, y_pred_proba, k=k)
+
+    # Obtener clases que el modelo conoce
+    model_classes = estimator.classes_
+    n_samples = y_pred_proba.shape[0]
+
+    # Determinar el número total de clases posibles
+    max_class = max(max(y_true), max(model_classes))
+    n_all_classes = max_class + 1
+
+    # Si y_pred_proba ya tiene el tamaño correcto, usarlo directamente
+    if y_pred_proba.shape[1] == n_all_classes:
+        all_labels = np.arange(n_all_classes)
+        return top_k_accuracy_score(y_true, y_pred_proba, k=k, labels=all_labels)
+
+    # Expandir y_pred_proba para incluir todas las clases
+    y_pred_proba_full = np.zeros((n_samples, n_all_classes))
+
+    for i, class_label in enumerate(model_classes):
+        y_pred_proba_full[:, class_label] = y_pred_proba[:, i]
+
+    all_labels = np.arange(n_all_classes)
+    return top_k_accuracy_score(y_true, y_pred_proba_full, k=k, labels=all_labels)
+
+
 def crear_scoring_dict(encoders):
     """
-    Crea diccionario de scorers para cross-validation
+    Crea diccionario de scorers para cross-validation.
 
-    NOTA: No pasamos 'labels' a top_k_accuracy_score porque cada fold
-    puede tener diferentes clases presentes. Sklearn lo maneja automáticamente.
+    Usamos scorers custom para top_k que manejan clases faltantes automáticamente.
     """
     scoring = {
         'accuracy': 'accuracy',
         'precision_weighted': make_scorer(precision_score, average='weighted', zero_division=0),
         'recall_weighted': make_scorer(recall_score, average='weighted', zero_division=0),
         'f1_weighted': make_scorer(f1_score, average='weighted', zero_division=0),
-        'top3_accuracy': make_scorer(top_k_accuracy_score, k=3, needs_proba=True),
-        'top5_accuracy': make_scorer(top_k_accuracy_score, k=5, needs_proba=True)
+        'top3_accuracy': make_scorer(
+            lambda y_true, y_pred_proba, estimator: top_k_accuracy_safe(y_true, y_pred_proba, k=3, estimator=estimator),
+            needs_proba=True,
+            needs_threshold=False
+        ),
+        'top5_accuracy': make_scorer(
+            lambda y_true, y_pred_proba, estimator: top_k_accuracy_safe(y_true, y_pred_proba, k=5, estimator=estimator),
+            needs_proba=True,
+            needs_threshold=False
+        )
     }
 
     return scoring
@@ -527,31 +569,38 @@ def main():
         print("🚀 XGBOOST")
         print("="*60)
 
-        if args.grid_search:
-            xgb_model, xgb_params, xgb_grid = grid_search_optimization(
-                X_train, y_train, 'xgb', cv
-            )
-        else:
-            xgb_model = xgb.XGBClassifier(
-                n_estimators=100,
-                max_depth=7,
-                learning_rate=0.1,
-                random_state=42,
-                n_jobs=-1,
-                objective='multi:softprob'
-            )
-            resultados_cv['XGBoost'] = cross_validate_model(
-                xgb_model, X_train, y_train, 'XGBoost', cv, scoring
-            )
+        try:
+            if args.grid_search:
+                xgb_model, xgb_params, xgb_grid = grid_search_optimization(
+                    X_train, y_train, 'xgb', cv
+                )
+            else:
+                xgb_model = xgb.XGBClassifier(
+                    n_estimators=100,
+                    max_depth=7,
+                    learning_rate=0.1,
+                    random_state=42,
+                    n_jobs=-1,
+                    objective='multi:softprob'
+                )
+                resultados_cv['XGBoost'] = cross_validate_model(
+                    xgb_model, X_train, y_train, 'XGBoost', cv, scoring
+                )
 
-        xgb_final, xgb_metricas_test, xgb_tiempo = entrenar_modelo_final(
-            xgb_model, X_train, y_train, X_test, y_test, encoders
-        )
-        modelos_finales['XGBoost'] = {
-            'modelo': xgb_final,
-            'metricas_test': xgb_metricas_test,
-            'tiempo': xgb_tiempo
-        }
+            xgb_final, xgb_metricas_test, xgb_tiempo = entrenar_modelo_final(
+                xgb_model, X_train, y_train, X_test, y_test, encoders
+            )
+            modelos_finales['XGBoost'] = {
+                'modelo': xgb_final,
+                'metricas_test': xgb_metricas_test,
+                'tiempo': xgb_tiempo
+            }
+        except ValueError as e:
+            print(f"\n⚠️ XGBoost falló debido a clases no consecutivas:")
+            print(f"   Error: {str(e)[:150]}")
+            print(f"   Continuando solo con Random Forest...")
+            print(f"\n💡 Nota: XGBoost requiere clases consecutivas (0,1,2,3...)")
+            print(f"   Algunas marcas tienen muy pocos ejemplos y no aparecen en todos los folds.")
 
     # 4. Comparar modelos
     df_comparacion, mejor_modelo_nombre = comparar_modelos(resultados_cv)
