@@ -88,16 +88,17 @@ def cargar_datasets(input_dir):
 def crear_scoring_dict(encoders):
     """
     Crea diccionario de scorers para cross-validation
-    """
-    all_labels = np.arange(len(encoders['target'].classes_))
 
+    NOTA: No pasamos 'labels' a top_k_accuracy_score porque cada fold
+    puede tener diferentes clases presentes. Sklearn lo maneja automáticamente.
+    """
     scoring = {
         'accuracy': 'accuracy',
         'precision_weighted': make_scorer(precision_score, average='weighted', zero_division=0),
         'recall_weighted': make_scorer(recall_score, average='weighted', zero_division=0),
         'f1_weighted': make_scorer(f1_score, average='weighted', zero_division=0),
-        'top3_accuracy': make_scorer(top_k_accuracy_score, k=3, labels=all_labels, needs_proba=True),
-        'top5_accuracy': make_scorer(top_k_accuracy_score, k=5, labels=all_labels, needs_proba=True)
+        'top3_accuracy': make_scorer(top_k_accuracy_score, k=3, needs_proba=True),
+        'top5_accuracy': make_scorer(top_k_accuracy_score, k=5, needs_proba=True)
     }
 
     return scoring
