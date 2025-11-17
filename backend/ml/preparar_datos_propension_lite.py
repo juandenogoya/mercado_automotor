@@ -309,10 +309,28 @@ def preparar_para_entrenamiento(df, target_column='marca', test_size=0.2, random
     # Reemplazar infinitos por NaN y luego por 0
     X = X.replace([np.inf, -np.inf], np.nan).fillna(0)
 
-    # Split train/test
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state, stratify=y
-    )
+    # Split train/test con estratificación si es posible
+    # Verificar que todas las clases tienen al menos 2 ejemplos
+    unique, counts = np.unique(y, return_counts=True)
+    min_samples = counts.min()
+
+    try:
+        if min_samples >= 2:
+            # Estratificar si todas las clases tienen al menos 2 ejemplos
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=random_state, stratify=y
+            )
+        else:
+            # Sin estratificación si hay clases con 1 solo ejemplo
+            print(f"⚠️ Advertencia: {sum(counts == 1)} marcas tienen solo 1 ejemplo. Split sin estratificación.")
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=random_state, stratify=None
+            )
+    except Exception as e:
+        print(f"⚠️ Advertencia: No se pudo estratificar ({e}). Usando split aleatorio.")
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=random_state, stratify=None
+        )
 
     print(f"✅ Datos preparados:")
     print(f"   - Features: {len(feature_columns)}")
