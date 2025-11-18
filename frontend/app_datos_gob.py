@@ -3787,11 +3787,12 @@ with tab8:
 
         # ========== SECCIÓN 4: PREDICCIÓN ML - PROPENSIÓN DE COMPRA ==========
         st.markdown("## 🔮 Predicción de Propensión de Compra (ML)")
-        st.markdown("_Modelo de Machine Learning para predecir marcas con mayor probabilidad de compra según perfil del usuario_")
+        st.markdown("_Modelo de Machine Learning con Cross-Validation para predecir marcas con mayor probabilidad de compra_")
+        st.markdown("_🎯 Accuracy: 71.6% | Top-3: 92.4% | Top-5: 96.7%_")
 
         try:
-            # Verificar si existe el modelo
-            modelo_path = Path("data/ml/modelos/modelo_propension_compra.pkl")
+            # Verificar si existe el modelo entrenado con CV
+            modelo_path = Path("data/models/propension_compra_cv/modelo_propension_compra_cv.pkl")
 
             if modelo_path.exists():
                 col_form, col_result = st.columns([1, 1])
@@ -3891,7 +3892,7 @@ with tab8:
                                 # Importar función de predicción
                                 from backend.ml.predecir_propension import predecir_propension_compra
 
-                                # Realizar predicción
+                                # Realizar predicción usando modelo CV
                                 resultados = predecir_propension_compra(
                                     provincia=prov_ml,
                                     localidad=loc_ml,
@@ -3901,7 +3902,7 @@ with tab8:
                                     tipo_vehiculo=tipo_veh_ml,
                                     origen=origen_ml,
                                     top_n=top_n_ml,
-                                    modelo_dir="data/ml/modelos"
+                                    modelo_dir="data/models/propension_compra_cv"
                                 )
 
                                 # Mostrar resultados
@@ -3985,14 +3986,21 @@ with tab8:
                         st.info("👆 Completa el formulario y presiona 'Predecir Propensión' para ver resultados")
 
             else:
-                st.info("ℹ️ El modelo de ML aún no ha sido entrenado. Ejecuta los scripts de preparación y entrenamiento primero:")
+                st.info("ℹ️ El modelo de ML aún no ha sido entrenado. Ejecuta los scripts de preparación y entrenamiento:")
                 st.code("""
-# 1. Preparar datos
-python backend/ml/preparar_datos_propension.py --anios 2023,2024 --output data/ml/
+# 1. Preparar datos (versión LITE - rápida)
+python backend/ml/preparar_datos_propension_lite.py --output data/ml/
 
-# 2. Entrenar modelo
-python backend/ml/entrenar_modelo_propension.py --input data/ml/
+# 2. Entrenar modelo con Cross-Validation
+python backend/ml/entrenar_modelo_propension_cv.py --input data/ml/
+
+# Modelo guardado en: data/models/propension_compra_cv/
                 """, language="bash")
+
+                st.markdown("**Resultados esperados:**")
+                st.markdown("- ✅ Accuracy: ~71.6%")
+                st.markdown("- ✅ Top-3 Accuracy: ~92.4% (la marca correcta en las 3 recomendaciones)")
+                st.markdown("- ✅ Top-5 Accuracy: ~96.7% (la marca correcta en las 5 recomendaciones)")
 
         except Exception as e:
             st.error(f"❌ Error al cargar módulo de predicción ML: {str(e)}")

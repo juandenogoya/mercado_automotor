@@ -40,12 +40,13 @@ warnings.filterwarnings('ignore')
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 
-def cargar_modelo_y_metadata(modelo_dir="data/ml/modelos"):
+def cargar_modelo_y_metadata(modelo_dir="data/models/propension_compra_cv"):
     """
-    Carga el modelo entrenado, encoders y metadata
+    Carga el modelo entrenado con cross-validation, encoders y metadata
 
     Args:
         modelo_dir: Directorio donde está guardado el modelo
+                   Default: data/models/propension_compra_cv (modelo CV)
 
     Returns:
         tuple: (model, encoders, feature_names, metadata)
@@ -55,10 +56,13 @@ def cargar_modelo_y_metadata(modelo_dir="data/ml/modelos"):
     if not modelo_path.exists():
         raise FileNotFoundError(f"Directorio de modelo no encontrado: {modelo_path}")
 
-    # Cargar modelo
-    modelo_file = modelo_path / "modelo_propension_compra.pkl"
+    # Cargar modelo (probar ambos nombres por compatibilidad)
+    modelo_file = modelo_path / "modelo_propension_compra_cv.pkl"
     if not modelo_file.exists():
-        raise FileNotFoundError(f"Archivo de modelo no encontrado: {modelo_file}")
+        # Fallback al nombre antiguo
+        modelo_file = modelo_path / "modelo_propension_compra.pkl"
+        if not modelo_file.exists():
+            raise FileNotFoundError(f"Archivo de modelo no encontrado en: {modelo_path}")
 
     with open(modelo_file, 'rb') as f:
         model = pickle.load(f)
