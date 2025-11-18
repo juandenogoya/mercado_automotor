@@ -3795,6 +3795,20 @@ with tab8:
             modelo_path = Path("data/models/propension_compra_cv/modelo_propension_compra_cv.pkl")
 
             if modelo_path.exists():
+                # Obtener provincias disponibles para el formulario ML
+                try:
+                    query_prov_ml = text("""
+                        SELECT DISTINCT titular_domicilio_provincia as provincia
+                        FROM datos_gob_inscripciones
+                        WHERE titular_domicilio_provincia IS NOT NULL
+                        AND titular_domicilio_provincia != ''
+                        ORDER BY provincia
+                    """)
+                    df_prov_ml = pd.read_sql(query_prov_ml, engine)
+                    provincias_ml_options = ['Todas'] + df_prov_ml['provincia'].tolist()
+                except:
+                    provincias_ml_options = ['Todas']
+
                 col_form, col_result = st.columns([1, 1])
 
                 with col_form:
@@ -3805,7 +3819,7 @@ with tab8:
                         # Provincia
                         prov_ml = st.selectbox(
                             "Provincia",
-                            options=provincias_kpi,
+                            options=provincias_ml_options,
                             key="prov_ml"
                         )
 
