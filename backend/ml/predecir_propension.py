@@ -39,6 +39,143 @@ warnings.filterwarnings('ignore')
 # Agregar backend al path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
+# Importar conexión a BD (opcional, con fallback)
+try:
+    from sqlalchemy import create_engine, text
+    from backend.config.settings import settings
+    BD_DISPONIBLE = True
+except ImportError:
+    BD_DISPONIBLE = False
+
+
+def obtener_estadisticas_reales(provincia, localidad=None):
+    """
+    Obtiene estadísticas reales de la base de datos para una provincia/localidad.
+
+    Args:
+        provincia: Nombre de la provincia
+        localidad: Nombre de la localidad (opcional, si None usa toda la provincia)
+
+    Returns:
+        dict: Diccionario con estadísticas reales o None si no hay BD
+    """
+    if not BD_DISPONIBLE:
+        return None
+
+    try:
+        engine = create_engine(settings.get_database_url_sync())
+
+        # Filtro de ubicación
+        if localidad:
+            filtro_ubicacion = """
+                titular_domicilio_provincia = :provincia
+                AND titular_domicilio_localidad = :localidad
+            """
+            params = {'provincia': provincia.upper(), 'localidad': localidad.upper()}
+        else:
+            filtro_ubicacion = "titular_domicilio_provincia = :provincia"
+            params = {'provincia': provincia.upper()}
+
+        # Query para inscripciones y estadísticas generales
+        query_inscripciones = text(f"""
+            SELECT
+                COUNT(*) as total_inscripciones,
+                COUNT(DISTINCT automotor_marca) as marcas_distintas,
+                COUNT(DISTINCT automotor_modelo) as modelos_distintos,
+                AVG(EXTRACT(YEAR FROM AGE(tramite_fecha, titular_fecha_nacimiento))) as edad_promedio
+            FROM datos_gob_inscripciones
+            WHERE {filtro_ubicacion}
+            AND tramite_fecha >= CURRENT_DATE - INTERVAL '2 years'
+        """)
+
+        df_insc = pd.read_sql(query_inscripciones, engine, params=params)
+
+        # Query para top marcas y concentración
+        query_marcas = text(f"""
+            SELECT
+                automotor_marca as marca,
+                COUNT(*) as total,
+                COUNT(*) * 100.0 / SUM(COUNT(*)) OVER() as concentracion
+            FROM datos_gob_inscripciones
+            WHERE {filtro_ubicacion}
+            AND tramite_fecha >= CURRENT_DATE - INTERVAL '2 years'
+            GROUP BY automotor_marca
+            ORDER BY total DESC
+        """)
+
+        df_marcas = pd.read_sql(query_marcas, engine, params=params)
+
+        # Query para prendas (IF - Índice de Financiamiento para 0km)
+        query_prendas = text(f"""
+            SELECT COUNT(*) as total_prendas_0km
+            FROM datos_gob_prendas p
+            WHERE {filtro_ubicacion.replace('titular_domicilio_provincia', 'p.titular_domicilio_provincia').replace('titular_domicilio_localidad', 'p.titular_domicilio_localidad')}
+            AND p.tramite_fecha >= CURRENT_DATE - INTERVAL '2 years'
+            AND DATE(p.tramite_fecha) = DATE(p.fecha_inscripcion_inicial)
+        """)
+
+        df_prendas = pd.read_sql(query_prendas, engine, params=params)
+
+        # Query para transferencias
+        query_transf = text(f"""
+            SELECT
+                COUNT(*) as total_transferencias,
+                AVG(EXTRACT(YEAR FROM AGE(tramite_fecha, fecha_inscripcion_inicial))) as evt_promedio,
+                AVG(EXTRACT(YEAR FROM AGE(tramite_fecha, titular_fecha_nacimiento))) as edad_promedio_transf
+            FROM datos_gob_transferencias
+            WHERE {filtro_ubicacion}
+            AND tramite_fecha >= CURRENT_DATE - INTERVAL '2 years'
+        """)
+
+        df_transf = pd.read_sql(query_transf, engine, params=params)
+
+        # Calcular estadísticas
+        total_insc = int(df_insc['total_inscripciones'].iloc[0]) if df_insc['total_inscripciones'].iloc[0] else 100
+        total_prendas = int(df_prendas['total_prendas_0km'].iloc[0]) if df_prendas['total_prendas_0km'].iloc[0] else 0
+        total_transf = int(df_transf['total_transferencias'].iloc[0]) if df_transf['total_transferencias'].iloc[0] else 0
+
+        # Índice de financiamiento (prendas 0km / inscripciones * 100)
+        indice_financiamiento = (total_prendas / total_insc * 100) if total_insc > 0 else 35.0
+
+        # EVT promedio
+        evt_promedio = float(df_transf['evt_promedio'].iloc[0]) if df_transf['evt_promedio'].iloc[0] else 6.5
+
+        # IDA - Índice de Demanda Activa (transferencias / inscripciones * 100)
+        ida = (total_transf / total_insc * 100) if total_insc > 0 else 120.0
+
+        # Concentración de marca top
+        concentracion_top = float(df_marcas['concentracion'].iloc[0]) / 100 if len(df_marcas) > 0 else 0.15
+
+        # Crear diccionario de ranking de marcas
+        ranking_marcas = {}
+        for idx, row in df_marcas.iterrows():
+            ranking_marcas[row['marca']] = {
+                'ranking': idx + 1,
+                'total': int(row['total']),
+                'concentracion': float(row['concentracion']) / 100
+            }
+
+        estadisticas = {
+            'total_inscripciones': total_insc,
+            'modelos_distintos': int(df_insc['modelos_distintos'].iloc[0]) if df_insc['modelos_distintos'].iloc[0] else 5,
+            'edad_promedio': float(df_insc['edad_promedio'].iloc[0]) if df_insc['edad_promedio'].iloc[0] else 42,
+            'total_prendas': total_prendas,
+            'indice_financiamiento': indice_financiamiento,
+            'total_transferencias': total_transf,
+            'evt_promedio': evt_promedio,
+            'indice_demanda_activa': ida,
+            'concentracion_marca_top': concentracion_top,
+            'ranking_marcas': ranking_marcas,
+            'marcas_distintas': int(df_insc['marcas_distintas'].iloc[0]) if df_insc['marcas_distintas'].iloc[0] else 20
+        }
+
+        engine.dispose()
+        return estadisticas
+
+    except Exception as e:
+        print(f"Warning: No se pudieron obtener estadísticas reales: {e}")
+        return None
+
 
 def cargar_modelo_y_metadata(modelo_dir="data/models/propension_compra_cv"):
     """
@@ -108,7 +245,8 @@ def preparar_features_prediccion(
     iam_promedio=None,
     indice_demanda_activa=None,
     encoders=None,
-    feature_names=None
+    feature_names=None,
+    usar_datos_reales=True
 ):
     """
     Prepara las features para predicción a partir de características del usuario/segmento
@@ -129,6 +267,7 @@ def preparar_features_prediccion(
         indice_demanda_activa: IDA promedio de la localidad (opcional)
         encoders: Diccionario de encoders
         feature_names: Lista de nombres de features esperadas
+        usar_datos_reales: Si True, consulta la BD para obtener estadísticas reales
 
     Returns:
         np.array: Vector de features listo para predicción
@@ -138,6 +277,11 @@ def preparar_features_prediccion(
 
     if anio is None:
         anio = datetime.now().year
+
+    # Obtener estadísticas reales de la BD si está disponible
+    stats_reales = None
+    if usar_datos_reales:
+        stats_reales = obtener_estadisticas_reales(provincia, localidad)
 
     # Determinar rango de edad
     if edad < 25:
@@ -166,24 +310,45 @@ def preparar_features_prediccion(
         'anio': anio
     }
 
-    # Features numéricas básicas
-    input_data['edad_promedio_comprador'] = edad
-    input_data['total_inscripciones'] = 100  # Valor promedio
-    input_data['modelos_distintos'] = 5  # Valor promedio
+    # Features numéricas - usar datos reales si están disponibles
+    if stats_reales:
+        # DATOS REALES DE LA BD
+        input_data['edad_promedio_comprador'] = edad
+        input_data['total_inscripciones'] = stats_reales['total_inscripciones']
+        input_data['modelos_distintos'] = stats_reales['modelos_distintos']
 
-    # KPIs (usar promedios si no se proporcionan)
-    input_data['indice_financiamiento'] = indice_financiamiento if indice_financiamiento is not None else 35.0
-    input_data['total_prendas'] = input_data['total_inscripciones'] * (input_data['indice_financiamiento'] / 100)
-    input_data['evt_promedio'] = evt_promedio if evt_promedio is not None else 6.5
-    input_data['iam_promedio'] = iam_promedio if iam_promedio is not None else 5.0
-    input_data['indice_demanda_activa'] = indice_demanda_activa if indice_demanda_activa is not None else 120.0
-    input_data['total_transferencias'] = input_data['total_inscripciones'] * (input_data['indice_demanda_activa'] / 100)
+        # KPIs reales
+        input_data['indice_financiamiento'] = indice_financiamiento if indice_financiamiento is not None else stats_reales['indice_financiamiento']
+        input_data['total_prendas'] = stats_reales['total_prendas']
+        input_data['evt_promedio'] = evt_promedio if evt_promedio is not None else stats_reales['evt_promedio']
+        input_data['iam_promedio'] = iam_promedio if iam_promedio is not None else stats_reales.get('iam_promedio', 5.0)
+        input_data['indice_demanda_activa'] = indice_demanda_activa if indice_demanda_activa is not None else stats_reales['indice_demanda_activa']
+        input_data['total_transferencias'] = stats_reales['total_transferencias']
 
-    # Features derivadas
-    input_data['concentracion_marca_localidad'] = 0.15  # Valor promedio
-    input_data['ranking_marca_localidad'] = 5  # Valor promedio
-    input_data['inscripciones_mes_anterior'] = 95  # Valor promedio
-    input_data['inscripciones_mismo_mes_anio_anterior'] = 98  # Valor promedio
+        # Features derivadas con datos reales
+        input_data['concentracion_marca_localidad'] = stats_reales['concentracion_marca_top']
+        # Ranking promedio (usamos el promedio de marcas distintas / 2)
+        input_data['ranking_marca_localidad'] = min(stats_reales['marcas_distintas'] // 2, 10)
+        # Aproximar inscripciones anteriores basándonos en el total actual
+        input_data['inscripciones_mes_anterior'] = int(stats_reales['total_inscripciones'] * 0.95)
+        input_data['inscripciones_mismo_mes_anio_anterior'] = int(stats_reales['total_inscripciones'] * 0.90)
+    else:
+        # VALORES POR DEFECTO (fallback si no hay BD)
+        input_data['edad_promedio_comprador'] = edad
+        input_data['total_inscripciones'] = 100
+        input_data['modelos_distintos'] = 5
+
+        input_data['indice_financiamiento'] = indice_financiamiento if indice_financiamiento is not None else 35.0
+        input_data['total_prendas'] = input_data['total_inscripciones'] * (input_data['indice_financiamiento'] / 100)
+        input_data['evt_promedio'] = evt_promedio if evt_promedio is not None else 6.5
+        input_data['iam_promedio'] = iam_promedio if iam_promedio is not None else 5.0
+        input_data['indice_demanda_activa'] = indice_demanda_activa if indice_demanda_activa is not None else 120.0
+        input_data['total_transferencias'] = input_data['total_inscripciones'] * (input_data['indice_demanda_activa'] / 100)
+
+        input_data['concentracion_marca_localidad'] = 0.15
+        input_data['ranking_marca_localidad'] = 5
+        input_data['inscripciones_mes_anterior'] = 95
+        input_data['inscripciones_mismo_mes_anio_anterior'] = 98
 
     # Features adicionales (del feature engineering)
     # Tasa de crecimiento mensual
