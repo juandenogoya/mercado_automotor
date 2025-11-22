@@ -4290,15 +4290,26 @@ with tab8:
                     with st.form("form_prediccion_ml"):
                         st.markdown("#### 👤 Datos del Comprador")
 
-                        # Edad
-                        edad_ml = st.number_input(
-                            "Edad",
-                            min_value=18,
-                            max_value=100,
-                            value=35,
-                            step=1,
-                            key="edad_ml"
+                        # Rangos de edad
+                        rangos_edad = {
+                            "18-25": (18, 25, 22),   # (min, max, punto_medio)
+                            "26-35": (26, 35, 30),
+                            "36-45": (36, 45, 40),
+                            "46-55": (46, 55, 50),
+                            "56-65": (56, 65, 60),
+                            "66-75": (66, 75, 70),
+                            "+76": (76, 100, 80)
+                        }
+
+                        rango_edad_ml = st.selectbox(
+                            "Rango de Edad",
+                            options=list(rangos_edad.keys()),
+                            index=1,  # Default: 26-35
+                            key="rango_edad_ml",
+                            help="Selecciona el rango de edad del comprador"
                         )
+                        # Usar punto medio del rango para el modelo
+                        edad_ml = rangos_edad[rango_edad_ml][2]
 
                         col_gen, col_tipo = st.columns(2)
 
