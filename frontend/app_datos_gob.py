@@ -753,7 +753,328 @@ with tab2:
 
 # ==================== TAB 3: PRENDAS ====================
 with tab3:
-    analizar_tramites('datos_gob_prendas', 'Prendas sobre Vehículos', '💰')
+    st.header("💰 Prendas sobre Vehículos - Análisis Detallado")
+    st.markdown("""
+    **Clasificación de Prendas:**
+    - **Prenda 0km**: Cuando `tramite_fecha = fecha_inscripcion_inicial` (financiamiento de vehículo nuevo)
+    - **Prenda Usados**: Cuando `tramite_fecha ≠ fecha_inscripcion_inicial` (financiamiento de vehículo usado)
+    """)
+
+    # 1. Obtener años disponibles
+    query_anios_prendas = text("""
+        SELECT DISTINCT EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio
+        FROM datos_gob_prendas
+        WHERE tramite_fecha IS NOT NULL
+        ORDER BY anio DESC
+    """)
+
+    try:
+        df_anios_prendas = pd.read_sql(query_anios_prendas, engine)
+        anios_disponibles_prendas = df_anios_prendas['anio'].tolist() if not df_anios_prendas.empty else []
+    except:
+        anios_disponibles_prendas = []
+
+    if not anios_disponibles_prendas:
+        st.warning("⚠️ No hay datos disponibles en la tabla `datos_gob_prendas`")
+    else:
+        # 2. Filtros
+        st.markdown("### 🎯 Filtros de Búsqueda")
+
+        col_filtro1, col_filtro2, col_filtro3 = st.columns(3)
+
+        with col_filtro1:
+            anios_sel_prendas = st.multiselect(
+                "📅 Años",
+                options=anios_disponibles_prendas,
+                default=anios_disponibles_prendas[:2] if len(anios_disponibles_prendas) >= 2 else anios_disponibles_prendas,
+                key="prendas_anios_v2"
+            )
+
+        with col_filtro2:
+            meses_sel_prendas = st.multiselect(
+                "📆 Meses",
+                options=MESES_ORDEN,
+                default=MESES_ORDEN,
+                key="prendas_meses_v2"
+            )
+
+        # Obtener provincias disponibles
+        query_prov_prendas = text("""
+            SELECT DISTINCT titular_domicilio_provincia as provincia
+            FROM datos_gob_prendas
+            WHERE titular_domicilio_provincia IS NOT NULL
+            AND titular_domicilio_provincia != ''
+            ORDER BY provincia
+        """)
+
+        try:
+            df_prov_prendas = pd.read_sql(query_prov_prendas, engine)
+            provincias_disp_prendas = df_prov_prendas['provincia'].tolist()
+        except:
+            provincias_disp_prendas = []
+
+        with col_filtro3:
+            provincias_sel_prendas = st.multiselect(
+                "📍 Provincias",
+                options=provincias_disp_prendas,
+                default=provincias_disp_prendas[:3] if len(provincias_disp_prendas) >= 3 else provincias_disp_prendas,
+                key="prendas_provincias_v2"
+            )
+
+        if not anios_sel_prendas or not meses_sel_prendas or not provincias_sel_prendas:
+            st.warning("⚠️ Selecciona al menos un año, un mes y una provincia")
+        else:
+            # Convertir meses a números
+            meses_numeros_prendas = [list(MESES_ES.keys())[list(MESES_ES.values()).index(mes)] for mes in meses_sel_prendas]
+
+            st.markdown("---")
+
+            # 3. Consulta principal CON CLASIFICACIÓN 0km vs Usados
+            query_prendas_clasificado = text("""
+                SELECT
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                    EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                    titular_domicilio_provincia as provincia,
+                    automotor_marca_descripcion as marca,
+                    automotor_tipo_descripcion as tipo_vehiculo,
+                    titular_genero as genero,
+                    CASE
+                        WHEN DATE(tramite_fecha) = DATE(fecha_inscripcion_inicial) THEN 'Prenda 0km'
+                        ELSE 'Prenda Usados'
+                    END as tipo_prenda,
+                    COUNT(*) as cantidad,
+                    AVG(EXTRACT(YEAR FROM tramite_fecha) - titular_anio_nacimiento) as edad_promedio_titular,
+                    AVG(EXTRACT(YEAR FROM tramite_fecha) - EXTRACT(YEAR FROM fecha_inscripcion_inicial)) as antiguedad_promedio_vehiculo
+                FROM datos_gob_prendas
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND titular_domicilio_provincia = ANY(:provincias)
+                AND tramite_fecha IS NOT NULL
+                AND fecha_inscripcion_inicial IS NOT NULL
+                GROUP BY anio, mes, provincia, marca, tipo_vehiculo, genero, tipo_prenda
+                ORDER BY anio, mes, provincia
+            """)
+
+            try:
+                df_prendas = pd.read_sql(query_prendas_clasificado, engine, params={
+                    'anios': anios_sel_prendas,
+                    'meses': meses_numeros_prendas,
+                    'provincias': provincias_sel_prendas
+                })
+
+                if df_prendas.empty:
+                    st.warning("⚠️ No se encontraron datos con los filtros seleccionados")
+                else:
+                    df_prendas['mes_nombre'] = df_prendas['mes'].map(MESES_ES)
+
+                    # 4. KPIs PRINCIPALES CON DISTINCIÓN 0km vs Usados
+                    st.markdown("### 📊 Métricas Principales - Clasificación 0km vs Usados")
+
+                    total_prendas = df_prendas['cantidad'].sum()
+                    total_0km = df_prendas[df_prendas['tipo_prenda'] == 'Prenda 0km']['cantidad'].sum()
+                    total_usados = df_prendas[df_prendas['tipo_prenda'] == 'Prenda Usados']['cantidad'].sum()
+                    pct_0km = (total_0km / total_prendas * 100) if total_prendas > 0 else 0
+                    pct_usados = (total_usados / total_prendas * 100) if total_prendas > 0 else 0
+
+                    col1, col2, col3, col4, col5 = st.columns(5)
+
+                    with col1:
+                        st.metric("Total Prendas", format_number(total_prendas))
+
+                    with col2:
+                        st.metric("🆕 Prendas 0km", format_number(total_0km), f"{pct_0km:.1f}%")
+
+                    with col3:
+                        st.metric("🔄 Prendas Usados", format_number(total_usados), f"{pct_usados:.1f}%")
+
+                    with col4:
+                        edad_prom_0km = df_prendas[df_prendas['tipo_prenda'] == 'Prenda 0km']['edad_promedio_titular'].mean()
+                        st.metric("Edad Prom. Titular (0km)", f"{edad_prom_0km:.1f} años" if pd.notna(edad_prom_0km) else "N/A")
+
+                    with col5:
+                        edad_prom_usados = df_prendas[df_prendas['tipo_prenda'] == 'Prenda Usados']['edad_promedio_titular'].mean()
+                        st.metric("Edad Prom. Titular (Usados)", f"{edad_prom_usados:.1f} años" if pd.notna(edad_prom_usados) else "N/A")
+
+                    # Métricas adicionales de antigüedad de vehículos
+                    col_ant1, col_ant2, col_ant3 = st.columns(3)
+
+                    with col_ant1:
+                        st.metric("Marcas Únicas", df_prendas['marca'].nunique())
+
+                    with col_ant2:
+                        antig_0km = df_prendas[df_prendas['tipo_prenda'] == 'Prenda 0km']['antiguedad_promedio_vehiculo'].mean()
+                        st.metric("Antigüedad Vehículo (0km)", f"{antig_0km:.1f} años" if pd.notna(antig_0km) else "0 años")
+
+                    with col_ant3:
+                        antig_usados = df_prendas[df_prendas['tipo_prenda'] == 'Prenda Usados']['antiguedad_promedio_vehiculo'].mean()
+                        st.metric("Antigüedad Vehículo (Usados)", f"{antig_usados:.1f} años" if pd.notna(antig_usados) else "N/A")
+
+                    st.markdown("---")
+
+                    # 5. GRÁFICO DE DISTRIBUCIÓN 0km vs Usados
+                    st.markdown("### 📊 Distribución de Prendas: 0km vs Usados")
+
+                    col_graf1, col_graf2 = st.columns(2)
+
+                    with col_graf1:
+                        df_tipo_prenda = df_prendas.groupby('tipo_prenda')['cantidad'].sum().reset_index()
+
+                        fig_pie = px.pie(
+                            df_tipo_prenda,
+                            values='cantidad',
+                            names='tipo_prenda',
+                            title='Distribución Total de Prendas',
+                            color='tipo_prenda',
+                            color_discrete_map={'Prenda 0km': '#2ecc71', 'Prenda Usados': '#3498db'},
+                            hole=0.4
+                        )
+                        fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+                        st.plotly_chart(fig_pie, use_container_width=True)
+
+                    with col_graf2:
+                        # Evolución mensual por tipo de prenda
+                        df_mensual_tipo = df_prendas.groupby(['anio', 'mes', 'mes_nombre', 'tipo_prenda'])['cantidad'].sum().reset_index()
+
+                        fig_evol = px.line(
+                            df_mensual_tipo,
+                            x='mes_nombre',
+                            y='cantidad',
+                            color='tipo_prenda',
+                            line_dash='anio' if len(anios_sel_prendas) > 1 else None,
+                            title='Evolución Mensual por Tipo de Prenda',
+                            labels={'mes_nombre': 'Mes', 'cantidad': 'Cantidad', 'tipo_prenda': 'Tipo'},
+                            markers=True,
+                            category_orders={'mes_nombre': MESES_ORDEN},
+                            color_discrete_map={'Prenda 0km': '#2ecc71', 'Prenda Usados': '#3498db'}
+                        )
+                        fig_evol.update_layout(hovermode='x unified')
+                        st.plotly_chart(fig_evol, use_container_width=True)
+
+                    st.markdown("---")
+
+                    # 6. Comparación YoY por Tipo de Prenda
+                    st.markdown("### 📈 Comparación Anual por Tipo de Prenda")
+
+                    df_anual_tipo = df_prendas.groupby(['anio', 'tipo_prenda'])['cantidad'].sum().reset_index()
+
+                    fig_bar_tipo = px.bar(
+                        df_anual_tipo,
+                        x='anio',
+                        y='cantidad',
+                        color='tipo_prenda',
+                        barmode='group',
+                        title='Prendas por Año: 0km vs Usados',
+                        labels={'anio': 'Año', 'cantidad': 'Cantidad', 'tipo_prenda': 'Tipo'},
+                        text='cantidad',
+                        color_discrete_map={'Prenda 0km': '#2ecc71', 'Prenda Usados': '#3498db'}
+                    )
+                    fig_bar_tipo.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+                    fig_bar_tipo.update_layout(xaxis_type='category')
+                    st.plotly_chart(fig_bar_tipo, use_container_width=True)
+
+                    st.markdown("---")
+
+                    # 7. Top Marcas por Tipo de Prenda
+                    st.markdown("### 🏆 Top 10 Marcas por Tipo de Prenda")
+
+                    col_marcas1, col_marcas2 = st.columns(2)
+
+                    with col_marcas1:
+                        df_marcas_0km = df_prendas[df_prendas['tipo_prenda'] == 'Prenda 0km'].groupby('marca')['cantidad'].sum().nlargest(10).reset_index()
+
+                        if not df_marcas_0km.empty:
+                            fig_marcas_0km = px.bar(
+                                df_marcas_0km,
+                                x='cantidad',
+                                y='marca',
+                                orientation='h',
+                                title='Top 10 Marcas - Prendas 0km',
+                                labels={'marca': 'Marca', 'cantidad': 'Cantidad'},
+                                text='cantidad',
+                                color='cantidad',
+                                color_continuous_scale='Greens'
+                            )
+                            fig_marcas_0km.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+                            fig_marcas_0km.update_layout(yaxis={'categoryorder': 'total ascending'}, showlegend=False)
+                            st.plotly_chart(fig_marcas_0km, use_container_width=True)
+                        else:
+                            st.info("No hay datos de marcas para prendas 0km")
+
+                    with col_marcas2:
+                        df_marcas_usados = df_prendas[df_prendas['tipo_prenda'] == 'Prenda Usados'].groupby('marca')['cantidad'].sum().nlargest(10).reset_index()
+
+                        if not df_marcas_usados.empty:
+                            fig_marcas_usados = px.bar(
+                                df_marcas_usados,
+                                x='cantidad',
+                                y='marca',
+                                orientation='h',
+                                title='Top 10 Marcas - Prendas Usados',
+                                labels={'marca': 'Marca', 'cantidad': 'Cantidad'},
+                                text='cantidad',
+                                color='cantidad',
+                                color_continuous_scale='Blues'
+                            )
+                            fig_marcas_usados.update_traces(texttemplate='%{text:,.0f}', textposition='outside')
+                            fig_marcas_usados.update_layout(yaxis={'categoryorder': 'total ascending'}, showlegend=False)
+                            st.plotly_chart(fig_marcas_usados, use_container_width=True)
+                        else:
+                            st.info("No hay datos de marcas para prendas usados")
+
+                    st.markdown("---")
+
+                    # 8. Análisis por Provincia
+                    st.markdown("### 🗺️ Distribución Provincial por Tipo de Prenda")
+
+                    df_prov_tipo = df_prendas.groupby(['provincia', 'tipo_prenda'])['cantidad'].sum().reset_index()
+                    df_prov_total = df_prov_tipo.groupby('provincia')['cantidad'].sum().nlargest(10).index.tolist()
+                    df_prov_tipo_top = df_prov_tipo[df_prov_tipo['provincia'].isin(df_prov_total)]
+
+                    fig_prov_tipo = px.bar(
+                        df_prov_tipo_top,
+                        x='provincia',
+                        y='cantidad',
+                        color='tipo_prenda',
+                        title='Top 10 Provincias - Distribución 0km vs Usados',
+                        labels={'provincia': 'Provincia', 'cantidad': 'Cantidad', 'tipo_prenda': 'Tipo'},
+                        barmode='stack',
+                        color_discrete_map={'Prenda 0km': '#2ecc71', 'Prenda Usados': '#3498db'}
+                    )
+                    st.plotly_chart(fig_prov_tipo, use_container_width=True)
+
+                    st.markdown("---")
+
+                    # 9. Tabla resumen
+                    st.markdown("### 📋 Resumen por Tipo de Prenda")
+
+                    df_resumen = df_prendas.groupby('tipo_prenda').agg({
+                        'cantidad': 'sum',
+                        'edad_promedio_titular': 'mean',
+                        'antiguedad_promedio_vehiculo': 'mean',
+                        'marca': 'nunique'
+                    }).reset_index()
+
+                    df_resumen.columns = ['Tipo de Prenda', 'Total', 'Edad Prom. Titular', 'Antigüedad Prom. Vehículo', 'Marcas Únicas']
+                    df_resumen['% del Total'] = (df_resumen['Total'] / df_resumen['Total'].sum() * 100).round(1)
+                    df_resumen['Total'] = df_resumen['Total'].apply(lambda x: f"{int(x):,}")
+                    df_resumen['Edad Prom. Titular'] = df_resumen['Edad Prom. Titular'].apply(lambda x: f"{x:.1f} años" if pd.notna(x) else "N/A")
+                    df_resumen['Antigüedad Prom. Vehículo'] = df_resumen['Antigüedad Prom. Vehículo'].apply(lambda x: f"{x:.1f} años" if pd.notna(x) else "N/A")
+                    df_resumen['% del Total'] = df_resumen['% del Total'].apply(lambda x: f"{x}%")
+
+                    st.dataframe(df_resumen, use_container_width=True, hide_index=True)
+
+                    # Botón de descarga
+                    csv_prendas = df_prendas.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="📥 Descargar datos de prendas (CSV)",
+                        data=csv_prendas,
+                        file_name=f"prendas_clasificadas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv"
+                    )
+
+            except Exception as e:
+                st.error(f"❌ Error al cargar datos: {str(e)}")
+                st.exception(e)
 
 # ==================== TAB 4: REGISTRO POR LOCALIDAD ====================
 with tab4:
@@ -3407,12 +3728,17 @@ with tab8:
 
         # ========== SECCIÓN 2: FINANCIAMIENTO ==========
         st.markdown("## 💳 Financiamiento")
+        st.markdown("""
+        **Metodología corregida:**
+        - **IF 0km** = Prendas 0km / Inscripciones (donde `tramite_fecha = fecha_inscripcion_inicial`)
+        - **IF Usados** = Prendas Usados / Transferencias (donde `tramite_fecha ≠ fecha_inscripcion_inicial`)
+        """)
 
         try:
-            # KPI: IF - Índice de Financiamiento
+            # KPI: IF - Índice de Financiamiento (CORREGIDO)
             st.markdown("### 💰 IF: Índice de Financiamiento")
-            st.markdown("_Porcentaje de vehículos que se compran con financiamiento_")
 
+            # Query para Inscripciones (0km)
             query_if_insc = text(f"""
                 SELECT
                     EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
@@ -3433,12 +3759,13 @@ with tab8:
                 ORDER BY anio, mes
             """)
 
-            query_if_prendas = text(f"""
+            # Query para Transferencias (Usados)
+            query_if_transf = text(f"""
                 SELECT
                     EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
                     EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
-                    COUNT(*) as prendas
-                FROM datos_gob_prendas
+                    COUNT(*) as transferencias
+                FROM datos_gob_transferencias
                 WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
                 AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
                 AND tramite_fecha IS NOT NULL
@@ -3453,63 +3780,165 @@ with tab8:
                 ORDER BY anio, mes
             """)
 
-            df_if_insc = pd.read_sql(query_if_insc, engine, params=params_kpi)
-            df_if_prendas = pd.read_sql(query_if_prendas, engine, params=params_kpi)
+            # Query para Prendas 0km (tramite_fecha = fecha_inscripcion_inicial)
+            query_if_prendas_0km = text(f"""
+                SELECT
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                    EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                    COUNT(*) as prendas_0km
+                FROM datos_gob_prendas
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND tramite_fecha IS NOT NULL
+                AND fecha_inscripcion_inicial IS NOT NULL
+                AND DATE(tramite_fecha) = DATE(fecha_inscripcion_inicial)
+                {filtro_marca_kpi}
+                {filtro_tipo_persona_kpi}
+                {filtro_provincia_kpi}
+                {filtro_localidad_kpi}
+                {filtro_genero_kpi}
+                {filtro_origen_kpi}
+                {filtro_tipo_vehiculo_kpi}
+                GROUP BY anio, mes
+                ORDER BY anio, mes
+            """)
 
-            if not df_if_insc.empty and not df_if_prendas.empty:
-                # Merge
-                df_if = df_if_insc.merge(df_if_prendas, on=['anio', 'mes'], how='left').fillna(0)
-                df_if['if_porcentaje'] = (df_if['prendas'] / df_if['inscripciones'] * 100).fillna(0)
+            # Query para Prendas Usados (tramite_fecha <> fecha_inscripcion_inicial)
+            query_if_prendas_usados = text(f"""
+                SELECT
+                    EXTRACT(YEAR FROM tramite_fecha)::INTEGER as anio,
+                    EXTRACT(MONTH FROM tramite_fecha)::INTEGER as mes,
+                    COUNT(*) as prendas_usados
+                FROM datos_gob_prendas
+                WHERE EXTRACT(YEAR FROM tramite_fecha) = ANY(:anios)
+                AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
+                AND tramite_fecha IS NOT NULL
+                AND fecha_inscripcion_inicial IS NOT NULL
+                AND DATE(tramite_fecha) <> DATE(fecha_inscripcion_inicial)
+                {filtro_marca_kpi}
+                {filtro_tipo_persona_kpi}
+                {filtro_provincia_kpi}
+                {filtro_localidad_kpi}
+                {filtro_genero_kpi}
+                {filtro_origen_kpi}
+                {filtro_tipo_vehiculo_kpi}
+                GROUP BY anio, mes
+                ORDER BY anio, mes
+            """)
+
+            df_if_insc = pd.read_sql(query_if_insc, engine, params=params_kpi)
+            df_if_transf = pd.read_sql(query_if_transf, engine, params=params_kpi)
+            df_if_prendas_0km = pd.read_sql(query_if_prendas_0km, engine, params=params_kpi)
+            df_if_prendas_usados = pd.read_sql(query_if_prendas_usados, engine, params=params_kpi)
+
+            if not df_if_insc.empty:
+                # Merge todos los dataframes
+                df_if = df_if_insc.merge(df_if_prendas_0km, on=['anio', 'mes'], how='left').fillna(0)
+                df_if = df_if.merge(df_if_transf, on=['anio', 'mes'], how='left').fillna(0)
+                df_if = df_if.merge(df_if_prendas_usados, on=['anio', 'mes'], how='left').fillna(0)
+
+                # Calcular IF para 0km y Usados
+                df_if['if_0km'] = (df_if['prendas_0km'] / df_if['inscripciones'] * 100).fillna(0)
+                df_if['if_usados'] = (df_if['prendas_usados'] / df_if['transferencias'] * 100).fillna(0)
                 df_if['mes_nombre'] = df_if['mes'].map(MESES_ES)
 
-                # Métricas
+                # Métricas principales
+                st.markdown("#### 🆕 Financiamiento de Vehículos 0km")
                 col_if1, col_if2, col_if3 = st.columns(3)
 
-                total_prendas_if = df_if['prendas'].sum()
+                total_prendas_0km = df_if['prendas_0km'].sum()
                 total_insc_if = df_if['inscripciones'].sum()
-                if_general = (total_prendas_if / total_insc_if * 100) if total_insc_if > 0 else 0
+                if_0km_general = (total_prendas_0km / total_insc_if * 100) if total_insc_if > 0 else 0
 
                 with col_if1:
-                    st.metric("IF Promedio", f"{if_general:.1f}%")
+                    st.metric("IF 0km", f"{if_0km_general:.1f}%", help="Prendas 0km / Inscripciones")
                 with col_if2:
-                    st.metric("Total Prendas", format_number(int(total_prendas_if)))
+                    st.metric("Prendas 0km", format_number(int(total_prendas_0km)))
                 with col_if3:
-                    st.metric("Total Inscripciones", format_number(int(total_insc_if)))
+                    st.metric("Inscripciones", format_number(int(total_insc_if)))
 
-                # Gráfico
-                if len(anios_seleccionados_kpi) > 1:
-                    fig_if = px.line(
-                        df_if,
-                        x='mes',
-                        y='if_porcentaje',
-                        color='anio',
-                        title='Índice de Financiamiento - Comparación YoY',
-                        labels={'if_porcentaje': 'IF (%)', 'mes': 'Mes', 'anio': 'Año'},
-                        markers=True
-                    )
-                    fig_if.update_xaxis(tickmode='array', tickvals=list(range(1, 13)), ticktext=list(MESES_ES.values()))
-                else:
-                    fig_if = px.bar(
-                        df_if,
-                        x='mes_nombre',
-                        y='if_porcentaje',
-                        title=f'Índice de Financiamiento - Año {anios_seleccionados_kpi[0]}',
-                        labels={'if_porcentaje': 'IF (%)', 'mes_nombre': 'Mes'},
-                        text='if_porcentaje',
-                        color='if_porcentaje',
-                        color_continuous_scale='Blues'
-                    )
-                    fig_if.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+                st.markdown("#### 🔄 Financiamiento de Vehículos Usados")
+                col_if4, col_if5, col_if6 = st.columns(3)
 
-                st.plotly_chart(fig_if, use_container_width=True)
+                total_prendas_usados = df_if['prendas_usados'].sum()
+                total_transf_if = df_if['transferencias'].sum()
+                if_usados_general = (total_prendas_usados / total_transf_if * 100) if total_transf_if > 0 else 0
+
+                with col_if4:
+                    st.metric("IF Usados", f"{if_usados_general:.1f}%", help="Prendas Usados / Transferencias")
+                with col_if5:
+                    st.metric("Prendas Usados", format_number(int(total_prendas_usados)))
+                with col_if6:
+                    st.metric("Transferencias", format_number(int(total_transf_if)))
+
+                # Gráfico comparativo IF 0km vs IF Usados
+                st.markdown("#### 📈 Evolución Mensual del Financiamiento")
+
+                col_graf_if1, col_graf_if2 = st.columns(2)
+
+                with col_graf_if1:
+                    # Gráfico IF 0km
+                    if len(anios_seleccionados_kpi) > 1:
+                        fig_if_0km = px.line(
+                            df_if,
+                            x='mes',
+                            y='if_0km',
+                            color='anio',
+                            title='IF 0km - Comparación YoY',
+                            labels={'if_0km': 'IF 0km (%)', 'mes': 'Mes', 'anio': 'Año'},
+                            markers=True
+                        )
+                        fig_if_0km.update_xaxis(tickmode='array', tickvals=list(range(1, 13)), ticktext=list(MESES_ES.values()))
+                    else:
+                        fig_if_0km = px.bar(
+                            df_if,
+                            x='mes_nombre',
+                            y='if_0km',
+                            title=f'IF 0km - Año {anios_seleccionados_kpi[0]}',
+                            labels={'if_0km': 'IF 0km (%)', 'mes_nombre': 'Mes'},
+                            text='if_0km',
+                            color='if_0km',
+                            color_continuous_scale='Greens'
+                        )
+                        fig_if_0km.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+
+                    st.plotly_chart(fig_if_0km, use_container_width=True)
+
+                with col_graf_if2:
+                    # Gráfico IF Usados
+                    if len(anios_seleccionados_kpi) > 1:
+                        fig_if_usados = px.line(
+                            df_if,
+                            x='mes',
+                            y='if_usados',
+                            color='anio',
+                            title='IF Usados - Comparación YoY',
+                            labels={'if_usados': 'IF Usados (%)', 'mes': 'Mes', 'anio': 'Año'},
+                            markers=True
+                        )
+                        fig_if_usados.update_xaxis(tickmode='array', tickvals=list(range(1, 13)), ticktext=list(MESES_ES.values()))
+                    else:
+                        fig_if_usados = px.bar(
+                            df_if,
+                            x='mes_nombre',
+                            y='if_usados',
+                            title=f'IF Usados - Año {anios_seleccionados_kpi[0]}',
+                            labels={'if_usados': 'IF Usados (%)', 'mes_nombre': 'Mes'},
+                            text='if_usados',
+                            color='if_usados',
+                            color_continuous_scale='Blues'
+                        )
+                        fig_if_usados.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+
+                    st.plotly_chart(fig_if_usados, use_container_width=True)
 
                 # Análisis por segmento
-                st.markdown("#### 📊 Financiamiento por Segmento")
+                st.markdown("#### 📊 Financiamiento 0km por Segmento")
 
                 col_seg1, col_seg2 = st.columns(2)
 
                 with col_seg1:
-                    # Por género
+                    # Por género (solo prendas 0km)
                     if genero_kpi == "Todos":
                         query_if_genero = text(f"""
                             SELECT
@@ -3520,6 +3949,8 @@ with tab8:
                             AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
                             AND titular_genero IS NOT NULL
                             AND titular_genero != ''
+                            AND fecha_inscripcion_inicial IS NOT NULL
+                            AND DATE(tramite_fecha) = DATE(fecha_inscripcion_inicial)
                             {filtro_marca_kpi}
                             {filtro_tipo_persona_kpi}
                             {filtro_provincia_kpi}
@@ -3567,7 +3998,7 @@ with tab8:
                             st.plotly_chart(fig_gen, use_container_width=True)
 
                 with col_seg2:
-                    # Por origen
+                    # Por origen (solo prendas 0km)
                     if origen_kpi == "Ambos":
                         query_if_origen = text(f"""
                             SELECT
@@ -3578,6 +4009,8 @@ with tab8:
                             AND EXTRACT(MONTH FROM tramite_fecha) = ANY(:meses)
                             AND automotor_origen IS NOT NULL
                             AND automotor_origen != ''
+                            AND fecha_inscripcion_inicial IS NOT NULL
+                            AND DATE(tramite_fecha) = DATE(fecha_inscripcion_inicial)
                             {filtro_marca_kpi}
                             {filtro_tipo_persona_kpi}
                             {filtro_provincia_kpi}
