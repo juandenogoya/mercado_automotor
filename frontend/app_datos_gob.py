@@ -4279,9 +4279,9 @@ with tab8:
                     locs_ml = st.multiselect(
                         "Localidad(es)",
                         options=localidades_ml if localidades_ml else [],
-                        default=[localidades_ml[0]] if localidades_ml else [],
+                        default=[],
                         key="loc_ml_select",
-                        help="Selecciona una o más localidades. La predicción promediará los resultados."
+                        help="Selecciona localidades específicas o deja vacío para proyección provincial completa."
                     )
 
                     st.markdown("---")
@@ -4356,11 +4356,9 @@ with tab8:
                 with col_result:
                     st.markdown("### 📊 Resultados de Predicción")
 
-                    # Validar que provincia y localidad estén seleccionadas
+                    # Validar que provincia esté seleccionada
                     if not prov_ml or not localidades_ml:
                         st.info("👈 Selecciona una **provincia** para ver las localidades disponibles")
-                    elif not locs_ml:
-                        st.warning("⚠️ Selecciona al menos una localidad")
                     elif submitted:
                         with st.spinner("Calculando propensión de compra..."):
                             try:
@@ -4368,12 +4366,38 @@ with tab8:
                                 from backend.ml.predecir_propension import predecir_propension_compra
                                 from collections import defaultdict
 
-                                # Si hay múltiples localidades, promediar resultados
-                                if len(locs_ml) == 1:
+                                # Determinar localidades a usar
+                                es_provincial = len(locs_ml) == 0
+                                localidades_prediccion = []
+
+                                if es_provincial:
+                                    # Predicción provincial: obtener top 10 localidades por volumen
+                                    query_top_locs = text("""
+                                        SELECT titular_domicilio_localidad as localidad, COUNT(*) as total
+                                        FROM datos_gob_inscripciones
+                                        WHERE titular_domicilio_provincia = :provincia
+                                        AND titular_domicilio_localidad IS NOT NULL
+                                        AND titular_domicilio_localidad != ''
+                                        GROUP BY titular_domicilio_localidad
+                                        ORDER BY total DESC
+                                        LIMIT 10
+                                    """)
+                                    df_top_locs = pd.read_sql(query_top_locs, engine, params={'provincia': prov_ml})
+                                    localidades_prediccion = df_top_locs['localidad'].tolist()
+                                    loc_display = f"🌐 Proyección Provincial ({prov_ml})"
+                                else:
+                                    localidades_prediccion = locs_ml
+                                    if len(locs_ml) == 1:
+                                        loc_display = locs_ml[0]
+                                    else:
+                                        loc_display = f"{len(locs_ml)} localidades"
+
+                                # Si hay solo una localidad (y no es provincial)
+                                if len(localidades_prediccion) == 1 and not es_provincial:
                                     # Una sola localidad
                                     resultados = predecir_propension_compra(
                                         provincia=prov_ml,
-                                        localidad=locs_ml[0],
+                                        localidad=localidades_prediccion[0],
                                         edad=edad_ml,
                                         genero=genero_ml,
                                         tipo_persona=tipo_pers_ml,
@@ -4382,13 +4406,12 @@ with tab8:
                                         top_n=top_n_ml * 2,  # Pedir más para tener suficientes
                                         modelo_dir="data/models/propension_compra_cv"
                                     )
-                                    loc_display = locs_ml[0]
                                 else:
-                                    # Múltiples localidades: promediar probabilidades
+                                    # Múltiples localidades o provincial: promediar probabilidades
                                     prob_acumuladas = defaultdict(float)
-                                    n_localidades = len(locs_ml)
+                                    n_localidades = len(localidades_prediccion)
 
-                                    for loc in locs_ml:
+                                    for loc in localidades_prediccion:
                                         try:
                                             res_loc = predecir_propension_compra(
                                                 provincia=prov_ml,
@@ -4413,8 +4436,6 @@ with tab8:
                                     else:
                                         resultados = []
 
-                                    loc_display = f"{len(locs_ml)} localidades"
-
                                 # Mostrar resultados
                                 if resultados:
                                     # Tomar solo top_n resultados
@@ -4422,8 +4443,11 @@ with tab8:
 
                                     st.success(f"✅ Predicción completada para {prov_ml} - {loc_display}")
 
-                                    # Mostrar localidades seleccionadas si hay más de una
-                                    if len(locs_ml) > 1:
+                                    # Mostrar localidades usadas en la predicción
+                                    if es_provincial:
+                                        with st.expander(f"📍 Top {len(localidades_prediccion)} localidades de {prov_ml} (por volumen de inscripciones)"):
+                                            st.write(", ".join(localidades_prediccion))
+                                    elif len(locs_ml) > 1:
                                         with st.expander(f"📍 Localidades incluidas ({len(locs_ml)})"):
                                             st.write(", ".join(locs_ml))
 
