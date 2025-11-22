@@ -4276,13 +4276,12 @@ with tab8:
                         except:
                             localidades_ml = []
 
-                    loc_ml = st.selectbox(
-                        "Localidad",
-                        options=localidades_ml if localidades_ml else ["Sin localidades disponibles"],
-                        index=0 if localidades_ml else None,
+                    locs_ml = st.multiselect(
+                        "Localidad(es)",
+                        options=localidades_ml if localidades_ml else [],
+                        default=[localidades_ml[0]] if localidades_ml else [],
                         key="loc_ml_select",
-                        disabled=not localidades_ml,
-                        help="Las localidades se filtran según la provincia seleccionada"
+                        help="Selecciona una o más localidades. La predicción promediará los resultados."
                     )
 
                     st.markdown("---")
@@ -4360,30 +4359,73 @@ with tab8:
                     # Validar que provincia y localidad estén seleccionadas
                     if not prov_ml or not localidades_ml:
                         st.info("👈 Selecciona una **provincia** para ver las localidades disponibles")
-                    elif loc_ml == "Sin localidades disponibles":
-                        st.warning("⚠️ No hay localidades disponibles para la provincia seleccionada")
+                    elif not locs_ml:
+                        st.warning("⚠️ Selecciona al menos una localidad")
                     elif submitted:
                         with st.spinner("Calculando propensión de compra..."):
                             try:
                                 # Importar función de predicción
                                 from backend.ml.predecir_propension import predecir_propension_compra
+                                from collections import defaultdict
 
-                                # Realizar predicción usando modelo CV
-                                resultados = predecir_propension_compra(
-                                    provincia=prov_ml,
-                                    localidad=loc_ml,
-                                    edad=edad_ml,
-                                    genero=genero_ml,
-                                    tipo_persona=tipo_pers_ml,
-                                    tipo_vehiculo=tipo_veh_ml,
-                                    origen=origen_ml,
-                                    top_n=top_n_ml,
-                                    modelo_dir="data/models/propension_compra_cv"
-                                )
+                                # Si hay múltiples localidades, promediar resultados
+                                if len(locs_ml) == 1:
+                                    # Una sola localidad
+                                    resultados = predecir_propension_compra(
+                                        provincia=prov_ml,
+                                        localidad=locs_ml[0],
+                                        edad=edad_ml,
+                                        genero=genero_ml,
+                                        tipo_persona=tipo_pers_ml,
+                                        tipo_vehiculo=tipo_veh_ml,
+                                        origen=origen_ml,
+                                        top_n=top_n_ml * 2,  # Pedir más para tener suficientes
+                                        modelo_dir="data/models/propension_compra_cv"
+                                    )
+                                    loc_display = locs_ml[0]
+                                else:
+                                    # Múltiples localidades: promediar probabilidades
+                                    prob_acumuladas = defaultdict(float)
+                                    n_localidades = len(locs_ml)
+
+                                    for loc in locs_ml:
+                                        try:
+                                            res_loc = predecir_propension_compra(
+                                                provincia=prov_ml,
+                                                localidad=loc,
+                                                edad=edad_ml,
+                                                genero=genero_ml,
+                                                tipo_persona=tipo_pers_ml,
+                                                tipo_vehiculo=tipo_veh_ml,
+                                                origen=origen_ml,
+                                                top_n=100,  # Todas las marcas para promediar
+                                                modelo_dir="data/models/propension_compra_cv"
+                                            )
+                                            for marca, prob in res_loc:
+                                                prob_acumuladas[marca] += prob
+                                        except:
+                                            n_localidades -= 1
+
+                                    # Promediar
+                                    if n_localidades > 0:
+                                        resultados = [(marca, prob / n_localidades) for marca, prob in prob_acumuladas.items()]
+                                        resultados = sorted(resultados, key=lambda x: x[1], reverse=True)[:top_n_ml]
+                                    else:
+                                        resultados = []
+
+                                    loc_display = f"{len(locs_ml)} localidades"
 
                                 # Mostrar resultados
                                 if resultados:
-                                    st.success(f"✅ Predicción completada para {prov_ml} - {loc_ml}")
+                                    # Tomar solo top_n resultados
+                                    resultados = resultados[:top_n_ml]
+
+                                    st.success(f"✅ Predicción completada para {prov_ml} - {loc_display}")
+
+                                    # Mostrar localidades seleccionadas si hay más de una
+                                    if len(locs_ml) > 1:
+                                        with st.expander(f"📍 Localidades incluidas ({len(locs_ml)})"):
+                                            st.write(", ".join(locs_ml))
 
                                     # Crear DataFrame para visualización
                                     df_pred = pd.DataFrame(

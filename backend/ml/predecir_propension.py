@@ -315,8 +315,8 @@ def predecir_propension_compra(
     # Obtener clases (marcas)
     clases = model.classes_
 
-    # Decodificar marcas
-    marca_encoder = encoders.get('marca')
+    # Decodificar marcas (el encoder de marcas se guarda como 'target')
+    marca_encoder = encoders.get('target')
     if marca_encoder:
         try:
             marcas = marca_encoder.inverse_transform(clases)
@@ -385,8 +385,8 @@ def predecir_batch(input_csv, output_csv, top_n=5, modelo_dir="data/ml/modelos")
             probabilidades = model.predict_proba(X)[0]
             clases = model.classes_
 
-            # Decodificar marcas
-            marca_encoder = encoders.get('marca')
+            # Decodificar marcas (el encoder de marcas se guarda como 'target')
+            marca_encoder = encoders.get('target')
             if marca_encoder:
                 try:
                     marcas = marca_encoder.inverse_transform(clases)
