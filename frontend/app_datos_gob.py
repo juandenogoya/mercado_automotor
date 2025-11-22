@@ -4238,26 +4238,31 @@ with tab8:
                         ORDER BY provincia
                     """)
                     df_prov_ml = pd.read_sql(query_prov_ml, engine)
-                    provincias_ml_options = ['Todas'] + df_prov_ml['provincia'].tolist()
+                    provincias_ml_options = df_prov_ml['provincia'].tolist()
                 except:
-                    provincias_ml_options = ['Todas']
+                    provincias_ml_options = []
 
                 col_form, col_result = st.columns([1, 1])
 
                 with col_form:
                     st.markdown("### 📋 Perfil del Comprador")
 
-                    # Formulario de entrada
-                    with st.form("form_prediccion_ml"):
-                        # Provincia
-                        prov_ml = st.selectbox(
-                            "Provincia",
-                            options=provincias_ml_options,
-                            key="prov_ml"
-                        )
+                    # PROVINCIA Y LOCALIDAD FUERA DEL FORM para que sean reactivos
+                    st.markdown("#### 📍 Ubicación")
 
-                        # Localidad (filtrada por provincia)
-                        if prov_ml != "Todas":
+                    # Provincia (FUERA del form para reactividad)
+                    prov_ml = st.selectbox(
+                        "Provincia",
+                        options=provincias_ml_options,
+                        index=0 if provincias_ml_options else None,
+                        key="prov_ml_select",
+                        help="Selecciona una provincia para ver sus localidades"
+                    )
+
+                    # Localidad (filtrada por provincia seleccionada - REACTIVO)
+                    localidades_ml = []
+                    if prov_ml:
+                        try:
                             query_loc_ml = text("""
                                 SELECT DISTINCT titular_domicilio_localidad as localidad
                                 FROM datos_gob_inscripciones
@@ -4267,15 +4272,24 @@ with tab8:
                                 ORDER BY localidad
                             """)
                             df_loc_ml = pd.read_sql(query_loc_ml, engine, params={'provincia': prov_ml})
-                            localidades_ml = ['Todas'] + df_loc_ml['localidad'].tolist()
-                        else:
-                            localidades_ml = ['Todas']
+                            localidades_ml = df_loc_ml['localidad'].tolist()
+                        except:
+                            localidades_ml = []
 
-                        loc_ml = st.selectbox(
-                            "Localidad",
-                            options=localidades_ml,
-                            key="loc_ml"
-                        )
+                    loc_ml = st.selectbox(
+                        "Localidad",
+                        options=localidades_ml if localidades_ml else ["Sin localidades disponibles"],
+                        index=0 if localidades_ml else None,
+                        key="loc_ml_select",
+                        disabled=not localidades_ml,
+                        help="Las localidades se filtran según la provincia seleccionada"
+                    )
+
+                    st.markdown("---")
+
+                    # Resto del formulario para otros campos
+                    with st.form("form_prediccion_ml"):
+                        st.markdown("#### 👤 Datos del Comprador")
 
                         # Edad
                         edad_ml = st.number_input(
@@ -4287,39 +4301,49 @@ with tab8:
                             key="edad_ml"
                         )
 
-                        # Género
-                        genero_ml = st.selectbox(
-                            "Género",
-                            options=["M", "F", "OTRO"],
-                            format_func=lambda x: {"M": "Masculino", "F": "Femenino", "OTRO": "Otro"}[x],
-                            key="genero_ml"
-                        )
+                        col_gen, col_tipo = st.columns(2)
 
-                        # Tipo de Persona
-                        tipo_pers_ml = st.selectbox(
-                            "Tipo de Persona",
-                            options=["FISICA", "JURIDICA"],
-                            format_func=lambda x: {"FISICA": "Física", "JURIDICA": "Jurídica"}[x],
-                            key="tipo_pers_ml"
-                        )
+                        with col_gen:
+                            # Género
+                            genero_ml = st.selectbox(
+                                "Género",
+                                options=["M", "F", "OTRO"],
+                                format_func=lambda x: {"M": "Masculino", "F": "Femenino", "OTRO": "Otro"}[x],
+                                key="genero_ml"
+                            )
 
-                        # Tipo de Vehículo
-                        tipo_veh_ml = st.selectbox(
-                            "Tipo de Vehículo",
-                            options=["AUTOMOVIL", "MOTOVEHICULO", "CAMION", "UTILITARIO"],
-                            key="tipo_veh_ml"
-                        )
+                        with col_tipo:
+                            # Tipo de Persona
+                            tipo_pers_ml = st.selectbox(
+                                "Tipo de Persona",
+                                options=["FISICA", "JURIDICA"],
+                                format_func=lambda x: {"FISICA": "Física", "JURIDICA": "Jurídica"}[x],
+                                key="tipo_pers_ml"
+                            )
 
-                        # Origen
-                        origen_ml = st.selectbox(
-                            "Origen",
-                            options=["NACIONAL", "IMPORTADO"],
-                            key="origen_ml"
-                        )
+                        st.markdown("#### 🚗 Tipo de Vehículo")
+
+                        col_veh, col_ori = st.columns(2)
+
+                        with col_veh:
+                            # Tipo de Vehículo
+                            tipo_veh_ml = st.selectbox(
+                                "Tipo de Vehículo",
+                                options=["AUTOMOVIL", "MOTOVEHICULO", "CAMION", "UTILITARIO"],
+                                key="tipo_veh_ml"
+                            )
+
+                        with col_ori:
+                            # Origen
+                            origen_ml = st.selectbox(
+                                "Origen",
+                                options=["NACIONAL", "IMPORTADO"],
+                                key="origen_ml"
+                            )
 
                         # Top N
                         top_n_ml = st.slider(
-                            "Top N marcas",
+                            "Top N marcas a mostrar",
                             min_value=3,
                             max_value=10,
                             value=5,
@@ -4333,7 +4357,12 @@ with tab8:
                 with col_result:
                     st.markdown("### 📊 Resultados de Predicción")
 
-                    if submitted and prov_ml != "Todas" and loc_ml != "Todas":
+                    # Validar que provincia y localidad estén seleccionadas
+                    if not prov_ml or not localidades_ml:
+                        st.info("👈 Selecciona una **provincia** para ver las localidades disponibles")
+                    elif loc_ml == "Sin localidades disponibles":
+                        st.warning("⚠️ No hay localidades disponibles para la provincia seleccionada")
+                    elif submitted:
                         with st.spinner("Calculando propensión de compra..."):
                             try:
                                 # Importar función de predicción
